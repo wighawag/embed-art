@@ -62,26 +62,41 @@ export async function fetchMetadata(
   }
 
   // TODO try catch
-  const tokenURI = tokenURIInterface.decodeFunctionResult(
+  let tokenURI = tokenURIInterface.decodeFunctionResult(
     "tokenURI",
     json.result
   )[0];
 
+  // ------------------------------------------------------------------------------------------------------------------
+  // FIXES for broken projects
+  // ------------------------------------------------------------------------------------------------------------------
+  // JS24K
+  const percentRegex = /50\%/gm;
+  tokenURI = tokenURI.replace(percentRegex, "50%25");
+  // ------------------------------------------------------------------------------------------------------------------
+
+  const urlDecodedTokenURI = decodeURI(tokenURI);
+
   let metadata;
-  if (tokenURI.startsWith("data:")) {
-    if (tokenURI.startsWith("data:text/plain,")) {
-      metadata = JSON.parse(decodeURI(tokenURI.slice(16)));
-    } else if (tokenURI.startsWith("data:text/plain;base64,")) {
-      metadata = JSON.parse(atob(decodeURI(tokenURI.slice(23))));
-    } else if (tokenURI.startsWith("data:application/json,")) {
-      metadata = JSON.parse(decodeURI(tokenURI.slice(22)));
-    } else if (tokenURI.startsWith("data:application/json;base64,")) {
-      metadata = JSON.parse(atob(decodeURI(tokenURI.slice(29))));
+  try {
+    if (tokenURI.startsWith("data:")) {
+      if (tokenURI.startsWith("data:text/plain,")) {
+        metadata = JSON.parse(urlDecodedTokenURI.slice(16));
+      } else if (tokenURI.startsWith("data:text/plain;base64,")) {
+        metadata = JSON.parse(atob(urlDecodedTokenURI.slice(23)));
+      } else if (tokenURI.startsWith("data:application/json,")) {
+        metadata = JSON.parse(urlDecodedTokenURI.slice(22));
+      } else if (tokenURI.startsWith("data:application/json;base64,")) {
+        metadata = JSON.parse(atob(urlDecodedTokenURI.slice(29)));
+      } else {
+        throw new Error(`not supported : ${tokenURI}`);
+      }
     } else {
-      throw new Error(`not supported : ${tokenURI}`);
+      metadata = await fetch(tokenURI).then((v) => v.json());
     }
-  } else {
-    metadata = await fetch(tokenURI).then((v) => v.json());
+  } catch (err) {
+    throw new Error(`${err.message}\n${err.stack}\ntokenURI: ${tokenURI}`);
   }
+
   return metadata;
 }

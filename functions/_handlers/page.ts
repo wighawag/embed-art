@@ -66,27 +66,27 @@ export async function page(
         height: 100%;
         margin: 0;
       }
-      #nft-image {
+      .main {
         width: 30%;
         height: auto;
       }
 
       @media only screen and (max-width: 1000px) {
-        #nft-image {
+        .main {
           width: 60%;
           height: auto;
         }
       }
 
       @media only screen and (max-width: 600px) {
-        #nft-image {
+        .main {
           width: 90%;
           height: auto;
         }
       }
 
       @media only screen and (max-width: 400px) {
-        #nft-image {
+        .main {
           width: 100%;
           height: auto;
         }
@@ -100,23 +100,28 @@ export async function page(
         margin-bottom: 2em;
       }
 
+      #nft-iframe {
+        min-width: 80vw;
+        min-height: 80vh;
+      }
+
+
     </style>
   </head>
   <body>
     <div id="wrapper">
       <h1 id="nft-title">${title}</h1>
       <p id="nft-description">${description}</p>
-        <p>
-            <img id="nft-image" src="${image}" />
-        </p>
+       
         ${
           iframeURL
-            ? `<p>
-        <div id="nft-iframe-wrapper">
-          <iframe id="nft-iframe" src="${iframeURL}"></iframe>
-        </div>
-      </p>`
-            : ""
+            ? `
+        <p>
+          <iframe class="main" id="nft-iframe" src="${iframeURL}"></iframe>
+        </p>`
+            : `<p>
+                <img class="main" id="nft-image" src="${image}" />
+              </p>`
         }
         ${
           audioURL

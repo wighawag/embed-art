@@ -3,3 +3,8 @@ export function getImageUrl(request: Request, imageID: string): string {
   const imageURL = url.protocol + "//" + url.host + "/images" + imageID;
   return imageURL;
 }
+
+const regex = /\//gm;
+export function cssURLEscaped(uri: string): string {
+  return uri.replace(regex, "\\/");
+}

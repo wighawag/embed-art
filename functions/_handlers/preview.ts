@@ -1,4 +1,5 @@
 import { Metadata } from "../_utils/metadata";
+import { cssURLEscaped } from "../_utils/url";
 // const regex = /\(|\)|\'|\"|\ |\//gm;
 // function cssURLEscaped(uri: string): string {
 //   return uri.replace(regex, (v) => {
@@ -19,10 +20,6 @@ import { Metadata } from "../_utils/metadata";
 //needed for css ?
 // https://stackoverflow.com/a/851753/1663971
 // https://www.w3.org/TR/CSS2/syndata.html#value-def-uri
-const regex = /\//gm;
-function cssURLEscaped(uri: string): string {
-  return uri.replace(regex, "\\/");
-}
 
 export async function preview(metadata: Metadata): Promise<Response> {
   const title = metadata.name;
