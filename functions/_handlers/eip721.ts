@@ -80,7 +80,7 @@ export async function eip721(
   try {
     const metadata = await fetchMetadata(env, chainId, contract, tokenID);
     if (!onlyPreview) {
-      const imageID = "/" + (await sha256(metadata.image)) + ".jpg";
+      const imageID = (await sha256(metadata.image)) + ".jpg";
       const imageURL = getImageUrl(request, imageID);
       let imageHead = await env.IMAGES.head(imageID);
       console.log(imageHead);
