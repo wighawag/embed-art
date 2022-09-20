@@ -12,7 +12,7 @@ export async function onRequest(context) {
         headers,
       });
     } else {
-      return new Response(`Not found`, { status: 404 });
+      return new Response(`Not found : ${pathname}`, { status: 404 });
     }
   } catch (err) {
     return new Response(`${err.message}\n${err.stack}`, { status: 500 });
