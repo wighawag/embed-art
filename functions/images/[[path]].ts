@@ -2,7 +2,7 @@ export async function onRequest(context) {
   const { env, params } = context;
   try {
     const pathname = "/" + (params.path?.join("/") || "");
-    const fromR2 = await env.IMAGES.get(pathname);
+    const fromR2 = await env.IMAGES.get(pathname.slice(1));
     if (fromR2) {
       const headers = new Headers();
       fromR2.writeHttpMetadata(headers);
