@@ -89,7 +89,7 @@ export async function eip721(
         if (env.SCREENSHOT_SERVICE) {
           try {
             screenshot = await fetch(
-              `${env.SCREENSHOT_SERVICE}&url=${request.url}/preview&format=jpeg&width=800&height=412&fresh=true&full_page=true&response_type=json`
+              `${env.SCREENSHOT_SERVICE}&url=${request.url}/preview&format=jpeg&width=824&height=412&fresh=true&full_page=true&response_type=json`
             ).then((v) => v.json());
           } catch (err) {
             return new Response(
