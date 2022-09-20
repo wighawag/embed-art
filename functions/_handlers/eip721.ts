@@ -7,7 +7,7 @@ import { preview } from "./preview";
 function base64ArrayBuffer(arrayBuffer) {
   var base64 = "";
   var encodings =
-    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
 
   var bytes = new Uint8Array(arrayBuffer);
   var byteLength = bytes.byteLength;
