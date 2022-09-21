@@ -121,7 +121,7 @@ export async function eip721(
 
         if (downloadResponse.status === 200) {
           await env.IMAGES.put(imageID, downloadResponse.body, {
-            customMetadata: screenshot,
+            customMetadata: { ...screenshot, ...data.block },
           });
           console.log(`saved`, { imageID, imageURL });
         } else {

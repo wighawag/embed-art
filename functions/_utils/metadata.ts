@@ -77,13 +77,71 @@ export async function fetchMetadata(
   chainId: string,
   contract: string,
   tokenID: string
-): Promise<{ metadata: Metadata; contractMetadata: ContractMetadata }> {
+): Promise<{
+  metadata: Metadata;
+  contractMetadata: ContractMetadata;
+  block: { number: number; hash: string };
+}> {
   let endpoint = env[`ETHEREUM_NODE_${chainId}`];
   if (!endpoint) {
     endpoint = env.ETHEREUM_NODE;
     if (!endpoint) {
       throw new Error(`no ethereum node specified for chainId ${chainId}`);
     }
+  }
+
+  // let blockNumber;
+  // try {
+  //   const response = await fetch(endpoint, {
+  //     method: "POST",
+  //     headers: { "Content-Type": "application/json" },
+  //     body: JSON.stringify({
+  //       id: 1,
+  //       jsonrpc: "2.0",
+  //       method: "eth_blockNumber",
+  //       params: [],
+  //     }),
+  //   });
+  //   const json = await response.json();
+  //   if (json.error || !json.result) {
+  //     throw new Error(
+  //       `cannot get latest block number: \n` +
+  //         (json.error
+  //           ? JSON.stringify(json.error, null, 2)
+  //           : `no result for ${contract}/}${tokenID}}`)
+  //     );
+  //   } else {
+  //     blockNumber = parseInt(json.result.slice(2), 16);
+  //   }
+  // } catch (err) {
+  //   throw new Error(`failed to get latest block: ${err.message}\n${err.stack}`);
+  // }
+
+  let block;
+  try {
+    const response = await fetch(endpoint, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        id: 1,
+        jsonrpc: "2.0",
+        method: "eth_getBlockByNumber",
+        params: ["latest", false],
+      }),
+    });
+    const json = await response.json();
+    if (json.error || !json.result) {
+      throw new Error(
+        `cannot get latest block: \n` +
+          (json.error
+            ? JSON.stringify(json.error, null, 2)
+            : `no result for ${contract}/}${tokenID}}`)
+      );
+    } else {
+      block = { number: json.result.number, hash: json.result.hash };
+    }
+  } catch (err) {
+    throw new Error(`failed to get latest block: ${err.message}\n${err.stack}`);
   }
 
   let data;
@@ -103,7 +161,7 @@ export async function fetchMetadata(
         id: 1,
         jsonrpc: "2.0",
         method: "eth_call",
-        params: [{ to: contract, data }, "latest"],
+        params: [{ to: contract, data }, block.hash],
       }),
     });
     json = await response.json();
@@ -121,7 +179,7 @@ export async function fetchMetadata(
         id: 1,
         jsonrpc: "2.0",
         method: "eth_call",
-        params: [{ to: contract, data }, "latest"],
+        params: [{ to: contract, data }, block.hash],
       }),
     });
     const json = await response.json();
@@ -143,7 +201,7 @@ export async function fetchMetadata(
         id: 1,
         jsonrpc: "2.0",
         method: "eth_call",
-        params: [{ to: contract, data }, "latest"],
+        params: [{ to: contract, data }, block.hash],
       }),
     });
     const json = await response.json();
@@ -252,5 +310,5 @@ export async function fetchMetadata(
     );
   }
 
-  return { metadata, contractMetadata: { name, symbol } };
+  return { metadata, contractMetadata: { name, symbol }, block };
 }
