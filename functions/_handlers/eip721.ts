@@ -78,7 +78,9 @@ export async function eip721(
   onlyPreview: boolean = false
 ): Promise<Response> {
   try {
-    const metadata = await fetchMetadata(env, chainId, contract, tokenID);
+    const data = await fetchMetadata(env, chainId, contract, tokenID);
+    const metadata = data.metadata;
+    const contractMetadata = data.contractMetadata;
     if (!onlyPreview) {
       const imageID = (await sha256(metadata.image)) + ".jpg";
       const imageURL = getImageUrl(request, imageID);
@@ -121,7 +123,7 @@ export async function eip721(
           return new Response("Not found (Download Failure)", { status: 404 });
         }
       }
-      return page({ contract, id: tokenID }, metadata, {
+      return page({ contract, id: tokenID }, metadata, contractMetadata, {
         url: request.url,
         previewURL: imageURL,
       });

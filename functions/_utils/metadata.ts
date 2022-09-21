@@ -20,6 +20,27 @@ const tokenURIInterface = new Interface([
     stateMutability: "view",
     type: "function",
   },
+  {
+    inputs: [],
+    name: "name",
+    outputs: [{ internalType: "string", name: "", type: "string" }],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [],
+    name: "symbol",
+    outputs: [{ internalType: "string", name: "", type: "string" }],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [],
+    name: "contractURI",
+    outputs: [{ internalType: "string", name: "", type: "string" }],
+    stateMutability: "view",
+    type: "function",
+  },
 ]);
 
 export type Metadata = {
@@ -31,12 +52,32 @@ export type Metadata = {
   // TODO more
 };
 
+export type ContractMetadata = {
+  name?: string;
+  symbol?: string;
+};
+
+function recursiveReplace(json: any, from: string, to: string): any {
+  if (typeof json === "string") {
+    return json.replace(from, to);
+  } else if (typeof json === "object") {
+    if (Array.isArray(json)) {
+      return json.map((v) => recursiveReplace(v, from, to));
+    } else {
+      for (const key of Object.keys(json)) {
+        json[key] = recursiveReplace(json[key], from, to);
+      }
+    }
+  }
+  return json;
+}
+
 export async function fetchMetadata(
   env: any,
   chainId: string,
   contract: string,
   tokenID: string
-): Promise<Metadata> {
+): Promise<{ metadata: Metadata; contractMetadata: ContractMetadata }> {
   let endpoint = env[`ETHEREUM_NODE_${chainId}`];
   if (!endpoint) {
     endpoint = env.ETHEREUM_NODE;
@@ -69,6 +110,53 @@ export async function fetchMetadata(
   } catch (err) {
     throw new Error(`failed to eth_call: ${err.message}\n${err.stack}`);
   }
+
+  let name;
+  try {
+    const data = tokenURIInterface.encodeFunctionData("name");
+    const response = await fetch(endpoint, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        id: 1,
+        jsonrpc: "2.0",
+        method: "eth_call",
+        params: [{ to: contract, data }, "latest"],
+      }),
+    });
+    const json = await response.json();
+    if (json.error || !json.result) {
+    } else {
+      try {
+        name = tokenURIInterface.decodeFunctionResult("name", json.result)[0];
+      } catch (err) {}
+    }
+  } catch (err) {}
+
+  let symbol;
+  try {
+    const data = tokenURIInterface.encodeFunctionData("symbol");
+    const response = await fetch(endpoint, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        id: 1,
+        jsonrpc: "2.0",
+        method: "eth_call",
+        params: [{ to: contract, data }, "latest"],
+      }),
+    });
+    const json = await response.json();
+    if (json.error || !json.result) {
+    } else {
+      try {
+        symbol = tokenURIInterface.decodeFunctionResult(
+          "symbol",
+          json.result
+        )[0];
+      } catch (err) {}
+    }
+  } catch (err) {}
 
   if (json.error || !json.result) {
     throw new Error(
@@ -147,6 +235,11 @@ export async function fetchMetadata(
       }
       try {
         metadata = await fetch(tokenURI).then((v) => v.json());
+        metadata = recursiveReplace(
+          metadata,
+          "ipfs://",
+          `https://ipfs.io/ipfs/`
+        );
       } catch (err) {
         throw new Error(
           `failed to fetch URI for ${contract}/${tokenID}\ntokenURI: ${tokenURI}`
@@ -159,5 +252,5 @@ export async function fetchMetadata(
     );
   }
 
-  return metadata;
+  return { metadata, contractMetadata: { name, symbol } };
 }

@@ -1,12 +1,19 @@
-import { Metadata } from "../_utils/metadata";
+import { ContractMetadata, Metadata } from "../_utils/metadata";
 
 export async function page(
   token: { contract: string; id: string },
   metadata: Metadata,
+  contractMetadata: ContractMetadata,
   extra: { url: string; previewURL: string }
 ): Promise<Response> {
   const url = extra.url;
-  const title = metadata.name;
+  const title =
+    metadata.name ||
+    (contractMetadata.symbol
+      ? `${contractMetadata.symbol} ${token.id}`
+      : contractMetadata.name
+      ? `${contractMetadata.name} ${token.id}`
+      : `Token ${token.id}`);
   const description = metadata.description;
   const preview = extra.previewURL;
   const image = metadata.image;
@@ -35,16 +42,24 @@ export async function page(
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <meta name="title" content="${title}">
-    <meta name="description" content="${description}">
+    ${description ? `<meta name="description" content="${description}">` : ""}
     <meta property="og:type" content="website">
     <meta property="og:url" content="${url}">
     <meta property="og:title" content="${title}">
-    <meta property="og:description" content="${description}">
+    ${
+      description
+        ? `<meta property="og:description" content="${description}">`
+        : ""
+    }
     <meta property="og:image" content="${preview}">
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:url" content="${url}">
     <meta name="twitter:title" content="${title}">
-    <meta name="twitter:description" content="${description}">
+    ${
+      description
+        ? `<meta name="twitter:description" content="${description}">`
+        : ""
+    }
     <meta name="twitter:image" content="${preview}">
     <style>
       * {
@@ -111,8 +126,8 @@ export async function page(
   <body>
     <div id="wrapper">
       <h1 id="nft-title">${title}</h1>
-      <p id="nft-description">${description}</p>
-       
+      ${description ? `<p id="nft-description">${description}</p>` : ""}
+      
         ${
           iframeURL
             ? `
