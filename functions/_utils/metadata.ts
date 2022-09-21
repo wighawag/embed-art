@@ -90,6 +90,10 @@ export async function fetchMetadata(
     }
   }
 
+  // ------------------------------------------------------------------------------------------------------------------
+  // Block informatiom
+  // ------------------------------------------------------------------------------------------------------------------
+
   // let blockNumber;
   // try {
   //   const response = await fetch(endpoint, {
@@ -144,31 +148,10 @@ export async function fetchMetadata(
     throw new Error(`failed to get latest block: ${err.message}\n${err.stack}`);
   }
 
-  let data;
-  try {
-    //   const tokenURISig = "0xc87b56dd";
-    data = tokenURIInterface.encodeFunctionData("tokenURI", [tokenID]);
-  } catch (err) {
-    throw new Error(`failed to encode eth_call: ${err.message}\n${err.stack}`);
-  }
-
-  let json;
-  try {
-    const response = await fetch(endpoint, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        id: 1,
-        jsonrpc: "2.0",
-        method: "eth_call",
-        params: [{ to: contract, data }, block.hash],
-      }),
-    });
-    json = await response.json();
-  } catch (err) {
-    throw new Error(`failed to eth_call: ${err.message}\n${err.stack}`);
-  }
-
+  // ------------------------------------------------------------------------------------------------------------------
+  // contract level metadata
+  // ------------------------------------------------------------------------------------------------------------------
+  // TODO use contractURI
   let name;
   try {
     const data = tokenURIInterface.encodeFunctionData("name");
@@ -216,9 +199,39 @@ export async function fetchMetadata(
     }
   } catch (err) {}
 
+  // ------------------------------------------------------------------------------------------------------------------
+  // tokenURI
+  // ------------------------------------------------------------------------------------------------------------------
+  let data;
+  try {
+    //   const tokenURISig = "0xc87b56dd";
+    data = tokenURIInterface.encodeFunctionData("tokenURI", [tokenID]);
+  } catch (err) {
+    throw new Error(`failed to encode eth_call: ${err.message}\n${err.stack}`);
+  }
+
+  let json;
+  try {
+    const response = await fetch(endpoint, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        id: 1,
+        jsonrpc: "2.0",
+        method: "eth_call",
+        params: [{ to: contract, data }, block.hash],
+      }),
+    });
+    json = await response.json();
+  } catch (err) {
+    throw new Error(
+      `failed to eth_call (${block.hash}): ${err.message}\n${err.stack}`
+    );
+  }
+
   if (json.error || !json.result) {
     throw new Error(
-      `eth_call failed: \n` +
+      `eth_call failed (${block.hash}):  \n` +
         (json.error
           ? JSON.stringify(json.error, null, 2)
           : `no result for ${contract}/}${tokenID}}`)
@@ -240,7 +253,6 @@ export async function fetchMetadata(
   // ------------------------------------------------------------------------------------------------------------------
   // FIXES for broken projects
   // ------------------------------------------------------------------------------------------------------------------
-  // JS24K
   try {
     const percentRegex = /50\%/gm;
     tokenURI = tokenURI.replace(percentRegex, "50%25");
@@ -249,9 +261,13 @@ export async function fetchMetadata(
       `failed to fix URI for ${contract}/${tokenID}\ntokenURI: ${tokenURI}`
     );
   }
-
+  // ------------------------------------------------------------------------------------------------------------------
+  // ------------------------------------------------------------------------------------------------------------------
   // ------------------------------------------------------------------------------------------------------------------
 
+  // ------------------------------------------------------------------------------------------------------------------
+  // DECODE URI
+  // ------------------------------------------------------------------------------------------------------------------
   let urlDecodedTokenURI;
   try {
     urlDecodedTokenURI = decodeURI(tokenURI);
@@ -261,6 +277,9 @@ export async function fetchMetadata(
     );
   }
 
+  // ------------------------------------------------------------------------------------------------------------------
+  // parse metadata
+  // ------------------------------------------------------------------------------------------------------------------
   let metadata;
   try {
     /// ata:text/plain;charset=utf-8,
