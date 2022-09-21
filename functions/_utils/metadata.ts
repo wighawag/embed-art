@@ -72,6 +72,8 @@ function recursiveReplace(json: any, from: string, to: string): any {
   return json;
 }
 
+const finality = 12; // TODO parametrize
+
 export async function fetchMetadata(
   env: any,
   chainId: string,
@@ -94,34 +96,36 @@ export async function fetchMetadata(
   // Block informatiom
   // ------------------------------------------------------------------------------------------------------------------
 
-  // let blockNumber;
-  // try {
-  //   const response = await fetch(endpoint, {
-  //     method: "POST",
-  //     headers: { "Content-Type": "application/json" },
-  //     body: JSON.stringify({
-  //       id: 1,
-  //       jsonrpc: "2.0",
-  //       method: "eth_blockNumber",
-  //       params: [],
-  //     }),
-  //   });
-  //   const json = await response.json();
-  //   if (json.error || !json.result) {
-  //     throw new Error(
-  //       `cannot get latest block number: \n` +
-  //         (json.error
-  //           ? JSON.stringify(json.error, null, 2)
-  //           : `no result for ${contract}/}${tokenID}}`)
-  //     );
-  //   } else {
-  //     blockNumber = parseInt(json.result.slice(2), 16);
-  //   }
-  // } catch (err) {
-  //   throw new Error(`failed to get latest block: ${err.message}\n${err.stack}`);
-  // }
+  let rawBlockNumber;
+  let blockNumber;
+  try {
+    const response = await fetch(endpoint, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        id: 1,
+        jsonrpc: "2.0",
+        method: "eth_blockNumber",
+        params: [],
+      }),
+    });
+    const json = await response.json();
+    if (json.error || !json.result) {
+      throw new Error(
+        `cannot get latest block number: \n` +
+          (json.error
+            ? JSON.stringify(json.error, null, 2)
+            : `no result for ${contract}/}${tokenID}}`)
+      );
+    } else {
+      rawBlockNumber = json.result;
+      blockNumber = parseInt(rawBlockNumber.slice(2), 16);
+    }
+  } catch (err) {
+    throw new Error(`failed to get latest block: ${err.message}\n${err.stack}`);
+  }
 
-  let block;
+  let block: { number: number; hash: string };
   try {
     const response = await fetch(endpoint, {
       method: "POST",
@@ -130,7 +134,10 @@ export async function fetchMetadata(
         id: 1,
         jsonrpc: "2.0",
         method: "eth_getBlockByNumber",
-        params: ["latest", false],
+        params: [
+          "0x" + Math.max(0, blockNumber - finality).toString(16),
+          false,
+        ],
       }),
     });
     const json = await response.json();
@@ -142,7 +149,10 @@ export async function fetchMetadata(
             : `no result for ${contract}/}${tokenID}}`)
       );
     } else {
-      block = { number: json.result.number, hash: json.result.hash };
+      block = {
+        number: parseInt(json.result.number.slice(2), 16),
+        hash: json.result.hash,
+      };
     }
   } catch (err) {
     throw new Error(`failed to get latest block: ${err.message}\n${err.stack}`);
@@ -162,7 +172,7 @@ export async function fetchMetadata(
         id: 1,
         jsonrpc: "2.0",
         method: "eth_call",
-        params: [{ to: contract, data }, block.hash],
+        params: [{ to: contract, data }, rawBlockNumber],
       }),
     });
     const json = await response.json();
@@ -184,7 +194,7 @@ export async function fetchMetadata(
         id: 1,
         jsonrpc: "2.0",
         method: "eth_call",
-        params: [{ to: contract, data }, block.hash],
+        params: [{ to: contract, data }, rawBlockNumber],
       }),
     });
     const json = await response.json();
@@ -219,7 +229,7 @@ export async function fetchMetadata(
         id: 1,
         jsonrpc: "2.0",
         method: "eth_call",
-        params: [{ to: contract, data }, block.hash],
+        params: [{ to: contract, data }, rawBlockNumber],
       }),
     });
     json = await response.json();
