@@ -117,11 +117,23 @@ export async function fetchMetadata(
 
   let metadata;
   try {
+    /// ata:text/plain;charset=utf-8,
     if (tokenURI.startsWith("data:")) {
-      if (tokenURI.startsWith("data:text/plain,")) {
-        metadata = JSON.parse(urlDecodedTokenURI.slice(16));
-      } else if (tokenURI.startsWith("data:text/plain;base64,")) {
-        metadata = JSON.parse(atob(urlDecodedTokenURI.slice(23)));
+      if (tokenURI.startsWith("data:text/plain")) {
+        if (tokenURI.startsWith("data:text/plain,")) {
+          metadata = JSON.parse(urlDecodedTokenURI.slice(16));
+        } else if (tokenURI.startsWith("data:text/plain;base64,")) {
+          metadata = JSON.parse(atob(urlDecodedTokenURI.slice(23)));
+        } else if (tokenURI.startsWith("data:text/plain;charset=utf-8,")) {
+          metadata = JSON.parse(urlDecodedTokenURI.slice(30));
+        } else {
+          // attempting genericly
+          const indexOfComma = urlDecodedTokenURI.indexOf(",");
+          if (indexOfComma === -1) {
+            throw new Error(`not supported : ${tokenURI}`);
+          }
+          metadata = JSON.parse(urlDecodedTokenURI.slice(indexOfComma + 1));
+        }
       } else if (tokenURI.startsWith("data:application/json,")) {
         metadata = JSON.parse(urlDecodedTokenURI.slice(22));
       } else if (tokenURI.startsWith("data:application/json;base64,")) {
