@@ -25,6 +25,7 @@ export async function preview(metadata: Metadata): Promise<Response> {
   const title = metadata.name;
   const description = metadata.description;
   const image = metadata.image;
+  // TODO if no image
   const imageEscaped = cssURLEscaped(image);
   const page = `<!DOCTYPE html>
 <html lang="en">

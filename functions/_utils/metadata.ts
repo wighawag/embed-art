@@ -44,38 +44,71 @@ export async function fetchMetadata(
       throw new Error(`no ethereum node specified for chainId ${chainId}`);
     }
   }
-  //   const tokenURISig = "0xc87b56dd";
-  const data = tokenURIInterface.encodeFunctionData("tokenURI", [tokenID]);
-  const response = await fetch(endpoint, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      id: 1,
-      jsonrpc: "2.0",
-      method: "eth_call",
-      params: [{ to: contract, data }, "latest"],
-    }),
-  });
-  const json = await response.json();
+
+  let data;
+  try {
+    //   const tokenURISig = "0xc87b56dd";
+    data = tokenURIInterface.encodeFunctionData("tokenURI", [tokenID]);
+  } catch (err) {
+    throw new Error(`failed to encode eth_call: ${err.message}\n${err.stack}`);
+  }
+
+  let json;
+  try {
+    const response = await fetch(endpoint, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        id: 1,
+        jsonrpc: "2.0",
+        method: "eth_call",
+        params: [{ to: contract, data }, "latest"],
+      }),
+    });
+    json = await response.json();
+  } catch (err) {
+    throw new Error(`failed to eth_call: ${err.message}\n${err.stack}`);
+  }
+
   if (json.error || !json.result) {
     throw new Error(json.error || `no result for ${contract}/}${tokenID}}`);
   }
 
-  // TODO try catch
-  let tokenURI = tokenURIInterface.decodeFunctionResult(
-    "tokenURI",
-    json.result
-  )[0];
+  let tokenURI;
+  try {
+    tokenURI = tokenURIInterface.decodeFunctionResult(
+      "tokenURI",
+      json.result
+    )[0];
+  } catch (err) {
+    throw new Error(
+      `failed to decode eth_call result for ${contract}/${tokenID}`
+    );
+  }
 
   // ------------------------------------------------------------------------------------------------------------------
   // FIXES for broken projects
   // ------------------------------------------------------------------------------------------------------------------
   // JS24K
-  const percentRegex = /50\%/gm;
-  tokenURI = tokenURI.replace(percentRegex, "50%25");
+  try {
+    const percentRegex = /50\%/gm;
+    tokenURI = tokenURI.replace(percentRegex, "50%25");
+  } catch (err) {
+    throw new Error(
+      `failed to fix URI for ${contract}/${tokenID}\ntokenURI: ${tokenURI}`
+    );
+  }
+
   // ------------------------------------------------------------------------------------------------------------------
 
-  const urlDecodedTokenURI = decodeURI(tokenURI);
+  let urlDecodedTokenURI;
+  try {
+    urlDecodedTokenURI = decodeURI(tokenURI);
+  } catch (err) {
+    throw new Error(
+      `failed to decode URI for ${contract}/${tokenID}\ntokenURI: ${tokenURI}`
+    );
+  }
 
   let metadata;
   try {
@@ -92,10 +125,21 @@ export async function fetchMetadata(
         throw new Error(`not supported : ${tokenURI}`);
       }
     } else {
-      metadata = await fetch(tokenURI).then((v) => v.json());
+      if (tokenURI.startsWith("ipfs://")) {
+        tokenURI = `https://ipfs.io/ipfs/${tokenURI.slice(7)}`;
+      }
+      try {
+        metadata = await fetch(tokenURI).then((v) => v.json());
+      } catch (err) {
+        throw new Error(
+          `failed to fetch URI for ${contract}/${tokenID}\ntokenURI: ${tokenURI}`
+        );
+      }
     }
   } catch (err) {
-    throw new Error(`${err.message}\n${err.stack}\ntokenURI: ${tokenURI}`);
+    throw new Error(
+      `failed to parse metadata: ${err.message}\n${err.stack}\ntokenURI: ${tokenURI}`
+    );
   }
 
   return metadata;
