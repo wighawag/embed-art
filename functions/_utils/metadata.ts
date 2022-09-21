@@ -256,7 +256,7 @@ export async function fetchMetadata(
     )[0];
   } catch (err) {
     throw new Error(
-      `failed to decode eth_call result for ${contract}/${tokenID}`
+      `failed to decode eth_call result for ${contract}/${tokenID}\n${err.message}\n${err.stack}`
     );
   }
 
@@ -268,7 +268,7 @@ export async function fetchMetadata(
     tokenURI = tokenURI.replace(percentRegex, "50%25");
   } catch (err) {
     throw new Error(
-      `failed to fix URI for ${contract}/${tokenID}\ntokenURI: ${tokenURI}`
+      `failed to fix URI for ${contract}/${tokenID}\n${err.message}\n${err.stack}\ntokenURI: ${tokenURI}`
     );
   }
   // ------------------------------------------------------------------------------------------------------------------
@@ -283,7 +283,7 @@ export async function fetchMetadata(
     urlDecodedTokenURI = decodeURI(tokenURI);
   } catch (err) {
     throw new Error(
-      `failed to decode URI for ${contract}/${tokenID}\ntokenURI: ${tokenURI}`
+      `failed to decode URI for ${contract}/${tokenID}\n${err.message}\n${err.stack}\ntokenURI: ${tokenURI}`
     );
   }
 
@@ -329,7 +329,7 @@ export async function fetchMetadata(
         );
       } catch (err) {
         throw new Error(
-          `failed to fetch URI for ${contract}/${tokenID}\ntokenURI: ${tokenURI}`
+          `failed to fetch URI for ${contract}/${tokenID}\n${err.message}\n${err.stack}\n\ntokenURI: ${tokenURI}`
         );
       }
     }
