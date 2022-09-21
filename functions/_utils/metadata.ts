@@ -71,7 +71,12 @@ export async function fetchMetadata(
   }
 
   if (json.error || !json.result) {
-    throw new Error(json.error || `no result for ${contract}/}${tokenID}}`);
+    throw new Error(
+      `eth_call failed: \n` +
+        (json.error
+          ? JSON.stringify(json.error, null, 2)
+          : `no result for ${contract}/}${tokenID}}`)
+    );
   }
 
   let tokenURI;
