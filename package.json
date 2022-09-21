@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "description": "",
   "scripts": {
-    "dev": "wrangler pages dev . --kv IMAGES_URLS --r2=IMAGES",
+    "dev": "wrangler pages dev . --kv=DATA_CACHE --r2=IMAGES",
     "deploy": "wrangler pages publish --project-name embed-art --branch production ."
   },
   "keywords": [],

@@ -78,7 +78,12 @@ export async function eip721(
   onlyPreview: boolean = false
 ): Promise<Response> {
   try {
-    const data = await fetchMetadata(env, chainId, contract, tokenID);
+    const cacheID = `eip721:${chainId}:${contract}:${tokenID}`;
+    let data = await env.DATA_CACHE.get(cacheID, { type: "json" });
+    if (!data) {
+      data = await fetchMetadata(env, chainId, contract, tokenID);
+      await env.DATA_CACHE.put(cacheID, JSON.stringify(data));
+    }
     const metadata = data.metadata;
     const contractMetadata = data.contractMetadata;
     if (!onlyPreview) {
