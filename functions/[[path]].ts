@@ -1,14 +1,16 @@
 import { eip721 } from "./_handlers/eip721";
+import { screenshot } from "./_handlers/screenshot";
 
-export async function onRequest(context) {
+export async function onRequest(context: {
+  env: any;
+  request: Request;
+  params: { path: string[] };
+}) {
   // Contents of context object
   const {
     request, // same as existing Worker API
     env, // same as existing Worker API
     params, // if filename includes [id] or [[path]]
-    waitUntil, // same as ctx.waitUntil in existing Worker API
-    next, // used for middleware or to fetch assets
-    data, // arbitrary space for passing data between middlewares
   } = context;
 
   console.log(JSON.stringify(env, null, 2));
@@ -28,7 +30,15 @@ export async function onRequest(context) {
     }
   }
 
-  if (paths[0].startsWith("eip155:")) {
+  if (paths[0] === "screenshot") {
+    const image = new URL(request.url).searchParams.get("image");
+    if (!image) {
+      return new Response(`no image specified: ${request.url}`, {
+        status: 500,
+      });
+    }
+    return screenshot(image);
+  } else if (paths[0].startsWith("eip155:")) {
     const chainIdAsNumber = parseInt(paths[0].slice(7));
     if (isNaN(chainIdAsNumber)) {
       return new Response(`invalid chainId: ${chainIdAsNumber}`, {

@@ -93,10 +93,18 @@ export async function eip721(
       console.log(imageHead);
       if (!imageHead) {
         let screenshot: { url: string };
+        const urlToScreenshot = `${request.url}/preview`;
+        // const url = new URL(request.url);
+        // const urlToScreenshot = `${url.protocol}//${
+        //   url.host
+        // }/screenshot/?image=${encodeURI(metadata.image)}`;
+        // console.log({ urlToScreenshot });
         if (env.SCREENSHOT_SERVICE) {
           try {
             screenshot = await fetch(
-              `${env.SCREENSHOT_SERVICE}&url=${request.url}/preview&format=jpeg&width=824&height=412&fresh=true&wait_until=page_loaded&full_page=true&response_type=json`
+              `${env.SCREENSHOT_SERVICE}&url=${encodeURI(
+                urlToScreenshot
+              )}&format=jpeg&width=824&height=412&fresh=true&wait_until=page_loaded&full_page=true&response_type=json`
             ).then((v) => v.json());
           } catch (err) {
             return new Response(
@@ -107,7 +115,11 @@ export async function eip721(
         } else {
           const url = new URL(request.url);
           screenshot = {
-            url: url.protocol + "//" + url.host + "/static/wighawag.png",
+            url:
+              url.protocol +
+              "//" +
+              url.host +
+              `/static/wighawag.png?url=${urlToScreenshot}`,
           };
         }
 
@@ -120,10 +132,26 @@ export async function eip721(
         const downloadResponse = await fetch(screenshot.url);
 
         if (downloadResponse.status === 200) {
-          await env.IMAGES.put(imageID, downloadResponse.body, {
-            customMetadata: { ...screenshot, ...data.block },
-          });
-          console.log(`saved`, { imageID, imageURL });
+          const customMetadata = {
+            ...screenshot,
+            ...{
+              number: "" + data.block.number,
+              hash: data.block.hash,
+            },
+          };
+          try {
+            await env.IMAGES.put(imageID, downloadResponse.body, {
+              customMetadata,
+            });
+            console.log(`saved`, { imageID, imageURL });
+          } catch (err) {
+            return new Response(
+              `failed to save screenshot (${JSON.stringify(customMetadata)}): ${
+                err.message
+              }\n${err.stack}`,
+              { status: 500 }
+            );
+          }
         } else {
           return new Response("Not found (Download Failure)", { status: 404 });
         }
