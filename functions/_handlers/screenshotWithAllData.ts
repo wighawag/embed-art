@@ -57,6 +57,19 @@ export async function screenshotWithAllData(
         const cssURLEscaped = (uri) => {
           return uri.replace(regex, "\\/");
         };
+        const signalReady = () => {
+          let ready = document.getElementById('ready');
+          if (!ready) {
+            setTimeout(() => {
+              ready = document.getElementById('ready');
+              if (!ready) {
+                ready = document.createElement('div');
+                ready.id = 'ready';
+                document.body.appendChild(ready);
+              }
+            }, 200);
+          }
+        }
         async function fetchImage(tokenURI) {
           let metadataURLToFetch = tokenURI;
           if (metadataURLToFetch.startsWith('ipfs://')) {
@@ -81,6 +94,7 @@ export async function screenshotWithAllData(
             const iframe = document.getElementById('nft-iframe');
             iframe.src=iframeURL;
             iframe.style.display='block';
+            signalReady();
           } else if (metadata.image) {
             let cssImage = metadata.image;
             if (cssImage.startsWith('ipfs://')) {
@@ -90,17 +104,7 @@ export async function screenshotWithAllData(
             }
             const elem = document.getElementById('img');
             elem.style.backgroundImage = 'url("' + cssImage + '")';
-            let ready = document.getElementById('ready');
-            if (!ready) {
-              setTimeout(() => {
-                ready = document.getElementById('ready');
-                if (!ready) {
-                  ready = document.createElement('div');
-                  ready.id = 'ready';
-                  document.body.appendChild(ready);
-                }
-              }, 200);
-            }
+            signalReady();
           }
         }
         fetchImage(tokenURI);
