@@ -16,6 +16,8 @@ When you navigate to `https://embed.art/eip155:<chainID>/erc721:<contractAddress
 - It currently caches it, and the plan is to let user refresh if needed.
 - It then generate a preview if none already exist, it do so currently by calling an external service which use headless chrome.
   (The preview is generated without chrome needed to make any network request, this is to ensure the preview cannot fails)
+  (To do that it will download http/ipfs metadata and image on the backend before hand and convert these in data uri)
+  (It means the first request might timeout, especially for asset using IPFS with low quality pinning)
   (The preview is actually a html page that contains the image, this allow the preview to control the format, currently 824x412 without browser dictating background color, etc...)
 - That preview is then saved
 - It finally return html page that display the NFT, its title, description, image but also audio (if present). If an iframe is present, it replaces the image.
