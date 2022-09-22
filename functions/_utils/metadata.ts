@@ -293,7 +293,8 @@ export async function parseMetadata(tokenURI: string): Promise<Metadata> {
   // ------------------------------------------------------------------------------------------------------------------
   let urlDecodedTokenURI;
   try {
-    urlDecodedTokenURI = decodeURI(tokenURI);
+    urlDecodedTokenURI = decodeURIComponent(tokenURI);
+    console.log({ urlDecodedTokenURI: urlDecodedTokenURI.slice(0, 100) });
   } catch (err) {
     throw new Error(
       `failed to decode URI:\n${err.message}\n${err.stack}\ntokenURI: ${tokenURI}`
@@ -306,13 +307,15 @@ export async function parseMetadata(tokenURI: string): Promise<Metadata> {
   let metadata;
   try {
     /// ata:text/plain;charset=utf-8,
-    if (tokenURI.startsWith("data:")) {
-      if (tokenURI.startsWith("data:text/plain")) {
-        if (tokenURI.startsWith("data:text/plain,")) {
+    if (urlDecodedTokenURI.startsWith("data:")) {
+      if (urlDecodedTokenURI.startsWith("data:text/plain")) {
+        if (urlDecodedTokenURI.startsWith("data:text/plain,")) {
           metadata = JSON.parse(urlDecodedTokenURI.slice(16));
-        } else if (tokenURI.startsWith("data:text/plain;base64,")) {
+        } else if (urlDecodedTokenURI.startsWith("data:text/plain;base64,")) {
           metadata = JSON.parse(atob(urlDecodedTokenURI.slice(23)));
-        } else if (tokenURI.startsWith("data:text/plain;charset=utf-8,")) {
+        } else if (
+          urlDecodedTokenURI.startsWith("data:text/plain;charset=utf-8,")
+        ) {
           metadata = JSON.parse(urlDecodedTokenURI.slice(30));
         } else {
           // attempting genericly
@@ -322,9 +325,12 @@ export async function parseMetadata(tokenURI: string): Promise<Metadata> {
           }
           metadata = JSON.parse(urlDecodedTokenURI.slice(indexOfComma + 1));
         }
-      } else if (tokenURI.startsWith("data:application/json,")) {
+      } else if (urlDecodedTokenURI.startsWith("data:application/json,")) {
         metadata = JSON.parse(urlDecodedTokenURI.slice(22));
-      } else if (tokenURI.startsWith("data:application/json;base64,")) {
+        // console.log(JSON.stringify(metadata));
+      } else if (
+        urlDecodedTokenURI.startsWith("data:application/json;base64,")
+      ) {
         metadata = JSON.parse(atob(urlDecodedTokenURI.slice(29)));
       } else {
         throw new Error(`not supported : ${tokenURI}`);

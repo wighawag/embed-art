@@ -1,7 +1,8 @@
-import { eip721 } from "./_handlers/eip721";
+import { eip721, generateDataURI, getData } from "./_handlers/eip721";
 import { screenshot } from "./_handlers/screenshot";
 import { screenshotWithAllData } from "./_handlers/screenshotWithAllData";
 import { Base64 } from "./_utils/base64";
+import { fetchBlockchainData, parseMetadata } from "./_utils/metadata";
 import { fromBase64 } from "./_utils/strings";
 
 export async function onRequest(context: {
@@ -16,7 +17,7 @@ export async function onRequest(context: {
     params, // if filename includes [id] or [[path]]
   } = context;
 
-  console.log(JSON.stringify(env, null, 2));
+  // console.log(JSON.stringify(env, null, 2));
 
   const pathname = "/" + (params.path?.join("/") || "");
   const paths = params.path || [];
@@ -47,6 +48,22 @@ export async function onRequest(context: {
       return screenshotWithAllData(Base64.decode(tokenURIBase64Encoded));
     } else if (tokenURI) {
       return screenshotWithAllData(tokenURI);
+    }
+
+    const id = new URL(request.url).searchParams.get("id");
+    if (id) {
+      const splitted = id.split("/");
+      const [, chainId] = splitted[0].split(":");
+      const [erc, contract] = splitted[1].split(":");
+      if (erc !== "erc721") {
+        throw new Error(`ERC ${erc} not supported for now`);
+      }
+      const tokenID = splitted[2];
+      const data = await getData(env, chainId, contract, tokenID);
+      const metadata = await parseMetadata(data.tokenURI);
+      const tokenURIToUse = await generateDataURI(data.tokenURI, metadata);
+      console.log({ tokenURIToUse: tokenURIToUse.slice(0, 100) });
+      return screenshotWithAllData(tokenURIToUse);
     }
 
     const image = new URL(request.url).searchParams.get("image");
