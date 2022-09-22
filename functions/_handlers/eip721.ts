@@ -45,11 +45,6 @@ export async function eip721(
       console.log(imageHead);
       if (!imageHead) {
         let screenshot: { url: string };
-        // const urlToScreenshot = `${request.url}/preview`;
-        // const url = new URL(request.url);
-        // const urlToScreenshot = `${url.protocol}//${
-        //   url.host
-        // }/screenshot/?image=${encodeURIComponent(metadata.image)}`;
         let imageURLToUse = metadata.image;
         if (imageURLToUse.startsWith("http")) {
           try {
