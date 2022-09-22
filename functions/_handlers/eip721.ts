@@ -8,6 +8,7 @@ import {
 import { sha256, toBase64 } from "../_utils/strings";
 import { blobToDataURI, getImageUrl } from "../_utils/url";
 import { pageWithParsedData } from "./pageWithParsedData";
+import { pageWithRawData } from "./pageWithRawData";
 import { preview } from "./preview";
 
 export async function getData(
@@ -174,15 +175,26 @@ export async function eip721(
           return new Response("Not found (Download Failure)", { status: 404 });
         }
       }
-      return pageWithParsedData(
+      return pageWithRawData(
         { contract, id: tokenID },
-        metadata,
+        data.tokenURI,
         contractMetadata,
         {
           url: request.url,
           previewURL: imageURL,
-        }
+          // tokenURIBase64Encoded: data.tokenURIBase64Encoded,
+        },
+        metadata
       );
+      // return pageWithParsedData(
+      //   { contract, id: tokenID },
+      //   metadata,
+      //   contractMetadata,
+      //   {
+      //     url: request.url,
+      //     previewURL: imageURL,
+      //   }
+      // );
     } else {
       return preview(metadata);
     }

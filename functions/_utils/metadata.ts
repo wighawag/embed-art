@@ -267,14 +267,18 @@ export async function fetchBlockchainData(
   // ------------------------------------------------------------------------------------------------------------------
   // FIXES for broken projects
   // ------------------------------------------------------------------------------------------------------------------
-  try {
-    const percentRegex = /50\%/gm;
-    tokenURI = tokenURI.replace(percentRegex, "50%25");
-  } catch (err) {
-    throw new Error(
-      `failed to fix URI for ${contract}/${tokenID}\n${err.message}\n${err.stack}\ntokenURI: ${tokenURI}`
-    );
-  }
+  if (
+    chainId === "5" &&
+    contract.toLowerCase() === "0x208f425822e1a883ebfde737c77dcd88b3ab9635"
+  )
+    try {
+      const percentRegex = /50\%/gm;
+      tokenURI = tokenURI.replace(percentRegex, "50%25");
+    } catch (err) {
+      throw new Error(
+        `failed to fix URI for ${contract}/${tokenID}\n${err.message}\n${err.stack}\ntokenURI: ${tokenURI}`
+      );
+    }
   // ------------------------------------------------------------------------------------------------------------------
   // ------------------------------------------------------------------------------------------------------------------
   // ------------------------------------------------------------------------------------------------------------------
