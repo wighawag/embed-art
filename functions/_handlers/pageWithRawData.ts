@@ -10,11 +10,12 @@ export async function pageWithRawData(
 ): Promise<Response> {
   const url = extra.url;
   const title =
-    metadata?.name || contractMetadata.symbol
+    metadata?.name ||
+    (contractMetadata.symbol
       ? `${contractMetadata.symbol} ${token.id}`
       : contractMetadata.name
       ? `${contractMetadata.name} ${token.id}`
-      : `Token ${token.id}`;
+      : `Token ${token.id}`);
   const description = metadata?.description;
   const preview = extra.previewURL;
 
