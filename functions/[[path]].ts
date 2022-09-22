@@ -1,5 +1,6 @@
 import { eip721 } from "./_handlers/eip721";
 import { screenshot } from "./_handlers/screenshot";
+import { fromBase64 } from "./_utils/strings";
 
 export async function onRequest(context: {
   env: any;
@@ -32,12 +33,13 @@ export async function onRequest(context: {
 
   if (paths[0] === "screenshot") {
     const image = new URL(request.url).searchParams.get("image");
-    if (!image) {
+    const imageBase64 = new URL(request.url).searchParams.get("imageBase64");
+    if (!image && !imageBase64) {
       return new Response(`no image specified: ${request.url}`, {
         status: 500,
       });
     }
-    return screenshot(image);
+    return screenshot(imageBase64 ? fromBase64(imageBase64) : image);
   } else if (paths[0].startsWith("eip155:")) {
     const chainIdAsNumber = parseInt(paths[0].slice(7));
     if (isNaN(chainIdAsNumber)) {
