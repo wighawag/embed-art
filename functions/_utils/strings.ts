@@ -1,10 +1,11 @@
 import { Base64 } from "./base64";
 
 // from https://gist.github.com/jonleighton/958841
-export function base64ArrayBuffer(arrayBuffer) {
+export function base64ArrayBuffer(arrayBuffer, urlSafe) {
   var base64 = "";
-  var encodings =
-    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+  var encodings = urlSafe
+    ? "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_"
+    : "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 
   var bytes = new Uint8Array(arrayBuffer);
   var byteLength = bytes.byteLength;
@@ -63,7 +64,7 @@ export async function sha256(v: string): Promise<string> {
     myText
   );
 
-  return base64ArrayBuffer(myDigest);
+  return base64ArrayBuffer(myDigest, true);
 }
 
 export function toBase64(str: string): string {
