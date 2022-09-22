@@ -77,7 +77,8 @@ export async function onRequest(context: {
         chainId,
         contract,
         tokenID,
-        paths[3] === "preview"
+        paths[3] === "preview",
+        !!new URL(request.url).searchParams.get("showScreenshot")
       );
     }
   } else if (paths[0] === "eip721" || paths[0] === "erc721") {
@@ -87,7 +88,8 @@ export async function onRequest(context: {
       "1",
       paths[1],
       paths[2],
-      paths[3] === "preview"
+      paths[3] === "preview",
+      !!new URL(request.url).searchParams.get("showScreenshot")
     );
   }
   return new Response(pathname);

@@ -1,3 +1,4 @@
+import { Base64 } from "../_utils/base64";
 import {
   BlockchainData,
   fetchBlockchainData,
@@ -14,7 +15,8 @@ export async function eip721(
   chainId: string,
   contract: string,
   tokenID: string,
-  onlyPreview: boolean = false
+  onlyPreview: boolean = false,
+  returnScreenshot = false
 ): Promise<Response> {
   try {
     const cacheID = `eip721:${chainId}:${contract}:${tokenID}`.toLowerCase();
@@ -50,6 +52,7 @@ export async function eip721(
       if (!imageHead) {
         let screenshot: { url: string };
         let imageURLToUse = metadata.image;
+        let tokenURIToUse = data.tokenURI;
         if (imageURLToUse.startsWith("http")) {
           try {
             imageURLToUse = await fetch(imageURLToUse)
@@ -61,15 +64,25 @@ export async function eip721(
               { status: 500 }
             );
           }
+          tokenURIToUse = `data:application/json;base64,${Base64.encode(
+            JSON.stringify({ image: imageURLToUse })
+          )}`;
         }
+
         const url = new URL(request.url);
         // const urlToScreenshot = `${url.protocol}//${
         //   url.host
         // }/screenshot/?imageBase64=${toBase64(metadata.image)}`;
         const urlToScreenshot = `${url.protocol}//${
           url.host
-        }/screenshot/?hash=true#${toBase64(data.tokenURI)}`;
+        }/screenshot/?hash=true#${toBase64(tokenURIToUse)}`;
         console.log({ urlToScreenshot });
+
+        if (returnScreenshot) {
+          return new Response(`<a href="${urlToScreenshot}">screenshot</a>`, {
+            headers: { "contend-type": "text/html" },
+          });
+        }
         if (env.SCREENSHOT_SERVICE_ENDPOINT) {
           const options = {
             url: urlToScreenshot,
@@ -77,7 +90,8 @@ export async function eip721(
             width: 824,
             height: 412,
             fresh: true,
-            wait_until: "page_loaded",
+            wait_for: "#ready",
+            // wait_until: "page_loaded",
             full_page: true,
             response_type: "json",
             access_key: env.SCREENSHOT_SERVICE_API_KEY,

@@ -60,6 +60,17 @@ export async function screenshotWithAllData(
             }
             const elem = document.getElementById('img');
             elem.style.backgroundImage = 'url("' + cssImage + '")';
+            let ready = document.getElementById('ready');
+            if (!ready) {
+              setTimeout(() => {
+                ready = document.getElementById('ready');
+                if (!ready) {
+                  ready = document.createElement('div');
+                  ready.id = 'ready';
+                  document.body.appendChild(ready);
+                }
+              }, 200);
+            }
           }
         }
         fetchImage(tokenURI);
