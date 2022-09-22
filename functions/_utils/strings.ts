@@ -1,7 +1,10 @@
 import { Base64 } from "./base64";
 
 // from https://gist.github.com/jonleighton/958841
-export function base64ArrayBuffer(arrayBuffer, urlSafe) {
+export function base64ArrayBuffer(
+  arrayBuffer: ArrayBuffer,
+  urlSafe?: boolean
+): string {
   var base64 = "";
   var encodings = urlSafe
     ? "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_"
