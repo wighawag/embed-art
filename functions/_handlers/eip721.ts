@@ -119,6 +119,10 @@ export async function eip721(
             });
             console.log(`saved`, { imageID, imageURL });
           } catch (err) {
+            customMetadata.url = customMetadata.url.replace(
+              env.SCREENSHOT_SERVICE_API_KEY,
+              "API_KEY"
+            );
             return new Response(
               `failed to save screenshot (${JSON.stringify(customMetadata)}): ${
                 err.message
