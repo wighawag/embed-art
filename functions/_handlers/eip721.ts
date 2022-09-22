@@ -73,12 +73,23 @@ export async function eip721(
           try {
             screenshot = await fetch(screenshotRequest).then((v) => v.json());
           } catch (err) {
-            return new Response(
-              `fetch screenshot:\n${screenshotRequest.slice(
-                env.SCREENSHOT_SERVICE.length
-              )}\n ${err.message}\n${err.stack}`,
-              { status: 500 }
+            // TODO get rid of that second trial
+            //  the screenshot service we use seems to have a limit in the url length that prevent the use of data uri trick
+            console.log(
+              `failed to fetch screenshot first time, retrying with preview URL \n ${err.message}\n${err.stack}`
             );
+            const urlToScreenshot = `${request.url}/preview`;
+            const screenshotRequest = `${env.SCREENSHOT_SERVICE}&url=${urlToScreenshot}&format=jpeg&width=824&height=412&fresh=true&wait_until=page_loaded&full_page=true&response_type=json`;
+            try {
+              screenshot = await fetch(screenshotRequest).then((v) => v.json());
+            } catch (err) {
+              return new Response(
+                `fetch screenshot:\n${screenshotRequest.slice(
+                  env.SCREENSHOT_SERVICE.length
+                )}\n ${err.message}\n${err.stack}`,
+                { status: 500 }
+              );
+            }
           }
         } else {
           const url = new URL(request.url);
