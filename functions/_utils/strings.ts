@@ -4,7 +4,7 @@ import { Base64 } from "./base64";
 export function base64ArrayBuffer(arrayBuffer) {
   var base64 = "";
   var encodings =
-    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
+    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 
   var bytes = new Uint8Array(arrayBuffer);
   var byteLength = bytes.byteLength;
@@ -67,7 +67,7 @@ export async function sha256(v: string): Promise<string> {
 }
 
 export function toBase64(str: string): string {
-  return Base64.encode(str, true);
+  return Base64.encode(str);
 }
 
 export function fromBase64(encoded: string): string {

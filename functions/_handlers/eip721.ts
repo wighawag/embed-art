@@ -1,4 +1,3 @@
-import { Base64 } from "../_utils/base64";
 import {
   BlockchainData,
   fetchBlockchainData,
@@ -64,9 +63,12 @@ export async function eip721(
           }
         }
         const url = new URL(request.url);
+        // const urlToScreenshot = `${url.protocol}//${
+        //   url.host
+        // }/screenshot/?imageBase64=${toBase64(metadata.image)}`;
         const urlToScreenshot = `${url.protocol}//${
           url.host
-        }/screenshot/?imageBase64=${toBase64(metadata.image)}`;
+        }/screenshot/?hash=true#${toBase64(data.tokenURI)}`;
         console.log({ urlToScreenshot });
         if (env.SCREENSHOT_SERVICE_ENDPOINT) {
           const options = {

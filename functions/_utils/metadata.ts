@@ -281,7 +281,7 @@ export async function fetchBlockchainData(
 
   return {
     tokenURI,
-    tokenURIBase64Encoded: Base64.encode(tokenURI, true),
+    tokenURIBase64Encoded: Base64.encode(tokenURI),
     contractMetadata: { name, symbol },
     block,
   };

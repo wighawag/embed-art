@@ -1,5 +1,7 @@
 import { eip721 } from "./_handlers/eip721";
 import { screenshot } from "./_handlers/screenshot";
+import { screenshotWithAllData } from "./_handlers/screenshotWithAllData";
+import { Base64 } from "./_utils/base64";
 import { fromBase64 } from "./_utils/strings";
 
 export async function onRequest(context: {
@@ -32,6 +34,21 @@ export async function onRequest(context: {
   }
 
   if (paths[0] === "screenshot") {
+    const hash = new URL(request.url).searchParams.get("hash");
+    if (hash) {
+      return screenshotWithAllData();
+    }
+
+    const tokenURI = new URL(request.url).searchParams.get("tokenURI");
+    const tokenURIBase64Encoded = new URL(request.url).searchParams.get(
+      "tokenURIBase64Encoded"
+    );
+    if (tokenURIBase64Encoded) {
+      return screenshotWithAllData(Base64.decode(tokenURIBase64Encoded));
+    } else if (tokenURI) {
+      return screenshotWithAllData(tokenURI);
+    }
+
     const image = new URL(request.url).searchParams.get("image");
     const imageBase64 = new URL(request.url).searchParams.get("imageBase64");
     if (!image && !imageBase64) {
