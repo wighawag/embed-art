@@ -268,8 +268,9 @@ export async function fetchBlockchainData(
   // FIXES for broken projects
   // ------------------------------------------------------------------------------------------------------------------
   if (
-    chainId === "5" &&
-    contract.toLowerCase() === "0x208f425822e1a883ebfde737c77dcd88b3ab9635"
+    chainId === "4" &&
+    contract.toLowerCase() ===
+      "0x72361C9f3d4475CE13dA1997D34aFFB350cB17fB".toLowerCase()
   )
     try {
       const percentRegex = /50\%/gm;
@@ -300,9 +301,11 @@ export async function parseMetadata(tokenURI: string): Promise<Metadata> {
     urlDecodedTokenURI = decodeURIComponent(tokenURI);
     console.log({ urlDecodedTokenURI: urlDecodedTokenURI.slice(0, 100) });
   } catch (err) {
-    throw new Error(
-      `failed to decode URI:\n${err.message}\n${err.stack}\ntokenURI: ${tokenURI}`
-    );
+    // fallback ?
+    urlDecodedTokenURI = tokenURI;
+    // throw new Error(
+    //   `failed to decode URI:\n${err.message}\n${err.stack}\ntokenURI: ${tokenURI}`
+    // );
   }
 
   // ------------------------------------------------------------------------------------------------------------------
