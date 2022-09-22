@@ -26,7 +26,7 @@ export async function screenshot(imageURI: string): Promise<Response> {
         }
     </style>
     </head>
-    <body><div id="img"></div><img src="${imageURI}"/></body>
+    <body><div id="img"></div></body>
 </html>`;
   return new Response(page, {
     headers: { "content-type": "text/html" },

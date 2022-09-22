@@ -14,10 +14,25 @@ export async function eip721(
 ): Promise<Response> {
   try {
     const cacheID = `eip721:${chainId}:${contract}:${tokenID}`;
-    let data = await env.DATA_CACHE.get(cacheID, { type: "json" });
+    let data;
+    try {
+      data = await env.DATA_CACHE.get(cacheID, { type: "json" });
+    } catch (err) {
+      return new Response(
+        `failed to get from DATA_CACHE : ${err.message}\n${err.stack}`,
+        { status: 500 }
+      );
+    }
     if (!data) {
       data = await fetchMetadata(env, chainId, contract, tokenID);
-      await env.DATA_CACHE.put(cacheID, JSON.stringify(data));
+      try {
+        await env.DATA_CACHE.put(cacheID, JSON.stringify(data));
+      } catch (err) {
+        return new Response(
+          `failed to put in DATA_CACHE : ${err.message}\n${err.stack}`,
+          { status: 500 }
+        );
+      }
     }
     const metadata = data.metadata;
     const contractMetadata = data.contractMetadata;
@@ -42,13 +57,14 @@ export async function eip721(
         }/screenshot/?imageBase64=${toBase64(metadata.image)}`;
         console.log({ urlToScreenshot });
         if (env.SCREENSHOT_SERVICE) {
+          const screenshotRequest = `${env.SCREENSHOT_SERVICE}&url=${urlToScreenshot}&format=jpeg&width=824&height=412&fresh=true&wait_until=page_loaded&full_page=true&response_type=json`;
           try {
-            screenshot = await fetch(
-              `${env.SCREENSHOT_SERVICE}&url=${urlToScreenshot}&format=jpeg&width=824&height=412&fresh=true&wait_until=page_loaded&full_page=true&response_type=json`
-            ).then((v) => v.json());
+            screenshot = await fetch(screenshotRequest).then((v) => v.json());
           } catch (err) {
             return new Response(
-              `fetch screenshot : ${err.message}\n${err.stack}`,
+              `fetch screenshot:\n${screenshotRequest.slice(
+                env.SCREENSHOT_SERVICE.length
+              )}\n ${err.message}\n${err.stack}`,
               { status: 500 }
             );
           }
