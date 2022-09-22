@@ -39,7 +39,7 @@ export async function eip721(
     if (!onlyPreview) {
       const uriHash = await sha256(metadata.image);
       const imageID =
-        `${chainId}_${contract}_${tokenID}_${uriHash}.jpg`.toLowerCase();
+        `${chainId}_${contract}_${tokenID}`.toLowerCase() + `_${uriHash}.jpg`;
       const imageURL = getImageUrl(request, imageID);
       let imageHead = await env.IMAGES.head(imageID);
       console.log(imageHead);
