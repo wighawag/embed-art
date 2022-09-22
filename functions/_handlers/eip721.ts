@@ -22,7 +22,10 @@ export async function eip721(
     const metadata = data.metadata;
     const contractMetadata = data.contractMetadata;
     if (!onlyPreview) {
-      const imageID = (await sha256(metadata.image)) + ".jpg";
+      const imageID =
+        `${chainId}_${contract}_${tokenID}_` +
+        (await sha256(metadata.image)) +
+        ".jpg";
       const imageURL = getImageUrl(request, imageID);
       let imageHead = await env.IMAGES.head(imageID);
       console.log(imageHead);
