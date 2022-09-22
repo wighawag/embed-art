@@ -13,7 +13,7 @@ export async function eip721(
   onlyPreview: boolean = false
 ): Promise<Response> {
   try {
-    const cacheID = `eip721:${chainId}:${contract}:${tokenID}`;
+    const cacheID = `eip721:${chainId}:${contract}:${tokenID}`.toLowerCase();
     let data;
     try {
       data = await env.DATA_CACHE.get(cacheID, { type: "json" });
@@ -37,10 +37,9 @@ export async function eip721(
     const metadata = data.metadata;
     const contractMetadata = data.contractMetadata;
     if (!onlyPreview) {
+      const uriHash = await sha256(metadata.image);
       const imageID =
-        `${chainId}_${contract}_${tokenID}_` +
-        (await sha256(metadata.image)) +
-        ".jpg";
+        `${chainId}_${contract}_${tokenID}_${uriHash}.jpg`.toLowerCase();
       const imageURL = getImageUrl(request, imageID);
       let imageHead = await env.IMAGES.head(imageID);
       console.log(imageHead);
