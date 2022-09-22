@@ -1,7 +1,7 @@
 import { Base64 } from "./base64";
 
 // from https://gist.github.com/jonleighton/958841
-function base64ArrayBuffer(arrayBuffer) {
+export function base64ArrayBuffer(arrayBuffer) {
   var base64 = "";
   var encodings =
     "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";

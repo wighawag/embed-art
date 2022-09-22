@@ -1,6 +1,6 @@
 import { fetchMetadata } from "../_utils/metadata";
 import { sha256, toBase64 } from "../_utils/strings";
-import { getImageUrl } from "../_utils/url";
+import { blobToDataURI, getImageUrl } from "../_utils/url";
 import { page } from "./page";
 import { preview } from "./preview";
 
@@ -50,6 +50,19 @@ export async function eip721(
         // const urlToScreenshot = `${url.protocol}//${
         //   url.host
         // }/screenshot/?image=${encodeURIComponent(metadata.image)}`;
+        let imageURLToUse = metadata.image;
+        if (imageURLToUse.startsWith("http")) {
+          try {
+            imageURLToUse = await fetch(imageURLToUse)
+              .then((v) => v.blob())
+              .then((b) => blobToDataURI(b));
+          } catch (err) {
+            return new Response(
+              `failed to get the image : ${err.message}\n${err.stack}`,
+              { status: 500 }
+            );
+          }
+        }
         const url = new URL(request.url);
         const urlToScreenshot = `${url.protocol}//${
           url.host
