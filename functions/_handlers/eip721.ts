@@ -1,7 +1,12 @@
-import { fetchMetadata } from "../_utils/metadata";
+import { Base64 } from "../_utils/base64";
+import {
+  BlockchainData,
+  fetchBlockchainData,
+  parseMetadata,
+} from "../_utils/metadata";
 import { sha256, toBase64 } from "../_utils/strings";
 import { blobToDataURI, getImageUrl } from "../_utils/url";
-import { page } from "./page";
+import { pageWithParsedData } from "./pageWithParsedData";
 import { preview } from "./preview";
 
 export async function eip721(
@@ -14,7 +19,7 @@ export async function eip721(
 ): Promise<Response> {
   try {
     const cacheID = `eip721:${chainId}:${contract}:${tokenID}`.toLowerCase();
-    let data;
+    let data: BlockchainData;
     try {
       data = await env.DATA_CACHE.get(cacheID, { type: "json" });
     } catch (err) {
@@ -24,7 +29,7 @@ export async function eip721(
       );
     }
     if (!data) {
-      data = await fetchMetadata(env, chainId, contract, tokenID);
+      data = await fetchBlockchainData(env, chainId, contract, tokenID);
       try {
         await env.DATA_CACHE.put(cacheID, JSON.stringify(data));
       } catch (err) {
@@ -34,7 +39,7 @@ export async function eip721(
         );
       }
     }
-    const metadata = data.metadata;
+    const metadata = await parseMetadata(data.tokenURI);
     const contractMetadata = data.contractMetadata;
     if (!onlyPreview) {
       const uriHash = await sha256(metadata.image);
@@ -63,28 +68,34 @@ export async function eip721(
           url.host
         }/screenshot/?imageBase64=${toBase64(metadata.image)}`;
         console.log({ urlToScreenshot });
-        if (env.SCREENSHOT_SERVICE) {
-          const screenshotRequest = `${env.SCREENSHOT_SERVICE}&url=${urlToScreenshot}&format=jpeg&width=824&height=412&fresh=true&wait_until=page_loaded&full_page=true&response_type=json`;
+        if (env.SCREENSHOT_SERVICE_ENDPOINT) {
+          const options = {
+            url: urlToScreenshot,
+            format: "jpeg",
+            width: 824,
+            height: 412,
+            fresh: true,
+            wait_until: "page_loaded",
+            full_page: true,
+            response_type: "json",
+            access_key: env.SCREENSHOT_SERVICE_API_KEY,
+          };
+          const formData = new FormData();
+          for (const key of Object.keys(options)) {
+            formData.append(key, options[key]);
+          }
+
           try {
-            screenshot = await fetch(screenshotRequest).then((v) => v.json());
+            screenshot = await fetch(env.SCREENSHOT_SERVICE_ENDPOINT, {
+              method: "POST",
+              body: formData,
+            }).then((v) => v.json());
           } catch (err) {
-            // TODO get rid of that second trial
-            //  the screenshot service we use seems to have a limit in the url length that prevent the use of data uri trick
-            console.log(
-              `failed to fetch screenshot first time, retrying with preview URL \n ${err.message}\n${err.stack}`
+            formData.delete("access_key");
+            return new Response(
+              `fetch screenshot:\n${formData}\n ${err.message}\n${err.stack}`,
+              { status: 500 }
             );
-            const urlToScreenshot = `${request.url}/preview`;
-            const screenshotRequest = `${env.SCREENSHOT_SERVICE}&url=${urlToScreenshot}&format=jpeg&width=824&height=412&fresh=true&wait_until=page_loaded&full_page=true&response_type=json`;
-            try {
-              screenshot = await fetch(screenshotRequest).then((v) => v.json());
-            } catch (err) {
-              return new Response(
-                `fetch screenshot:\n${screenshotRequest.slice(
-                  env.SCREENSHOT_SERVICE.length
-                )}\n ${err.message}\n${err.stack}`,
-                { status: 500 }
-              );
-            }
           }
         } else {
           const url = new URL(request.url);
@@ -134,10 +145,15 @@ export async function eip721(
           return new Response("Not found (Download Failure)", { status: 404 });
         }
       }
-      return page({ contract, id: tokenID }, metadata, contractMetadata, {
-        url: request.url,
-        previewURL: imageURL,
-      });
+      return pageWithParsedData(
+        { contract, id: tokenID },
+        metadata,
+        contractMetadata,
+        {
+          url: request.url,
+          previewURL: imageURL,
+        }
+      );
     } else {
       return preview(metadata);
     }

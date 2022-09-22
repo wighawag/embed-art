@@ -1,6 +1,6 @@
 import { ContractMetadata, Metadata } from "../_utils/metadata";
 
-export async function page(
+export async function pageWithParsedData(
   token: { contract: string; id: string },
   metadata: Metadata,
   contractMetadata: ContractMetadata,

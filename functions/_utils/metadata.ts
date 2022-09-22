@@ -1,4 +1,5 @@
 import { Interface } from "@ethersproject/abi";
+import { Base64 } from "./base64";
 
 const tokenURIInterface = new Interface([
   {
@@ -74,16 +75,19 @@ function recursiveReplace(json: any, from: string, to: string): any {
 
 const finality = 12; // TODO parametrize
 
-export async function fetchMetadata(
+export type BlockchainData = {
+  tokenURI: string;
+  tokenURIBase64Encoded: string;
+  contractMetadata: ContractMetadata;
+  block: { number: number; hash: string };
+};
+
+export async function fetchBlockchainData(
   env: any,
   chainId: string,
   contract: string,
   tokenID: string
-): Promise<{
-  metadata: Metadata;
-  contractMetadata: ContractMetadata;
-  block: { number: number; hash: string };
-}> {
+): Promise<BlockchainData> {
   let endpoint = env[`ETHEREUM_NODE_${chainId}`];
   if (!endpoint) {
     endpoint = env.ETHEREUM_NODE;
@@ -275,6 +279,15 @@ export async function fetchMetadata(
   // ------------------------------------------------------------------------------------------------------------------
   // ------------------------------------------------------------------------------------------------------------------
 
+  return {
+    tokenURI,
+    tokenURIBase64Encoded: Base64.encode(tokenURI, true),
+    contractMetadata: { name, symbol },
+    block,
+  };
+}
+
+export async function parseMetadata(tokenURI: string): Promise<Metadata> {
   // ------------------------------------------------------------------------------------------------------------------
   // DECODE URI
   // ------------------------------------------------------------------------------------------------------------------
@@ -283,7 +296,7 @@ export async function fetchMetadata(
     urlDecodedTokenURI = decodeURI(tokenURI);
   } catch (err) {
     throw new Error(
-      `failed to decode URI for ${contract}/${tokenID}\n${err.message}\n${err.stack}\ntokenURI: ${tokenURI}`
+      `failed to decode URI:\n${err.message}\n${err.stack}\ntokenURI: ${tokenURI}`
     );
   }
 
@@ -329,7 +342,7 @@ export async function fetchMetadata(
         );
       } catch (err) {
         throw new Error(
-          `failed to fetch URI for ${contract}/${tokenID}\n${err.message}\n${err.stack}\n\ntokenURI: ${tokenURI}`
+          `failed to fetch URI:\n${err.message}\n${err.stack}\ntokenURI: ${tokenURI}`
         );
       }
     }
@@ -339,5 +352,5 @@ export async function fetchMetadata(
     );
   }
 
-  return { metadata, contractMetadata: { name, symbol }, block };
+  return metadata;
 }
