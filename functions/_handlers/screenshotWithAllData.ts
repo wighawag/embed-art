@@ -8,25 +8,39 @@ export async function screenshotWithAllData(
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width,initial-scale=1" />
     <style>
-        body {
-            margin: 0 0;
-            background-color: black;
-        }
-        #img {
-            position: absolute;
-            top: 5vh;
-            left: 5vw;
-            margin: auto;
-            background-position: center center;
-            background-repeat: no-repeat;
-            background-size: contain;
-            height: 90vh;
-            width: 90vw;
-        }
+      html {overflow: auto;}
+      html, body, div, iframe {
+        background-color: black;
+       margin: 0px; 
+       padding: 0px; 
+       height: 100%; 
+       width: 100%;
+       border: none;
+      }
+      iframe {
+        position: absolute;
+        top: 5vh;
+        left: 5vw;
+        margin: auto;
+        height: 90vh;
+        width: 90vw;
+      }
+      #img {
+        position: absolute;
+        top: 5vh;
+        left: 5vw;
+        margin: auto;
+        background-position: center center;
+        background-repeat: no-repeat;
+        background-size: contain;
+        height: 90vh;
+        width: 90vw;
+      }
     </style>
     </head>
     <body>
       <div id="img"></div>
+      <iframe id="nft-iframe" style="display:none;"></iframe>
       ${
         tokenURI
           ? ""
@@ -50,8 +64,24 @@ export async function screenshotWithAllData(
           }
           const metadataResponse = await fetch(metadataURLToFetch);
           const metadata = await metadataResponse.json();
-          
-          if (metadata.image) {
+                
+          let iframeURL;
+          if (
+            metadata.animation_url &&
+            (metadata.animation_url.startsWith("data:text/html") ||
+              metadata.animation_url.endsWith(".html")) // TODO more ?
+          ) {
+            iframeURL = metadata.animation_url;
+          }
+        
+          if (iframeURL) {
+            const img = document.getElementById('img');
+            img.style.display = 'none';
+
+            const iframe = document.getElementById('nft-iframe');
+            iframe.src=iframeURL;
+            iframe.style.display='block';
+          } else if (metadata.image) {
             let cssImage = metadata.image;
             if (cssImage.startsWith('ipfs://')) {
               cssImage = 'https://ipfs.io/ipfs/'  + tokenURI.slice(7);
