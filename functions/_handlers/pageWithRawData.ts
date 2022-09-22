@@ -191,13 +191,13 @@ export async function pageWithRawData(
             }
             const img = document.getElementById('nft-image');
             img.src=imageURI;
-            img.style.display='block';
+            img.style.display='inline-block';
           }
 
           if (audioURL) {
             const audio = document.getElementById('nft-audio');
             audio.src=audioURL;
-            audio.style.display='block';
+            audio.style.display='inline-block';
           }
         }
         fetchImage(tokenURI);
