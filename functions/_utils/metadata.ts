@@ -299,7 +299,6 @@ export async function parseMetadata(tokenURI: string): Promise<Metadata> {
   let urlDecodedTokenURI;
   try {
     urlDecodedTokenURI = decodeURIComponent(tokenURI);
-    console.log({ urlDecodedTokenURI: urlDecodedTokenURI.slice(0, 100) });
   } catch (err) {
     // fallback ?
     urlDecodedTokenURI = tokenURI;
@@ -334,7 +333,6 @@ export async function parseMetadata(tokenURI: string): Promise<Metadata> {
         }
       } else if (urlDecodedTokenURI.startsWith("data:application/json,")) {
         metadata = JSON.parse(urlDecodedTokenURI.slice(22));
-        // console.log(JSON.stringify(metadata));
       } else if (
         urlDecodedTokenURI.startsWith("data:application/json;base64,")
       ) {

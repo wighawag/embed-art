@@ -1,9 +1,11 @@
-import { eip721, generateDataURI, getData } from "./_handlers/eip721";
-import { screenshot } from "./_handlers/screenshot";
+import {
+  eip721,
+  generateDataURIForScreenshot,
+  getData,
+} from "./_handlers/eip721";
 import { screenshotWithAllData } from "./_handlers/screenshotWithAllData";
 import { Base64 } from "./_utils/base64";
-import { fetchBlockchainData, parseMetadata } from "./_utils/metadata";
-import { fromBase64 } from "./_utils/strings";
+import { parseMetadata } from "./_utils/metadata";
 
 export async function onRequest(context: {
   env: any;
@@ -16,8 +18,6 @@ export async function onRequest(context: {
     env, // same as existing Worker API
     params, // if filename includes [id] or [[path]]
   } = context;
-
-  // console.log(JSON.stringify(env, null, 2));
 
   const pathname = "/" + (params.path?.join("/") || "");
   const paths = params.path || [];
@@ -61,19 +61,16 @@ export async function onRequest(context: {
       const tokenID = splitted[2];
       const data = await getData(env, chainId, contract, tokenID);
       const metadata = await parseMetadata(data.tokenURI);
-      const tokenURIToUse = await generateDataURI(data.tokenURI, metadata);
-      console.log({ tokenURIToUse: tokenURIToUse.slice(0, 100) });
+      const tokenURIToUse = await generateDataURIForScreenshot(
+        data.tokenURI,
+        metadata
+      );
       return screenshotWithAllData(tokenURIToUse);
     }
 
-    const image = new URL(request.url).searchParams.get("image");
-    const imageBase64 = new URL(request.url).searchParams.get("imageBase64");
-    if (!image && !imageBase64) {
-      return new Response(`no image specified: ${request.url}`, {
-        status: 500,
-      });
-    }
-    return screenshot(imageBase64 ? fromBase64(imageBase64) : image);
+    return new Response(`no image specified: ${request.url}`, {
+      status: 500,
+    });
   } else if (paths[0].startsWith("eip155:")) {
     const chainIdAsNumber = parseInt(paths[0].slice(7));
     if (isNaN(chainIdAsNumber)) {
@@ -94,7 +91,6 @@ export async function onRequest(context: {
         chainId,
         contract,
         tokenID,
-        paths[3] === "preview",
         !!new URL(request.url).searchParams.get("showScreenshot")
       );
     }
@@ -105,7 +101,6 @@ export async function onRequest(context: {
       "1",
       paths[1],
       paths[2],
-      paths[3] === "preview",
       !!new URL(request.url).searchParams.get("showScreenshot")
     );
   }

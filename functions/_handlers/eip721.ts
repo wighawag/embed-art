@@ -7,9 +7,7 @@ import {
 } from "../_utils/metadata";
 import { sha256, toBase64 } from "../_utils/strings";
 import { blobToDataURI, getImageUrl } from "../_utils/url";
-import { pageWithParsedData } from "./pageWithParsedData";
 import { pageWithRawData } from "./pageWithRawData";
-import { preview } from "./preview";
 
 export async function getData(
   env: any,
@@ -39,11 +37,12 @@ export async function getData(
   return data;
 }
 
-export async function generateDataURI(
+export async function generateDataURIForScreenshot(
   tokenURI: string,
   metadata: Metadata
 ): Promise<string> {
   let imageURLToUse = metadata.image;
+
   let tokenURIToUse = tokenURI;
   if (imageURLToUse && imageURLToUse.startsWith("http")) {
     try {
@@ -54,10 +53,141 @@ export async function generateDataURI(
       throw new Error(`failed to get the image : ${err.message}\n${err.stack}`);
     }
     tokenURIToUse = `data:application/json;base64,${Base64.encode(
-      JSON.stringify({ image: imageURLToUse })
+      JSON.stringify({
+        image: imageURLToUse,
+        animation_url: metadata.animation_url, // TODO to it for iframe (animation_url)
+      })
     )}`;
   }
   return tokenURIToUse;
+}
+
+async function getURLToScreenshot(
+  request: Request,
+  data: BlockchainData,
+  metadata: Metadata
+): Promise<string> {
+  // NOTE: we generate data:uri from http url, this is to ensure no fetch is required when generating preview
+  const tokenURIToUse = await generateDataURIForScreenshot(
+    data.tokenURI,
+    metadata
+  );
+  const url = new URL(request.url);
+  const urlToScreenshot = `${url.protocol}//${
+    url.host
+  }/screenshot/?hash=true#${toBase64(tokenURIToUse)}`;
+  return urlToScreenshot;
+}
+
+async function generatePreview(
+  env: any,
+  request: Request,
+  chainId: string,
+  contract: string,
+  tokenID: string,
+  data: BlockchainData,
+  metadata: Metadata
+): Promise<string | null> {
+  const uriHash = await sha256(data.tokenURI);
+  const imageID =
+    `${chainId}_${contract}_${tokenID}`.toLowerCase() + `_${uriHash}.jpg`;
+  const imageURL = getImageUrl(request, imageID);
+  let imageHead = await env.IMAGES.head(imageID);
+  if (imageHead) {
+    return imageURL;
+  }
+
+  const urlToScreenshot = await getURLToScreenshot(request, data, metadata);
+  let screenshot: { url: string };
+  if (env.SCREENSHOT_SERVICE_ENDPOINT) {
+    const options = {
+      url: urlToScreenshot,
+      format: "jpeg",
+      width: 824,
+      height: 412,
+      fresh: true,
+      wait_for: "#ready",
+      // wait_until: "page_loaded",
+      full_page: true,
+      response_type: "json",
+      access_key: env.SCREENSHOT_SERVICE_API_KEY,
+    };
+    const formData = new FormData();
+    for (const key of Object.keys(options)) {
+      formData.append(key, options[key]);
+    }
+
+    try {
+      screenshot = await fetch(env.SCREENSHOT_SERVICE_ENDPOINT, {
+        method: "POST",
+        body: formData,
+      }).then((v) => v.json());
+    } catch (err) {
+      formData.delete("access_key");
+      throw new Error(
+        `fetch screenshot (${urlToScreenshot}):\n${formData}\n ${err.message}\n${err.stack}`
+      );
+    }
+  } else {
+    const url = new URL(request.url);
+    screenshot = {
+      url:
+        url.protocol +
+        "//" +
+        url.host +
+        `/static/wighawag.png?url=${urlToScreenshot}`,
+    };
+  }
+
+  if (!screenshot.url) {
+    throw new Error(
+      `no url generated: \n${JSON.stringify(screenshot, null, 2)}`
+    );
+  }
+  let downloadResponse;
+  try {
+    downloadResponse = await fetch(screenshot.url);
+  } catch (err) {
+    throw new Error(
+      `failed to screenshot (${urlToScreenshot}): \n${JSON.stringify(
+        screenshot,
+        null,
+        2
+      )}\n${err.message}\n${err.stack}`.replace(
+        env.SCREENSHOT_SERVICE_API_KEY,
+        "API_KEY"
+      )
+    );
+  }
+
+  if (downloadResponse.status === 200) {
+    const customMetadata = {
+      ...screenshot,
+      ...{
+        number: "" + data.block.number,
+        hash: data.block.hash,
+      },
+    };
+    try {
+      await env.IMAGES.put(imageID, downloadResponse.body, {
+        customMetadata,
+      });
+    } catch (err) {
+      customMetadata.url = customMetadata.url.replace(
+        env.SCREENSHOT_SERVICE_API_KEY,
+        "API_KEY"
+      );
+      throw new Error(
+        `failed to save screenshot (${JSON.stringify(customMetadata)}): ${
+          err.message
+        }\n${err.stack}`
+      );
+    }
+  } else {
+    return null;
+  }
+
+  return imageURL;
 }
 
 export async function eip721(
@@ -66,138 +196,43 @@ export async function eip721(
   chainId: string,
   contract: string,
   tokenID: string,
-  onlyPreview: boolean = false,
   returnScreenshot = false
 ): Promise<Response> {
   try {
     const data = await getData(env, chainId, contract, tokenID);
     const metadata = await parseMetadata(data.tokenURI);
     const contractMetadata = data.contractMetadata;
-    if (!onlyPreview) {
-      const uriHash = await sha256(metadata.image);
-      const imageID =
-        `${chainId}_${contract}_${tokenID}`.toLowerCase() + `_${uriHash}.jpg`;
-      const imageURL = getImageUrl(request, imageID);
-      let imageHead = await env.IMAGES.head(imageID);
-      if (!imageHead) {
-        let screenshot: { url: string };
-        const tokenURIToUse = await generateDataURI(data.tokenURI, metadata);
 
-        const url = new URL(request.url);
-        // const urlToScreenshot = `${url.protocol}//${
-        //   url.host
-        // }/screenshot/?imageBase64=${toBase64(metadata.image)}`;
-        const urlToScreenshot = `${url.protocol}//${
-          url.host
-        }/screenshot/?hash=true#${toBase64(tokenURIToUse)}`;
-        console.log({ urlToScreenshot: urlToScreenshot.slice(0, 100) });
-
-        if (returnScreenshot) {
-          return new Response(`<a href="${urlToScreenshot}">screenshot</a>`, {
-            headers: { "contend-type": "text/html" },
-          });
-        }
-        if (env.SCREENSHOT_SERVICE_ENDPOINT) {
-          const options = {
-            url: urlToScreenshot,
-            format: "jpeg",
-            width: 824,
-            height: 412,
-            fresh: true,
-            wait_for: "#ready",
-            // wait_until: "page_loaded",
-            full_page: true,
-            response_type: "json",
-            access_key: env.SCREENSHOT_SERVICE_API_KEY,
-          };
-          const formData = new FormData();
-          for (const key of Object.keys(options)) {
-            formData.append(key, options[key]);
-          }
-
-          try {
-            screenshot = await fetch(env.SCREENSHOT_SERVICE_ENDPOINT, {
-              method: "POST",
-              body: formData,
-            }).then((v) => v.json());
-          } catch (err) {
-            formData.delete("access_key");
-            return new Response(
-              `fetch screenshot:\n${formData}\n ${err.message}\n${err.stack}`,
-              { status: 500 }
-            );
-          }
-        } else {
-          const url = new URL(request.url);
-          screenshot = {
-            url:
-              url.protocol +
-              "//" +
-              url.host +
-              `/static/wighawag.png?url=${urlToScreenshot}`,
-          };
-        }
-
-        if (!screenshot.url) {
-          return new Response(JSON.stringify(screenshot, null, 2), {
-            status: 500,
-          });
-        }
-        console.log(screenshot.url);
-        const downloadResponse = await fetch(screenshot.url);
-
-        if (downloadResponse.status === 200) {
-          const customMetadata = {
-            ...screenshot,
-            ...{
-              number: "" + data.block.number,
-              hash: data.block.hash,
-            },
-          };
-          try {
-            await env.IMAGES.put(imageID, downloadResponse.body, {
-              customMetadata,
-            });
-            console.log(`saved`, { imageID, imageURL });
-          } catch (err) {
-            customMetadata.url = customMetadata.url.replace(
-              env.SCREENSHOT_SERVICE_API_KEY,
-              "API_KEY"
-            );
-            return new Response(
-              `failed to save screenshot (${JSON.stringify(customMetadata)}): ${
-                err.message
-              }\n${err.stack}`,
-              { status: 500 }
-            );
-          }
-        } else {
-          return new Response("Not found (Download Failure)", { status: 404 });
-        }
-      }
-      return pageWithRawData(
-        { contract, id: tokenID },
-        data.tokenURI,
-        contractMetadata,
-        {
-          url: request.url,
-          previewURL: imageURL,
-          // tokenURIBase64Encoded: data.tokenURIBase64Encoded,
-        },
-        metadata
-      );
-      // return pageWithParsedData(
-      //   { contract, id: tokenID },
-      //   metadata,
-      //   contractMetadata,
-      //   {
-      //     url: request.url,
-      //     previewURL: imageURL,
-      //   }
-      // );
-    } else {
-      return preview(metadata);
+    if (returnScreenshot) {
+      const urlToScreenshot = getURLToScreenshot(request, data, metadata);
+      return new Response(`<a href="${urlToScreenshot}">screenshot</a>`, {
+        headers: { "contend-type": "text/html" },
+      });
     }
+
+    const previewURL = await generatePreview(
+      env,
+      request,
+      chainId,
+      contract,
+      tokenID,
+      data,
+      metadata
+    );
+    if (!previewURL) {
+      return new Response("Not found (Download Failure)", { status: 404 });
+    }
+    return pageWithRawData(
+      { contract, id: tokenID },
+      data.tokenURI,
+      contractMetadata,
+      {
+        url: request.url,
+        previewURL,
+        // tokenURIBase64Encoded: data.tokenURIBase64Encoded,
+      },
+      metadata
+    );
   } catch (err) {
     return new Response(`${err.message}\n${err.stack}`, { status: 500 });
   }
