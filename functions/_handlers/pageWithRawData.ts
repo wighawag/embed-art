@@ -50,9 +50,11 @@ export async function pageWithRawData(
         }
         <meta name="twitter:image" content="${preview}">
         <style>
-        * {
+        html {
           background-color: #111111;
           color: wheat;
+        }
+        * {
           margin: 0;
           padding: 0;
           font-family: Hack, monospace;
@@ -103,6 +105,11 @@ export async function pageWithRawData(
           margin-bottom: 2em;
         }
 
+        .error {
+          margin-bottom: 2em;
+          color: #FF3333;
+        }
+
         #nft-iframe {
           min-width: 80vw;
           min-height: 80vh;
@@ -113,6 +120,8 @@ export async function pageWithRawData(
     <body>
       <div id="wrapper">
         <h1 id="nft-title" style="display:none;"></h1>
+        <p id="nft-error" class="error" style="display:none;"></p>
+        <p id="global-error" class="error" style="display:none;"></p>
         <p id="nft-description" style="display:none;"></p>
           <p>
             <iframe class="main" style="display:none;" id="nft-iframe"></iframe>
@@ -143,12 +152,35 @@ export async function pageWithRawData(
         const cssURLEscaped = (uri) => {
           return uri.replace(regex, "\\/");
         };
+        
+        const showError = (error) => {
+          const errorElement = document.getElementById('nft-error');
+          errorElement.innerHTML = error;
+          errorElement.style.display='block';
+        }
+        const showGlobalError = (error) => {
+          const errorElement = document.getElementById('global-error');
+          errorElement.innerHTML = error;
+          errorElement.style.display='block';
+        }
+        window.onerror = showGlobalError;
         async function fetchImage(tokenURI) {
           let metadataURLToFetch = tokenURI;
           if (metadataURLToFetch.startsWith('ipfs://')) {
             metadataURLToFetch = 'https://ipfs.io/ipfs/' + tokenURI.slice(7);
           }
-          const metadataResponse = await fetch(metadataURLToFetch);
+          let metadataResponse;
+          try {
+            metadataResponse = await fetch(metadataURLToFetch);
+          } catch(err) {
+            if (tokenURI.startsWith('http') && err.response === undefined) {
+              const message = \`<h2>Could not fetch token's metadata.</h2><p>This could be a CORS issue or a dropped internet connection.</p><p>It is not possible for us to know. (Please check in your browser console))</p><p>If it is a CORS issue, please contact the persons responsible for the project and tell them to allow CORS.</p><p>This page fetch all token data client side to ensure full compliance with web standard.</p>\`;
+              showError(message);
+            } else {
+              showError("<h2>Could not fetch token's metadata.</h2><p>" + (err.message || err) + "</p>");
+            }
+            return;
+          }
           const metadata = await metadataResponse.json();
 
           if (metadata.name) {
