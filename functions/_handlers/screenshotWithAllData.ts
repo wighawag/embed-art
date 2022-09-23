@@ -98,7 +98,7 @@ export async function screenshotWithAllData(
           } else if (metadata.image) {
             let cssImage = metadata.image;
             if (cssImage.startsWith('ipfs://')) {
-              cssImage = 'https://ipfs.io/ipfs/'  + tokenURI.slice(7);
+              cssImage = 'https://ipfs.io/ipfs/'  + cssImage.slice(7);
             } else if (cssImage.startsWith('data:')) {
               cssImage = cssURLEscaped(cssImage);
             }

@@ -220,7 +220,7 @@ export async function pageWithRawData(
           } else if (metadata.image) {
             let imageURI = metadata.image;
             if (imageURI.startsWith('ipfs://')) {
-                imageURI = 'https://ipfs.io/ipfs/'  + tokenURI.slice(7);
+                imageURI = 'https://ipfs.io/ipfs/'  + imageURI.slice(7);
             }
             const img = document.getElementById('nft-image');
             img.src=imageURI;
