@@ -119,7 +119,12 @@ export async function pageWithRawData(
     </head>
     <body>
       <div id="wrapper">
-        <h1 id="nft-title" style="display:none;"></h1>
+
+        ${
+          title
+            ? `<h1 id="nft-title">${title}</h1>`
+            : `<h1 id="nft-title" style="display:none;"></h1>`
+        }
         <p id="nft-error" class="error" style="display:none;"></p>
         <p id="global-error" class="error" style="display:none;"></p>
         <p id="nft-description" style="display:none;"></p>
