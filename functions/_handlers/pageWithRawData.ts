@@ -174,7 +174,7 @@ export async function pageWithRawData(
             metadataResponse = await fetch(metadataURLToFetch);
           } catch(err) {
             if (tokenURI.startsWith('http') && err.response === undefined) {
-              const message = \`<h2>Could not fetch token's metadata.</h2><p>This could be a CORS issue or a dropped internet connection.</p><p>It is not possible for us to know. (Please check in your browser console.)</p><p>If it is a CORS issue, please contact the persons responsible for the project and tell them to allow CORS.</p><p>This page fetch all token data client side to ensure full compliance with web standard.</p>\`;
+              const message = \`<h2>Could not fetch token's metadata.</h2><p>This could be a CORS issue or a dropped internet connection.</p><p>It is not possible for us to know. (Please check in your browser console.)</p><p>If it is a CORS issue, please contact the persons responsible for the project and tell them to allow CORS.</p><p>This page fetches all token data client side to ensure full compliance with web standard.</p>\`;
               showError(message);
             } else {
               showError("<h2>Could not fetch token's metadata.</h2><p>" + (err.message || err) + "</p>");
