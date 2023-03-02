@@ -204,11 +204,13 @@ export async function eip721(
     const contractMetadata = data.contractMetadata;
 
     if (returnScreenshot) {
-      const urlToScreenshot = getURLToScreenshot(request, data, metadata);
+      const urlToScreenshot = await getURLToScreenshot(request, data, metadata);
       return new Response(`<a href="${urlToScreenshot}">screenshot</a>`, {
-        headers: { "contend-type": "text/html" },
+        headers: { "content-type": "text/html" },
       });
     }
+
+    // can instead generate an iframe with the screenshot url
 
     const previewURL = await generatePreview(
       env,
