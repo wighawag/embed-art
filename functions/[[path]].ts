@@ -35,9 +35,10 @@ export async function onRequest(context: {
   }
 
   if (paths[0] === "screenshot") {
+    const capture = !!new URL(request.url).searchParams.get("capture");
     const hash = new URL(request.url).searchParams.get("hash");
     if (hash) {
-      return screenshotWithAllData();
+      return screenshotWithAllData(undefined, capture);
     }
 
     const tokenURI = new URL(request.url).searchParams.get("tokenURI");
@@ -45,9 +46,12 @@ export async function onRequest(context: {
       "tokenURIBase64Encoded"
     );
     if (tokenURIBase64Encoded) {
-      return screenshotWithAllData(Base64.decode(tokenURIBase64Encoded));
+      return screenshotWithAllData(
+        Base64.decode(tokenURIBase64Encoded),
+        capture
+      );
     } else if (tokenURI) {
-      return screenshotWithAllData(tokenURI);
+      return screenshotWithAllData(tokenURI, capture);
     }
 
     const id = new URL(request.url).searchParams.get("id");
@@ -65,7 +69,7 @@ export async function onRequest(context: {
         data.tokenURI,
         metadata
       );
-      return screenshotWithAllData(tokenURIToUse);
+      return screenshotWithAllData(tokenURIToUse, capture);
     }
 
     return new Response(`no image specified: ${request.url}`, {

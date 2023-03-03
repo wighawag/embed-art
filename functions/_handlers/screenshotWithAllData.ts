@@ -1,6 +1,103 @@
 export async function screenshotWithAllData(
-  tokenURI?: string
+  tokenURI?: string,
+  capture?: boolean
 ): Promise<Response> {
+  const captureInjection = `
+  <script>
+      const options = {
+        video: {
+          cursor: "never",
+          displaySurface: "browser",
+          preferCurrentTab: true,
+        },
+      };
+
+      function draw(video) {
+        let canvas = document.createElement("canvas");
+        video.width = canvas.width = video.videoWidth;
+        video.height = canvas.height = video.videoHeight;
+        canvas.getContext("2d").drawImage(video, 0, 0);
+
+        video.srcObject.getTracks().forEach((track) => track.stop());
+        video.srcObject = null;
+
+        return canvas;
+      }
+      async function toCanvas() {
+        let stream = await navigator.mediaDevices.getDisplayMedia(options);
+        let video = document.createElement("video");
+        video.srcObject = stream;
+        video.play();
+
+        return new Promise((resolve) => {
+          video.addEventListener(
+            "canplay",
+            (e) => {
+              let canvas = draw(video);
+              resolve(canvas);
+            },
+            { once: true }
+          );
+        });
+      }
+      async function toDataURL(...args) {
+        let canvas = await toCanvas();
+        return canvas.toDataURL(...args);
+      }
+
+      async function toBlob(...args) {
+        let canvas = await toCanvas();
+        return new Promise((resolve) => canvas.toBlob(resolve, ...args));
+      }
+
+      async function capture() {
+        const btn = document.getElementById("btn");
+        btn.style.display = "none";
+
+        const url = await toDataURL();
+        const img = document.createElement("img");
+        // img.style = "border: 5px red solid";
+        img.src = url;
+        while (document.body.firstChild) {
+          document.body.removeChild(document.body.firstChild);
+        }
+        document.body.appendChild(img);
+      }
+    </script>
+    <div
+      style="
+        width: 100%;
+        height: 100%;
+        position: absolute;
+        background-color: transparent;
+        text-align: center;
+      "
+    >
+      <button
+        id="btn"
+        onclick="capture()"
+        style="
+          width: 200px;
+          border-radius: 10em;
+          margin-top: 10px;
+          background-color: #4caf50;
+          box-shadow: 4px 4px 5px #333333;
+          border: none;
+          color: white;
+          padding: 15px 32px;
+          text-align: center;
+          text-decoration: none;
+          display: inline-block;
+          font-size: 16px;
+
+          margin-right: auto;
+          margin-left: auto;
+        "
+      >
+        capture
+      </button>
+    </div>
+  `;
   const page = `<!DOCTYPE html>
 <html lang="en">
     <head>
@@ -109,6 +206,7 @@ export async function screenshotWithAllData(
         }
         fetchImage(tokenURI);
       </script>
+      ${capture ? captureInjection : ""}
     </body>
 </html>`;
   return new Response(page, {
