@@ -8,6 +8,7 @@ import {
 import { sha256, toBase64 } from "../_utils/strings";
 import { blobToDataURI, getImageUrl } from "../_utils/url";
 import { pageWithRawData } from "./pageWithRawData";
+import puppeteer from "@cloudflare/puppeteer";
 
 export async function getData(
   env: any,
@@ -97,96 +98,26 @@ async function generatePreview(
     return imageURL;
   }
 
-  const urlToScreenshot = await getURLToScreenshot(request, data, metadata);
-  let screenshot: { url: string };
-  if (env.SCREENSHOT_SERVICE_ENDPOINT) {
-    const options = {
-      url: urlToScreenshot,
-      format: "jpeg",
-      width: 824,
-      height: 412,
-      fresh: true,
-      wait_for: "#ready",
-      // wait_until: "page_loaded",
-      full_page: true,
-      response_type: "json",
-      access_key: env.SCREENSHOT_SERVICE_API_KEY,
-    };
-    const formData = new FormData();
-    for (const key of Object.keys(options)) {
-      formData.append(key, options[key]);
-    }
-
-    try {
-      screenshot = await fetch(env.SCREENSHOT_SERVICE_ENDPOINT, {
-        method: "POST",
-        body: formData,
-      }).then((v) => v.json());
-    } catch (err) {
-      formData.delete("access_key");
-      throw new Error(
-        `fetch screenshot (${urlToScreenshot}):\n${formData}\n ${err.message}\n${err.stack}`
-      );
-    }
-  } else {
-    const url = new URL(request.url);
-    screenshot = {
-      url:
-        url.protocol +
-        "//" +
-        url.host +
-        `/static/wighawag.png?url=${urlToScreenshot}`,
-    };
-  }
-
-  if (!screenshot.url) {
-    throw new Error(
-      `no url generated: \n${JSON.stringify(screenshot, null, 2)}`
-    );
-  }
-  let downloadResponse;
-  try {
-    downloadResponse = await fetch(screenshot.url);
-  } catch (err) {
-    throw new Error(
-      `failed to screenshot (${urlToScreenshot}): \n${JSON.stringify(
-        screenshot,
-        null,
-        2
-      )}\n${err.message}\n${err.stack}`.replace(
-        env.SCREENSHOT_SERVICE_API_KEY,
-        "API_KEY"
-      )
-    );
-  }
-
-  if (downloadResponse.status === 200) {
-    const customMetadata = {
+  const urlToScreenshot = await getURLToScreenshot(request, data, metadata);   
+  
+  const screenshot = {
+      url: urlToScreenshot
+  };
+  const customMetadata = {
       ...screenshot,
       ...{
         number: "" + data.block.number,
         hash: data.block.hash,
       },
     };
-    try {
-      await env.IMAGES.put(imageID, downloadResponse.body, {
-        customMetadata,
-      });
-    } catch (err) {
-      customMetadata.url = customMetadata.url.replace(
-        env.SCREENSHOT_SERVICE_API_KEY,
-        "API_KEY"
-      );
-      throw new Error(
-        `failed to save screenshot (${JSON.stringify(customMetadata)}): ${
-          err.message
-        }\n${err.stack}`
-      );
-    }
-  } else {
-    return null;
-  }
 
+  const browser = await puppeteer.launch(env.MYBROWSER);
+  const page = await browser.newPage();
+  await page.goto(urlToScreenshot);
+  const img = (await page.screenshot()) as Buffer;
+  await env.IMAGES.put(imageID, img, {customMetadata});
+  await browser.close();
+  
   return imageURL;
 }
 
