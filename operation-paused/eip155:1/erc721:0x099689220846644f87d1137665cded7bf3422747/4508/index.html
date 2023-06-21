@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <title>Roboto Helmeto #4508</title>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width,initial-scale=1" />
+        <meta name="title" content="Roboto Helmeto #4508">
+        <meta name="description" content="Robotos is a collection of algorithmically generated droid characters designed by Pablo Stanley">
+        <meta property="og:type" content="website">
+        <meta property="og:url" content="https://embed.art/eip155:1/erc721:0x099689220846644f87d1137665cded7bf3422747/4508">
+        <meta property="og:title" content="Roboto Helmeto #4508">
+        <meta property="og:description" content="Robotos is a collection of algorithmically generated droid characters designed by Pablo Stanley">
+        <meta property="og:image" content="https://embed.art/images/1_0x099689220846644f87d1137665cded7bf3422747_4508__tRdy6KeDurLbc7fCYRc3qGGBcXavqxv4e_VLvKFbDc=.jpg">
+        <meta name="twitter:card" content="summary_large_image">
+        <meta name="twitter:url" content="https://embed.art/eip155:1/erc721:0x099689220846644f87d1137665cded7bf3422747/4508">
+        <meta name="twitter:title" content="Roboto Helmeto #4508">
+        <meta name="twitter:description" content="Robotos is a collection of algorithmically generated droid characters designed by Pablo Stanley">
+        <meta name="twitter:image" content="https://embed.art/images/1_0x099689220846644f87d1137665cded7bf3422747_4508__tRdy6KeDurLbc7fCYRc3qGGBcXavqxv4e_VLvKFbDc=.jpg">
+        <style>
+        html {
+          background-color: #111111;
+          color: wheat;
+        }
+        * {
+          margin: 0;
+          padding: 0;
+          font-family: Hack, monospace;
+        }
+        p,
+        h1 {
+          margin: 1em 1em 1em 1em;
+        }
+        :root {
+          --width: 80vw;
+        }
+        #wrapper {
+          text-align: center;
+          height: 100%;
+          margin: 0;
+        }
+        .main {
+          width: 30%;
+          height: auto;
+        }
+
+        @media only screen and (max-width: 1000px) {
+          .main {
+            width: 60%;
+            height: auto;
+          }
+        }
+
+        @media only screen and (max-width: 600px) {
+          .main {
+            width: 90%;
+            height: auto;
+          }
+        }
+
+        @media only screen and (max-width: 400px) {
+          .main {
+            width: 100%;
+            height: auto;
+          }
+        }
+
+        #nft-title {
+          margin-top: 1em;
+        }
+
+        #nft-description {
+          margin-bottom: 2em;
+        }
+
+        .error {
+          margin-bottom: 2em;
+          color: #FF3333;
+        }
+
+        #nft-iframe {
+          min-width: 80vw;
+          min-height: 80vh;
+        }
+
+      </style>
+    </head>
+    <body>
+      <div id="wrapper">
+
+        <h1 id="nft-title">Roboto Helmeto #4508</h1>
+        <p id="nft-error" class="error" style="display:none;"></p>
+        <p id="global-error" class="error" style="display:none;"></p>
+        <p id="nft-description" style="display:none;"></p>
+          <p>
+            <iframe class="main" style="display:none;" id="nft-iframe"></iframe>
+          </p>
+          <p>
+            <img class="main" style="display=none;" id="nft-image"/>
+          </p>
+          <p><audio id="nft-audio" controls autoplay loop style="display:none;"></audio></p>
+      </div>
+      
+      
+      <script>
+        const tokenURI = `https://gateway.pinata.cloud/ipfs/QmQh36CsceXZoqS7v9YQLUyxXdRmWd8YWTBUz7WCXsiVty/4508`;
+        const regex = /\//gm;
+        const cssURLEscaped = (uri) => {
+          return uri.replace(regex, "\/");
+        };
+        
+        const showError = (error) => {
+          const errorElement = document.getElementById('nft-error');
+          errorElement.innerHTML = error;
+          errorElement.style.display='block';
+        }
+        const showGlobalError = (error) => {
+          const errorElement = document.getElementById('global-error');
+          errorElement.innerHTML = error;
+          errorElement.style.display='block';
+        }
+        window.onerror = showGlobalError;
+        async function fetchImage(tokenURI) {
+          let metadataURLToFetch = tokenURI;
+          if (metadataURLToFetch.startsWith('ipfs://')) {
+            metadataURLToFetch = 'https://ipfs.io/ipfs/' + tokenURI.slice(7);
+          }
+          let metadataResponse;
+          try {
+            metadataResponse = await fetch(metadataURLToFetch);
+          } catch(err) {
+            if (tokenURI.startsWith('http') && err.response === undefined) {
+              const message = `<h2>Could not fetch token's metadata.</h2><p>This could be a CORS issue or a dropped internet connection.</p><p>It is not possible for us to know. (Please check in your browser console.)</p><p>If it is a CORS issue, please contact the persons responsible for the project and tell them to allow CORS.</p><p>This page fetches all token data client side to ensure full compliance with web standard.</p>`;
+              showError(message);
+            } else {
+              showError("<h2>Could not fetch token's metadata.</h2><p>" + (err.message || err) + "</p>");
+            }
+            return;
+          }
+          const metadata = await metadataResponse.json();
+
+          if (metadata.name) {
+            const title = document.getElementById('nft-title');
+            title.innerHTML = metadata.name; // TODO contract URI symbol + tokenID as fallback
+            title.style.display='block';
+          }
+          if (metadata.description) {
+            const description = document.getElementById('nft-description');
+            description.innerHTML = metadata.description;
+            description.style.display='block';
+          }
+          
+          let iframeURL;
+          if (
+            metadata.animation_url &&
+            (metadata.animation_url.startsWith("data:text/html") ||
+              metadata.animation_url.endsWith(".html")) // TODO more ?
+          ) {
+            iframeURL = metadata.animation_url;
+          }
+          let audioURL;
+          if (
+            metadata.animation_url &&
+            (metadata.animation_url.startsWith("data:audio/") ||
+              metadata.animation_url.endsWith(".wav") ||
+              metadata.animation_url.endsWith(".mp3") ||
+              metadata.animation_url.endsWith(".ogg")) // TODO more
+          ) {
+            audioURL = metadata.animation_url;
+          }
+
+          if (iframeURL) {
+            const iframe = document.getElementById('nft-iframe');
+            iframe.src=iframeURL;
+            iframe.style.display='block';
+          } else if (metadata.image) {
+            let imageURI = metadata.image;
+            if (imageURI.startsWith('ipfs://')) {
+                imageURI = 'https://ipfs.io/ipfs/'  + imageURI.slice(7);
+            }
+            const img = document.getElementById('nft-image');
+            img.src=imageURI;
+            img.style.display='inline-block';
+          }
+
+          if (audioURL) {
+            const audio = document.getElementById('nft-audio');
+            audio.src=audioURL;
+            audio.style.display='inline-block';
+          }
+        }
+        fetchImage(tokenURI);
+      </script>
+    </body>
+</html>
