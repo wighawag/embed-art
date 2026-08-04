@@ -1,0 +1,6 @@
+# Ethereum RPC endpoints
+ETHEREUM_NODE=https://eth.llamarpc.com
+# ETHEREUM_NODE_5=https://goerli.infura.io/v3/...
+
+# Note: No API token or account ID needed for screenshot generation.
+# The browser binding in wrangler.toml authenticates automatically.

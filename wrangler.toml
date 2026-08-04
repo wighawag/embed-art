@@ -1,0 +1,24 @@
+name = "embed-art"
+main = "src/index.ts"
+compatibility_date = "2024-09-23"
+compatibility_flags = ["nodejs_compat"]
+
+# Static assets (replaces Cloudflare Pages — the modern approach)
+[assets]
+directory = "public/"
+binding = "ASSETS"
+
+# Cloudflare Browser Run binding — headless Chromium for screenshot
+# generation via env.BROWSER.quickAction(). No API token required.
+[browser]
+binding = "BROWSER"
+
+# KV namespace for caching blockchain data (tokenURI, block, contract metadata)
+[[kv_namespaces]]
+binding = "DATA_CACHE"
+id = "d0955573019f4062b22480499b95bb7c"
+
+# R2 bucket for storing generated preview JPEGs
+[[r2_buckets]]
+binding = "IMAGES"
+bucket_name = "embed-images"

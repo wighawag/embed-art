@@ -5,9 +5,10 @@ import {
   Metadata,
   parseMetadata,
 } from "../_utils/metadata";
-import { sha256, toBase64 } from "../_utils/strings";
+import { sha256 } from "../_utils/strings";
 import { blobToDataURI, getImageUrl } from "../_utils/url";
 import { pageWithRawData } from "./pageWithRawData";
+import { screenshotHTML } from "./screenshotWithAllData";
 
 export async function getData(
   env: any,
@@ -62,8 +63,7 @@ export async function generateDataURIForScreenshot(
   return tokenURIToUse;
 }
 
-async function getURLToScreenshot(
-  request: Request,
+async function getScreenshotHTML(
   data: BlockchainData,
   metadata: Metadata
 ): Promise<string> {
@@ -72,11 +72,7 @@ async function getURLToScreenshot(
     data.tokenURI,
     metadata
   );
-  const url = new URL(request.url);
-  const urlToScreenshot = `${url.protocol}//${
-    url.host
-  }/screenshot/?hash=true#${toBase64(tokenURIToUse)}`;
-  return urlToScreenshot;
+  return screenshotHTML(tokenURIToUse);
 }
 
 async function generatePreview(
@@ -97,94 +93,56 @@ async function generatePreview(
     return imageURL;
   }
 
-  const urlToScreenshot = await getURLToScreenshot(request, data, metadata);
-  let screenshot: { url: string };
-  if (env.SCREENSHOT_SERVICE_ENDPOINT) {
-    const options = {
-      url: urlToScreenshot,
-      format: "jpeg",
-      width: 824,
-      height: 412,
-      fresh: true,
-      wait_for: "#ready",
-      // wait_until: "page_loaded",
-      full_page: true,
-      response_type: "json",
-      access_key: env.SCREENSHOT_SERVICE_API_KEY,
-    };
-    const formData = new FormData();
-    for (const key of Object.keys(options)) {
-      formData.append(key, options[key]);
-    }
-
-    try {
-      screenshot = await fetch(env.SCREENSHOT_SERVICE_ENDPOINT, {
-        method: "POST",
-        body: formData,
-      }).then((v) => v.json());
-    } catch (err) {
-      formData.delete("access_key");
-      throw new Error(
-        `fetch screenshot (${urlToScreenshot}):\n${formData}\n ${err.message}\n${err.stack}`
-      );
-    }
-  } else {
-    const url = new URL(request.url);
-    screenshot = {
-      url:
-        url.protocol +
-        "//" +
-        url.host +
-        `/static/wighawag.png?url=${urlToScreenshot}`,
-    };
-  }
-
-  if (!screenshot.url) {
+  if (!env.BROWSER) {
     throw new Error(
-      `no url generated: \n${JSON.stringify(screenshot, null, 2)}`
+      "BROWSER binding is required to generate previews. Add a [browser] binding in wrangler.toml."
     );
   }
-  let downloadResponse;
+
+  // Generate the self-contained screenshot page HTML (assets are embedded as data-URIs
+  // so the headless browser does not need to make any network requests).
+  const html = await getScreenshotHTML(data, metadata);
+
+  let screenshotResponse: Response;
   try {
-    downloadResponse = await fetch(screenshot.url);
+    // Use the Cloudflare Browser Run binding (no API token needed — the binding
+    // authenticates automatically). Quick Actions /screenshot renders the HTML,
+    // waits for the #ready element, and captures a JPEG screenshot at 824x412.
+    screenshotResponse = await env.BROWSER.quickAction("screenshot", {
+      html,
+      viewport: { width: 824, height: 412 },
+      waitForSelector: { selector: "#ready", timeout: 30000 },
+      screenshotOptions: {
+        type: "jpeg",
+        omitBackground: true,
+      },
+    });
   } catch (err) {
     throw new Error(
-      `failed to screenshot (${urlToScreenshot}): \n${JSON.stringify(
-        screenshot,
-        null,
-        2
-      )}\n${err.message}\n${err.stack}`.replace(
-        env.SCREENSHOT_SERVICE_API_KEY,
-        "API_KEY"
-      )
+      `failed to call Browser Run quickAction (screenshot): ${err.message}\n${err.stack}`
     );
   }
 
-  if (downloadResponse.status === 200) {
-    const customMetadata = {
-      ...screenshot,
-      ...{
-        number: "" + data.block.number,
-        hash: data.block.hash,
-      },
-    };
-    try {
-      await env.IMAGES.put(imageID, downloadResponse.body, {
-        customMetadata,
-      });
-    } catch (err) {
-      customMetadata.url = customMetadata.url.replace(
-        env.SCREENSHOT_SERVICE_API_KEY,
-        "API_KEY"
-      );
-      throw new Error(
-        `failed to save screenshot (${JSON.stringify(customMetadata)}): ${
-          err.message
-        }\n${err.stack}`
-      );
-    }
-  } else {
-    return null;
+  if (screenshotResponse.status !== 200) {
+    const errorBody = await screenshotResponse.text();
+    throw new Error(
+      `Browser Run quickAction (screenshot) returned status ${screenshotResponse.status}: ${errorBody}`
+    );
+  }
+
+  const customMetadata = {
+    number: "" + data.block.number,
+    hash: data.block.hash,
+  };
+  try {
+    const imageBuffer = await screenshotResponse.arrayBuffer();
+    await env.IMAGES.put(imageID, imageBuffer, {
+      customMetadata,
+    });
+  } catch (err) {
+    throw new Error(
+      `failed to save screenshot to R2: ${err.message}\n${err.stack}`
+    );
   }
 
   return imageURL;
@@ -204,8 +162,8 @@ export async function eip721(
     const contractMetadata = data.contractMetadata;
 
     if (returnScreenshot) {
-      const urlToScreenshot = await getURLToScreenshot(request, data, metadata);
-      return new Response(`<a href="${urlToScreenshot}">screenshot</a>`, {
+      const html = await getScreenshotHTML(data, metadata);
+      return new Response(html, {
         headers: { "content-type": "text/html" },
       });
     }

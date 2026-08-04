@@ -1,7 +1,7 @@
-export async function screenshotWithAllData(
+export function screenshotHTML(
   tokenURI?: string,
   capture?: boolean
-): Promise<Response> {
+): string {
   const captureInjection = `
   <script>
       const options = {
@@ -209,6 +209,14 @@ export async function screenshotWithAllData(
       ${capture ? captureInjection : ""}
     </body>
 </html>`;
+  return page;
+}
+
+export async function screenshotWithAllData(
+  tokenURI?: string,
+  capture?: boolean
+): Promise<Response> {
+  const page = screenshotHTML(tokenURI, capture);
   return new Response(page, {
     headers: { "content-type": "text/html" },
   });
