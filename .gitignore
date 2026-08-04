@@ -2,3 +2,4 @@ node_modules/
 .dev.vars
 log*
 _tests/
+.wrangler

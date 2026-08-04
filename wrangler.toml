@@ -3,6 +3,12 @@ main = "src/index.ts"
 compatibility_date = "2024-09-23"
 compatibility_flags = ["nodejs_compat"]
 
+# Custom domains
+routes = [
+  { pattern = "embed.art", custom_domain = true },
+]
+
+
 # Static assets (replaces Cloudflare Pages — the modern approach)
 [assets]
 directory = "public/"
