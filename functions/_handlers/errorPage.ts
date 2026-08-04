@@ -65,11 +65,15 @@ export function errorPage(
     contract?: string;
     tokenID?: string;
     tokenURI?: string;
+    origin?: string;
   }
 ): Response {
   const info = ERROR_INFO[type];
   const escTitle = escapeHtml(info.title);
   const escMessage = escapeHtml(info.message);
+  const imageUrl = context.origin
+    ? `${context.origin}/static/error-${type}.png`
+    : undefined;
 
   const details: string[] = [];
   if (context.chainId)
@@ -94,9 +98,19 @@ export function errorPage(
         <meta property="og:type" content="website">
         <meta property="og:title" content="${escTitle}">
         <meta property="og:description" content="${escMessage}">
+        ${
+          imageUrl
+            ? `<meta property="og:image" content="${escapeHtml(imageUrl)}">`
+            : ""
+        }
         <meta name="twitter:card" content="summary">
         <meta name="twitter:title" content="${escTitle}">
         <meta name="twitter:description" content="${escMessage}">
+        ${
+          imageUrl
+            ? `<meta name="twitter:image" content="${escapeHtml(imageUrl)}">`
+            : ""
+        }
         <style>
           html {
             background-color: #111111;

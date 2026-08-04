@@ -157,7 +157,8 @@ export async function eip721(
   tokenID: string,
   returnScreenshot = false
 ): Promise<Response> {
-  const ctx = { chainId, contract, tokenID };
+  const origin = new URL(request.url).origin;
+  const ctx = { chainId, contract, tokenID, origin };
 
   // ------------------------------------------------------------------
   // Stage 1: Blockchain data (RPC node)
