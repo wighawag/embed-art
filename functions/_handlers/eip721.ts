@@ -7,6 +7,7 @@ import {
 } from "../_utils/metadata";
 import { sha256 } from "../_utils/strings";
 import { blobToDataURI, getImageUrl } from "../_utils/url";
+import { errorPage } from "./errorPage";
 import { pageWithRawData } from "./pageWithRawData";
 import { screenshotHTML } from "./screenshotWithAllData";
 
@@ -156,21 +157,50 @@ export async function eip721(
   tokenID: string,
   returnScreenshot = false
 ): Promise<Response> {
-  try {
-    const data = await getData(env, chainId, contract, tokenID);
-    const metadata = await parseMetadata(data.tokenURI);
-    const contractMetadata = data.contractMetadata;
+  const ctx = { chainId, contract, tokenID };
 
-    if (returnScreenshot) {
+  // ------------------------------------------------------------------
+  // Stage 1: Blockchain data (RPC node)
+  // ------------------------------------------------------------------
+  let data: BlockchainData;
+  try {
+    data = await getData(env, chainId, contract, tokenID);
+  } catch (err: any) {
+    return errorPage("blockchain", err, ctx);
+  }
+
+  // ------------------------------------------------------------------
+  // Stage 2: Metadata parsing (tokenURI server)
+  // ------------------------------------------------------------------
+  let metadata: Metadata;
+  try {
+    metadata = await parseMetadata(data.tokenURI);
+  } catch (err: any) {
+    return errorPage("metadata", err, { ...ctx, tokenURI: data.tokenURI });
+  }
+
+  const contractMetadata = data.contractMetadata;
+
+  // ------------------------------------------------------------------
+  // Stage 3: Screenshot page (for ?showScreenshot debug mode)
+  // ------------------------------------------------------------------
+  if (returnScreenshot) {
+    try {
       const html = await getScreenshotHTML(data, metadata);
       return new Response(html, {
         headers: { "content-type": "text/html" },
       });
+    } catch (err: any) {
+      return errorPage("image", err, { ...ctx, tokenURI: data.tokenURI });
     }
+  }
 
-    // can instead generate an iframe with the screenshot url
-
-    const previewURL = await generatePreview(
+  // ------------------------------------------------------------------
+  // Stage 4: Preview generation (image fetch + Browser Run screenshot)
+  // ------------------------------------------------------------------
+  let previewURL: string | null;
+  try {
+    previewURL = await generatePreview(
       env,
       request,
       chainId,
@@ -179,21 +209,33 @@ export async function eip721(
       data,
       metadata
     );
-    if (!previewURL) {
-      return new Response("Not found (Download Failure)", { status: 404 });
+  } catch (err: any) {
+    // generateDataURIForScreenshot (inside generatePreview) fetches the
+    // image — if that fails it's an image error, not a screenshot error.
+    if (err.message.includes("failed to get the image")) {
+      return errorPage("image", err, { ...ctx, tokenURI: data.tokenURI });
     }
-    return pageWithRawData(
-      { contract, id: tokenID },
-      data.tokenURI,
-      contractMetadata,
-      {
-        url: request.url,
-        previewURL,
-        // tokenURIBase64Encoded: data.tokenURIBase64Encoded,
-      },
-      metadata
-    );
-  } catch (err) {
-    return new Response(`${err.message}\n${err.stack}`, { status: 500 });
+    return errorPage("screenshot", err, ctx);
   }
+  if (!previewURL) {
+    return errorPage(
+      "screenshot",
+      new Error("Screenshot generation returned no result"),
+      ctx
+    );
+  }
+
+  // ------------------------------------------------------------------
+  // Stage 5: Return the full NFT page
+  // ------------------------------------------------------------------
+  return pageWithRawData(
+    { contract, id: tokenID },
+    data.tokenURI,
+    contractMetadata,
+    {
+      url: request.url,
+      previewURL,
+    },
+    metadata
+  );
 }
