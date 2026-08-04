@@ -6,7 +6,7 @@ export async function pageWithRawData(
   contractMetadata: ContractMetadata,
   //   contractURI: string, TODO
   extra: { url: string; previewURL: string; tokenURIBase64Encoded?: string },
-  metadata?: Metadata
+  metadata?: Metadata,
 ): Promise<Response> {
   const url = extra.url;
   const title =
@@ -14,8 +14,8 @@ export async function pageWithRawData(
     (contractMetadata.symbol
       ? `${contractMetadata.symbol} ${token.id}`
       : contractMetadata.name
-      ? `${contractMetadata.name} ${token.id}`
-      : `Token ${token.id}`);
+        ? `${contractMetadata.name} ${token.id}`
+        : `Token ${token.id}`);
   const description = metadata?.description;
   const preview = extra.previewURL;
 
@@ -150,8 +150,8 @@ export async function pageWithRawData(
           extra.tokenURIBase64Encoded
             ? `atobUTF8(\`${extra.tokenURIBase64Encoded}\`)`
             : tokenURI
-            ? "`" + tokenURI + "`"
-            : `atobUTF8(location.hash.slice(1))`
+              ? "`" + tokenURI + "`"
+              : `atobUTF8(location.hash.slice(1))`
         };
         const regex = /\\//gm;
         const cssURLEscaped = (uri) => {
@@ -169,6 +169,36 @@ export async function pageWithRawData(
           errorElement.style.display='block';
         }
         window.onerror = showGlobalError;
+        // Some on-chain WAV generators (e.g. The Bleep Machine earliy demo on
+        //  Goerli) write the RIFF and data chunk size fields as 0. Chrome 
+        // tolerates this and plays the trailing bytes, but Firefox's stricter
+        // demuxer honors the declared 0 length and produces silence. We patch 
+        // those header fields here so the audio plays in every browser.
+        // Returns a Blob URL when fixed, otherwise the original url untouched.
+        function fixMalformedWav(url) {
+          var prefix = 'data:audio/wav;base64,';
+          if (url.indexOf(prefix) !== 0) return url;
+          var b64 = url.slice(prefix.length);
+          var bin;
+          try { bin = atob(b64); } catch (e) { return url; }
+          if (bin.substr(0,4) !== 'RIFF' || bin.substr(8,4) !== 'WAVE') return url;
+          var len = bin.length;
+          var bytes = new Uint8Array(len);
+          for (var i = 0; i < len; i++) bytes[i] = bin.charCodeAt(i);
+          var dv = new DataView(bytes.buffer);
+          var riffSize = dv.getUint32(4, true);
+          var off = 12, dataOff = 0, dataSize = 0;
+          while (off + 8 <= len) {
+            var id = String.fromCharCode(bytes[off], bytes[off+1], bytes[off+2], bytes[off+3]);
+            var sz = dv.getUint32(off+4, true);
+            if (id === 'data') { dataOff = off + 8; dataSize = sz; break; }
+            off += 8 + sz + (sz & 1); // chunks are word-aligned
+          }
+          if (riffSize !== 0 && dataSize !== 0) return url; // already well-formed
+          dv.setUint32(4, len - 8, true);            // RIFF chunk size
+          if (dataOff) dv.setUint32(dataOff - 4, len - dataOff, true); // data chunk size
+          return URL.createObjectURL(new Blob([bytes], { type: 'audio/wav' }));
+        }
         async function fetchImage(tokenURI) {
           let metadataURLToFetch = tokenURI;
           if (metadataURLToFetch.startsWith('ipfs://')) {
@@ -234,7 +264,7 @@ export async function pageWithRawData(
 
           if (audioURL) {
             const audio = document.getElementById('nft-audio');
-            audio.src=audioURL;
+            audio.src = fixMalformedWav(audioURL);
             audio.style.display='inline-block';
           }
         }
