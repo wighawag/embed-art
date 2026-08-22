@@ -1,14 +1,14 @@
 {
   "name": "embed-art",
   "version": "1.0.0",
-  "description": "",
+  "description": "Embed Your Art Anywhere.",
   "scripts": {
     "dev": "wrangler dev --remote",
     "deploy": "wrangler deploy"
   },
   "keywords": [],
   "author": "",
-  "license": "ISC",
+  "license": "AGPL-3.0-only",
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20250101.0",
     "wrangler": "^4.0.0"

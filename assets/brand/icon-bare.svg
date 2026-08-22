@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256" style="color: #F5DEB3">
+  <g transform="translate(-8.7984 -8.7984) scale(1.068738)">
+  <g fill="none" stroke="currentColor" stroke-width="34" stroke-linecap="butt" stroke-linejoin="miter">
+    <path d="M78 42 H42 V214 H78"/>
+    <path d="M178 42 H214 V214 H178"/>
+  </g>
+  <rect x="78" y="78" width="100" height="100" rx="13" fill="#BE8F04"/>
+  </g>
+</svg>

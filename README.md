@@ -1,3 +1,7 @@
+<div align="center">
+<a href="https://embed.art"><img alt="Embed.Art: Embed Your Art Anywhere." src="https://raw.githubusercontent.com/wighawag/embed-art/main/public/static/preview.png" width="640" /></a>
+</div>
+
 # Embed.Art
 
 ## Introduction

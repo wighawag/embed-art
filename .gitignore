@@ -1,5 +1,7 @@
 node_modules/
 .dev.vars
-log*
+# Root-level log files only. A bare `log*` also matches anything beginning with
+# "log" at any depth, which silently swallowed assets/brand/logo.svg.
+/log*
 _tests/
 .wrangler
