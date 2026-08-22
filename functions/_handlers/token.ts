@@ -10,6 +10,7 @@ import {
   parseMetadataWithCors,
   TokenStandard,
 } from "../_utils/metadata";
+import { fetchAsService } from "../_utils/request";
 import { sha256 } from "../_utils/strings";
 import { blobToDataURI, getImageUrl } from "../_utils/url";
 import { errorPage } from "./errorPage";
@@ -57,7 +58,7 @@ export async function generateDataURIForScreenshot(
   let tokenURIToUse = tokenURI;
   if (imageURLToUse && imageURLToUse.startsWith("http")) {
     try {
-      imageURLToUse = await fetch(imageURLToUse)
+      imageURLToUse = await fetchAsService(imageURLToUse)
         .then((v) => v.blob())
         .then((b) => blobToDataURI(b));
     } catch (err) {

@@ -7,6 +7,7 @@ import {
 } from "../functions/_handlers/token";
 import { isEnsName } from "../functions/_utils/ens";
 import { resolveApiRoute } from "../functions/_handlers/resolveApi";
+import { GatewayKind, gatewayRoute } from "../functions/_handlers/gateway";
 import { parseTokenSegment } from "../functions/_utils/url";
 import { screenshotWithAllData } from "../functions/_handlers/screenshotWithAllData";
 import { Base64 } from "../functions/_utils/base64";
@@ -51,6 +52,20 @@ export default {
         /* keep the raw form; the handler will reject it */
       }
       return resolveApiRoute(env, name);
+    }
+
+    // ------------------------------------------------------------------
+    // Content-addressed content: /ipfs/<cid>, /ipns/<name>, /ar/<txid>
+    // The token page reads these from us rather than from a public gateway,
+    // which answers a browser and a server differently. See gateway.ts.
+    // ------------------------------------------------------------------
+    for (const kind of ["ipfs", "ipns", "ar"] as GatewayKind[]) {
+      const prefix = `/${kind}/`;
+      if (pathname.startsWith(prefix)) {
+        // The query string is dropped on purpose: a CID identifies the bytes
+        // completely, and gateway query parameters only decorate the download.
+        return gatewayRoute(request, kind, pathname.slice(prefix.length));
+      }
     }
 
     // ------------------------------------------------------------------

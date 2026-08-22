@@ -1,4 +1,5 @@
 import { ContractMetadata, CorsStatus, Metadata } from "../_utils/metadata";
+import { gatewayPath } from "../_utils/url";
 
 export async function pageWithRawData(
   token: { contract: string; id: string },
@@ -284,11 +285,21 @@ export async function pageWithRawData(
           if (dataOff) dv.setUint32(dataOff - 4, len - dataOff, true); // data chunk size
           return URL.createObjectURL(new Blob([bytes], { type: 'audio/wav' }));
         }
+        // Injected from functions/_utils/url.ts so there is ONE implementation
+        // of "which URIs this origin serves", tested there and running here.
+        // Bound to a name we choose rather than pasted as a declaration: the
+        // bundler is free to rename the function it emits.
+        const gatewayPath = ${gatewayPath.toString()};
+
         async function fetchImage(tokenURI) {
-          let metadataURLToFetch = tokenURI;
-          if (metadataURLToFetch.startsWith('ipfs://')) {
-            metadataURLToFetch = 'https://ipfs.io/ipfs/' + tokenURI.slice(7);
-          }
+          // ipfs:// and friends are read back through THIS origin: which
+          // gateway serves a CID is our business, not the token's claim, and
+          // public gateways answer a browser (403 challenge, no CORS header)
+          // differently from a server (200). An https:// URL is NOT proxied:
+          // that one IS the project's claim about where its metadata lives,
+          // and if it refuses cross-origin reads you should see that.
+          const localPath = gatewayPath(tokenURI);
+          const metadataURLToFetch = localPath || tokenURI;
           let metadataResponse;
           try {
             metadataResponse = await fetch(metadataURLToFetch);
@@ -308,19 +319,41 @@ export async function pageWithRawData(
                 "<code>" + metadataURLToFetch + "</code>.</p>"
               );
               showServerPreview();
-            } else if (tokenURI.startsWith('http') && err.response === undefined) {
+            } else if (localPath) {
               showError("<h2>Could not fetch token's metadata.</h2><p>" +
-                "The request failed before any response arrived. Our server could " +
-                "reach this metadata URL, so this is most likely your connection " +
-                "or a network in between.</p>");
+                "<code>" + metadataURLToFetch + "</code> is served by Embed.Art from a " +
+                "public gateway, so the content is most likely unpinned or the " +
+                "gateway is down.</p>");
               showServerPreview();
             } else {
-              showError("<h2>Could not fetch token's metadata.</h2><p>" + (err.message || err) + "</p>");
+              // From JavaScript a CORS rejection and a dead network are the
+              // same event, so name both rather than picking one: our server
+              // reached this URL, which is what makes the first one likely.
+              showError("<h2>Could not fetch token's metadata.</h2><p>" +
+                (err.message || err) + "</p><p>Our server could reach " +
+                "<code>" + metadataURLToFetch + "</code>, so either that host " +
+                "refused to be read from another site (a CORS rejection, which " +
+                "the browser reports exactly like a network failure), or " +
+                "something between you and it dropped the request.</p>");
               showServerPreview();
             }
             return;
           }
-          const metadata = await metadataResponse.json();
+          if (!metadataResponse.ok) {
+            showError("<h2>Could not fetch token's metadata.</h2><p><code>" +
+              metadataURLToFetch + "</code> answered " + metadataResponse.status + ".</p>");
+            showServerPreview();
+            return;
+          }
+          let metadata;
+          try {
+            metadata = await metadataResponse.json();
+          } catch (err) {
+            showError("<h2>The token's metadata is not valid JSON.</h2><p>" +
+              (err.message || err) + "</p>");
+            showServerPreview();
+            return;
+          }
 
           if (metadata.name) {
             const title = document.getElementById('nft-title');
@@ -354,21 +387,23 @@ export async function pageWithRawData(
 
           if (iframeURL) {
             const iframe = document.getElementById('nft-iframe');
-            iframe.src=iframeURL;
+            const localIframe = gatewayPath(iframeURL);
+            // Art we serve from our own origin is framed WITHOUT
+            // allow-same-origin, so it runs but cannot act as embed.art. Art
+            // on someone else's origin is left exactly as it was: it is
+            // already separated from us by that origin.
+            if (localIframe) iframe.sandbox = 'allow-scripts';
+            iframe.src = localIframe || iframeURL;
             iframe.style.display='block';
           } else if (metadata.image) {
-            let imageURI = metadata.image;
-            if (imageURI.startsWith('ipfs://')) {
-                imageURI = 'https://ipfs.io/ipfs/'  + imageURI.slice(7);
-            }
             const img = document.getElementById('nft-image');
-            img.src=imageURI;
+            img.src = gatewayPath(metadata.image) || metadata.image;
             img.style.display='inline-block';
           }
 
           if (audioURL) {
             const audio = document.getElementById('nft-audio');
-            audio.src = fixMalformedWav(audioURL);
+            audio.src = fixMalformedWav(gatewayPath(audioURL) || audioURL);
             audio.style.display='inline-block';
           }
         }

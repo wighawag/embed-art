@@ -51,6 +51,49 @@ async function main() {
     eq(`cors=${cors} client script parses`, parses, true);
   }
 
+  section("content-addressed URIs are read back through this origin");
+
+  // The BAYC bug: ipfs.io answers our worker 200 with `access-control-allow-
+  // origin: *` and answers a browser 403 with no CORS header at all, so the
+  // page must never send the visitor to a public gateway.
+  const anyPage = await render("not-applicable");
+  const script = lastScript(anyPage);
+  eq("gatewayPath is injected", script.includes("const gatewayPath = "), true);
+  eq(
+    "the metadata URL goes through gatewayPath",
+    script.includes("const localPath = gatewayPath(tokenURI)"),
+    true
+  );
+  eq(
+    "no public gateway is hardcoded in the page any more",
+    script.includes("https://ipfs.io/"),
+    false
+  );
+  eq("the image is mapped too", script.includes("gatewayPath(metadata.image)"), true);
+  eq(
+    "html art we host is framed without our origin",
+    script.includes("iframe.sandbox = 'allow-scripts'"),
+    true
+  );
+  // A non-2xx is not an exception, so it used to fall through to an unhandled
+  // JSON parse and a blank page.
+  eq("a non-2xx answer is reported", script.includes("!metadataResponse.ok"), true);
+  eq(
+    "the meaningless err.response test is gone",
+    script.includes("err.response === undefined"),
+    false
+  );
+  // The injected copy has to work on its own: it is evaluated in a page that
+  // has none of this module's scope.
+  const start = script.indexOf("const gatewayPath = ");
+  const end = script.indexOf("async function fetchImage");
+  const injected = script.slice(start, end);
+  eq(
+    "the injected copy actually runs",
+    new Function(injected + "; return gatewayPath;")()("ipfs://QmAbc/1"),
+    "/ipfs/QmAbc/1"
+  );
+
   const blocked = await render("blocked");
   eq(
     "blocked page names the offending header",
@@ -66,6 +109,13 @@ async function main() {
     "page no longer hedges about the cause",
     blocked.includes("It is not possible for us to know"),
     false
+  );
+  // An https metadata host that refuses cross-origin reads is the project's
+  // mistake, and stays a visible failure rather than being proxied away.
+  eq(
+    "a CORS rejection is still named as a possible cause elsewhere",
+    lastScript(blocked).includes("a CORS rejection, which "),
+    true
   );
   eq("preview URL is available to the script", blocked.includes("const PREVIEW ="), true);
 

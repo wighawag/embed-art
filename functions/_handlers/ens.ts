@@ -7,6 +7,7 @@ import {
 } from "../_utils/ens";
 import { Metadata } from "../_utils/metadata";
 import { sha256 } from "../_utils/strings";
+import { gatewayPath, gatewayURI } from "../_utils/url";
 import { errorPage } from "./errorPage";
 import { generatePreviewImage, tokenPage } from "./token";
 
@@ -17,17 +18,6 @@ function escapeHtml(s: string): string {
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#039;");
-}
-
-/** ipfs:// and ar:// are not fetchable by a browser; route them via a gateway. */
-export function gatewayURI(uri: string): string {
-  if (uri.startsWith("ipfs://")) {
-    return `https://ipfs.io/ipfs/${uri.slice(7).replace(/^ipfs\//, "")}`;
-  }
-  if (uri.startsWith("ar://")) {
-    return `https://arweave.net/${uri.slice(5)}`;
-  }
-  return uri;
 }
 
 const PAGE_CSS = `
@@ -190,7 +180,12 @@ async function imageAvatarPage(
   ref: Extract<AvatarRef, { kind: "image" }>
 ): Promise<Response> {
   const name = resolution.name;
+  // Two different audiences, two different URLs for the same bytes. The
+  // screenshot is taken server-side, where a public gateway answers us
+  // normally, so it gets the gateway URL. The <img> is loaded by the visitor's
+  // browser, which the same gateway may challenge, so it gets this origin.
   const displayURI = gatewayURI(ref.uri);
+  const browserURI = gatewayPath(ref.uri) || displayURI;
 
   // Run it through the same screenshot pipeline as a token, so the card that
   // unfurls is a real JPEG even when the avatar is an SVG or sits on IPFS.
@@ -226,7 +221,7 @@ async function imageAvatarPage(
     image: previewURL,
     body: `
       <h1><span class="name">${escapeHtml(name)}</span></h1>
-      <img class="avatar" src="${escapeHtml(displayURI)}" alt="${escapeHtml(name)}'s avatar" />
+      <img class="avatar" src="${escapeHtml(browserURI)}" alt="${escapeHtml(name)}'s avatar" />
       <div class="note">
         <strong>This is not an NFT avatar.</strong> The <code>avatar</code>
         record points at an image directly, so there is no token behind it: no

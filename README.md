@@ -22,6 +22,7 @@ The idea behind Embed.Art is to allow you to have an easy way to share your toke
 | `/image/<token path>` | 302 to the generated preview JPEG |
 | `/audio/<token path>` | the token's audio, if its `animation_url` is one |
 | `/api/resolve/<name>.eth` | JSON: what that name's `addr` record points at |
+| `/ipfs/<cid>`, `/ipns/<name>`, `/ar/<txid>` | content-addressed bytes, fetched server-side |
 
 The preview's real URL embeds `sha256(tokenURI)`, which nothing outside the
 worker can compute, so `/image/` exists to give it a stable, guessable address:
@@ -94,11 +95,18 @@ because token ids run well past 2^53.
 
 **A known-collection list** fills chain, standard, contract and a sample id in
 one pick. Two rules decide what is on it: the ids have to be small counting
-numbers, and the entry has to have been checked against mainnet, `tokenURI`
-returning metadata with an image today. That is why Mandalas is absent despite
-being the front page's own example of onchain art: its ids are 40-digit numbers
-derived from an address, and they do not exist until minted, so there is
-nothing you could type.
+numbers, and the entry has to have been checked **through this service**, its
+sample id rendering a page rather than an error. That is why Mandalas is absent
+despite being the front page's own example of onchain art: its ids are 40-digit
+numbers derived from an address, and they do not exist until minted, so there
+is nothing you could type.
+
+Checking through the service rather than from a laptop is what found the next
+bug: CrypToadz rendered here and 403'd there, because arweave.net refuses a
+request with no `User-Agent` and the worker was sending none. Every outbound
+fetch now identifies itself as `embed.art` (see `fetchAsService`), which is
+both what fixed it and the courteous arrangement: a host that wants us to stop
+can see who to ask.
 
 ## How it works ?
 
@@ -128,6 +136,34 @@ generated from `assets/brand/spec.py`, so a link that unfurls to an error still
 unfurls as Embed.Art instead of borrowing the front page's card and implying
 everything worked.
 
+### Content-addressed content is served from here, http(s) is not
+
+The token page fetches metadata in the **browser**, which is the point: what
+you see comes from the token's own URI rather than from a copy we made. That
+holds for `https://` URLs, and it must, because a metadata host that refuses
+cross-origin reads is the project's own mistake and hiding it would be doing
+nobody a favour.
+
+A public IPFS gateway is a different thing entirely. It is not the token's
+claim about anything: which gateway serves a CID is the client's business, and
+ideally it would not be a gateway at all but a local p2p node. It also does not
+answer a browser the way it answers a server. ipfs.io sits behind Cloudflare's
+bot mitigation, and for the same URL at the same moment it answers this worker
+`200` with `access-control-allow-origin: *` while answering a browser-shaped
+request `403 cf-mitigated: challenge` with no CORS header at all. The trigger
+is the **User-Agent**. A browser can only report that as a CORS failure.
+
+That is how a BAYC page came to say "Could not fetch token's metadata" while
+the server, having asked the same URL and been answered normally, told the page
+CORS was `allowed`. The check was not wrong, it was about the wrong request:
+CORS is a property of a (request, response) pair, not of a URL.
+
+So `ipfs://`, `ipns://` and `ar://` are now read back through this origin, via
+`/ipfs/`, `/ipns/` and `/ar/`, which fetch upstream **without forwarding the
+visitor's headers** (passing the browser's User-Agent on would recreate the
+very challenge the route exists to dodge) and return the bytes with an
+immutable cache lifetime. `https://` URIs are deliberately left alone.
+
 ### When the metadata server blocks the browser
 
 The token page fetches the metadata **client-side**, deliberately, so what you
@@ -154,6 +190,7 @@ embed-art/
 │   │   ├── token.ts           # ERC-721 / ERC-1155 logic + screenshot generation
 │   │   ├── ens.ts             # ENS avatar resolution and its three outcomes
 │   │   ├── resolveApi.ts      # /api/resolve/<name>.eth, for the URL builder
+│   │   ├── gateway.ts         # /ipfs/, /ipns/, /ar/ content-addressed proxy
 │   │   ├── errorPage.ts       # Failure pages (blockchain/metadata/image/screenshot)
 │   │   ├── pageWithRawData.ts # HTML page generator
 │   │   └── screenshotWithAllData.ts # Screenshot page HTML generator

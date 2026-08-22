@@ -1,3 +1,24 @@
+/**
+ * How this service identifies itself when it fetches somebody else's content.
+ *
+ * Not decoration. An unidentified request is treated as anonymous traffic:
+ * arweave.net answers the default worker request `403` and answers the very
+ * same request carrying a name `200`, which is the difference between a token
+ * page and an error page. It is also the courteous arrangement, since a host
+ * that wants us to stop can see who to ask.
+ */
+export const USER_AGENT = "embed.art (+https://embed.art)";
+
+/** fetch(), with this service's name on it. */
+export function fetchAsService(
+  url: string,
+  init: RequestInit = {}
+): Promise<Response> {
+  const headers = new Headers((init.headers as HeadersInit) || {});
+  if (!headers.has("user-agent")) headers.set("user-agent", USER_AGENT);
+  return fetch(url, { ...init, headers });
+}
+
 export const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "GET,HEAD,POST,OPTIONS",

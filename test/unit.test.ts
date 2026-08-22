@@ -3,8 +3,9 @@
  * bindings. These are the places where a wrong character silently produces a
  * page that says "unreadable" about a perfectly good token.
  */
-import { gatewayURI } from "../functions/_handlers/ens";
+import { outboundHeaders, upstreamFor } from "../functions/_handlers/gateway";
 import { audioSource } from "../functions/_handlers/media";
+import { gatewayPath, gatewayURI } from "../functions/_utils/url";
 import { isEnsName, normalizeEnsName, parseAvatarRecord } from "../functions/_utils/ens";
 import { erc1155IdHex, isRenderable } from "../functions/_utils/metadata";
 import { parseTokenSegment } from "../functions/_utils/url";
@@ -120,12 +121,82 @@ eq("a query is not a name", normalizeEnsName("a.eth?x=1"), null);
 eq("empty", normalizeEnsName(""), null);
 eq("null", normalizeEnsName(null), null);
 
-section("gatewayURI");
+section("gatewayURI (what the SERVER fetches)");
 eq("ipfs", gatewayURI("ipfs://QmAbc"), "https://ipfs.io/ipfs/QmAbc");
 eq("ipfs with redundant prefix", gatewayURI("ipfs://ipfs/QmAbc"), "https://ipfs.io/ipfs/QmAbc");
+eq("ipns", gatewayURI("ipns://example.eth"), "https://ipfs.io/ipns/example.eth");
 eq("arweave", gatewayURI("ar://xyz"), "https://arweave.net/xyz");
 eq("https untouched", gatewayURI("https://a/b.png"), "https://a/b.png");
 eq("data untouched", gatewayURI("data:image/png;base64,AA"), "data:image/png;base64,AA");
+
+section("gatewayPath (what the BROWSER is given)");
+// A CID is content: where it is fetched from is nobody's claim, so it comes
+// back through this origin, where no gateway can challenge the browser.
+eq("ipfs", gatewayPath("ipfs://QmAbc/0"), "/ipfs/QmAbc/0");
+eq("ipfs with redundant prefix", gatewayPath("ipfs://ipfs/QmAbc"), "/ipfs/QmAbc");
+eq("ipns", gatewayPath("ipns://example.eth"), "/ipns/example.eth");
+eq("arweave", gatewayPath("ar://xyz"), "/ar/xyz");
+// The opposite case, and the important one: an https URL IS the project's
+// claim about where its metadata lives. Proxying it would hide a CORS
+// mistake that the token's owner should see and fix.
+eq("https is left alone", gatewayPath("https://api.opensea.io/x/1"), null);
+eq("http is left alone", gatewayPath("http://a/b"), null);
+eq("data is left alone", gatewayPath("data:application/json,{}"), null);
+eq("an ipfs gateway URL is left alone", gatewayPath("https://ipfs.io/ipfs/QmAbc"), null);
+eq("nonsense", gatewayPath("QmAbc"), null);
+eq("non-string", gatewayPath(undefined as any), null);
+// It is injected verbatim into the token page, so it must not close over
+// anything: called with no scope of its own it still has to work.
+eq(
+  "survives being reconstructed from its own source",
+  new Function("return " + gatewayPath.toString())()("ipfs://QmAbc"),
+  "/ipfs/QmAbc"
+);
+
+section("upstreamFor (the gateway proxy's only decision)");
+eq("ipfs", upstreamFor("ipfs", "QmAbc/0"), "https://ipfs.io/ipfs/QmAbc/0");
+eq("ipfs with redundant prefix", upstreamFor("ipfs", "ipfs/QmAbc"), "https://ipfs.io/ipfs/QmAbc");
+eq("leading slashes trimmed", upstreamFor("ipfs", "//QmAbc"), "https://ipfs.io/ipfs/QmAbc");
+eq("ipns", upstreamFor("ipns", "example.eth"), "https://ipfs.io/ipns/example.eth");
+eq("arweave", upstreamFor("ar", "xyz-123"), "https://arweave.net/xyz-123");
+eq("empty", upstreamFor("ipfs", ""), null);
+// The proxy fetches on the visitor's behalf, so it must not be talkable into
+// fetching something that is not gateway content.
+eq("traversal", upstreamFor("ipfs", "../etc/passwd"), null);
+eq("traversal mid-path", upstreamFor("ipfs", "QmAbc/../../x"), null);
+eq("percent-encoded traversal", upstreamFor("ipfs", "%2e%2e/%2e%2e/etc"), null);
+eq("undecodable percent escape", upstreamFor("ipfs", "Qm%zz"), null);
+eq("absolute URL", upstreamFor("ipfs", "https://evil.example/x"), null);
+eq("protocol-relative", upstreamFor("ipfs", "/evil.example/x"), "https://ipfs.io/ipfs/evil.example/x");
+eq("backslash", upstreamFor("ipfs", "Qm\\evil"), null);
+eq("query string", upstreamFor("ipfs", "QmAbc?x=1"), null);
+eq("fragment", upstreamFor("ipfs", "QmAbc#x"), null);
+eq("whitespace", upstreamFor("ipfs", "Qm Abc"), null);
+
+section("outboundHeaders (hosting other people's bytes on our own name)");
+const upstreamHeaders = new Headers({
+  "content-type": "text/html",
+  etag: '"abc"',
+  "set-cookie": "tracker=1",
+  "content-security-policy": "default-src 'none'",
+});
+const ipfsHeaders = outboundHeaders("ipfs", upstreamHeaders);
+eq("content-type kept", ipfsHeaders.get("content-type"), "text/html");
+eq("etag kept", ipfsHeaders.get("etag"), '"abc"');
+eq("upstream cookies dropped", ipfsHeaders.get("set-cookie"), null);
+// Some NFT art IS an HTML document. Served from embed.art it would otherwise
+// run AS embed.art, which a public gateway used to prevent just by being
+// somewhere else.
+eq(
+  "the document gets an opaque origin",
+  ipfsHeaders.get("content-security-policy"),
+  "sandbox allow-scripts"
+);
+eq("no content sniffing", ipfsHeaders.get("x-content-type-options"), "nosniff");
+eq("a CID is immutable", ipfsHeaders.get("cache-control"), "public, max-age=29030400, immutable");
+// An IPNS name is a pointer its owner can move, so it is cached like one.
+eq("an IPNS name is not", outboundHeaders("ipns", upstreamHeaders).get("cache-control"), "public, max-age=60");
+eq("readable by any page", ipfsHeaders.get("access-control-allow-origin"), "*");
 
 
 

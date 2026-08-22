@@ -25,6 +25,55 @@ export function parseTokenSegment(
   return null;
 }
 
+/**
+ * A content-addressed URI rewritten to a public gateway, for OUR OWN fetches.
+ *
+ * Server-side only. What the browser should be given is gatewayPath(): a path
+ * on this origin, because public gateways treat a browser-shaped request very
+ * differently from ours (see the comment there).
+ */
+export function gatewayURI(uri: string): string {
+  if (uri.startsWith("ipfs://")) {
+    return `https://ipfs.io/ipfs/${uri.slice(7).replace(/^ipfs\//, "")}`;
+  }
+  if (uri.startsWith("ipns://")) {
+    return `https://ipfs.io/ipns/${uri.slice(7)}`;
+  }
+  if (uri.startsWith("ar://")) {
+    return `https://arweave.net/${uri.slice(5)}`;
+  }
+  return uri;
+}
+
+/**
+ * The path on THIS origin that serves a content-addressed URI, or null if the
+ * URI is not content-addressed.
+ *
+ * Only `ipfs://`, `ipns://` and `ar://` qualify, and the distinction is the
+ * whole point. Where a CID is fetched from is a client-side implementation
+ * detail (ideally a local p2p node), so routing it through this origin changes
+ * nothing about what the token says. An `https://` URL is the opposite: it is
+ * the project's own claim about where its metadata lives, and if that host
+ * refuses cross-origin reads the page must show that failure rather than
+ * papering over it with a proxy.
+ *
+ * NOTE: this function's source is injected verbatim into the token page, so it
+ * must stay self-contained: no imports, no module-scope references, nothing an
+ * older browser would choke on.
+ */
+export function gatewayPath(uri: string): string | null {
+  if (typeof uri !== "string") return null;
+  if (uri.indexOf("ipfs://") === 0) {
+    var cid = uri.slice(7);
+    // `ipfs://ipfs/Qm...` appears in the wild; both halves mean the same thing.
+    if (cid.indexOf("ipfs/") === 0) cid = cid.slice(5);
+    return "/ipfs/" + cid;
+  }
+  if (uri.indexOf("ipns://") === 0) return "/ipns/" + uri.slice(7);
+  if (uri.indexOf("ar://") === 0) return "/ar/" + uri.slice(5);
+  return null;
+}
+
 export function getImageUrl(request: Request, imageID: string): string {
   const url = new URL(request.url);
   const imageURL = url.protocol + "//" + url.host + "/images/" + imageID;

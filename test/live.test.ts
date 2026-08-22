@@ -9,7 +9,12 @@
  * invisible to offline tests: only a real record revealed it.
  */
 import { parseAvatarRecord, resolveEns, resolveEnsAddress } from "../functions/_utils/ens";
-import { erc1155IdHex, fetchBlockchainData, parseMetadata } from "../functions/_utils/metadata";
+import {
+  erc1155IdHex,
+  fetchBlockchainData,
+  parseMetadata,
+  parseMetadataWithCors,
+} from "../functions/_utils/metadata";
 import { eq, report, section } from "./assert";
 
 const env = {
@@ -59,6 +64,27 @@ async function main() {
   );
   eq("unregistered name resolves to nothing", noSuchName.address, null);
   eq("and is reported as unregistered, not unconfigured", noSuchName.owner, null);
+
+  section("an IPFS token URI (BAYC)");
+
+  // The bug this guards: ipfs.io answered the server 200 with
+  // `access-control-allow-origin: *`, so the page was told CORS was "allowed"
+  // and sent the browser to the same gateway, which challenged it with a 403
+  // carrying no CORS header. A content-addressed URI is read back through our
+  // own origin now, so the gateway's opinion about cross-origin reads is not
+  // an answer to any question the page asks.
+  const bayc = await fetchBlockchainData(
+    env as any,
+    "1",
+    "0xBC4CA0EdA7647A8aB7C2061c2E118A18a936f13D",
+    "0",
+    "erc721"
+  );
+  eq("BAYC token URI is content-addressed", bayc.tokenURI.startsWith("ipfs://"), true);
+  const baycMetadata = await parseMetadataWithCors(bayc.tokenURI);
+  eq("no cross-origin request is involved", baycMetadata.cors, "not-applicable");
+  eq("fetched through a gateway server-side", baycMetadata.fetchedFrom?.startsWith("https://"), true);
+  eq("metadata has an image", typeof baycMetadata.metadata.image, "string");
 
   section("ERC-1155 token read (OpenSea shared storefront)");
 

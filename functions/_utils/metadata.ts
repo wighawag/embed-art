@@ -1,7 +1,9 @@
 import { Interface } from "@ethersproject/abi";
 import { BigNumber } from "@ethersproject/bignumber";
 import { Base64 } from "./base64";
+import { fetchAsService } from "./request";
 import { getEndpoint } from "./rpc";
+import { gatewayPath, gatewayURI } from "./url";
 
 export type TokenStandard = "erc721" | "erc1155";
 
@@ -431,15 +433,19 @@ export async function parseMetadataWithCors(
         throw new Error(`not supported : ${tokenURI}`);
       }
     } else {
-      if (tokenURI.startsWith("ipfs://")) {
-        tokenURI = `https://ipfs.io/ipfs/${tokenURI.slice(7)}`;
-      }
+      // A content-addressed URI is read back by the browser through THIS
+      // origin, so no cross-origin request is made and the gateway's CORS
+      // headers say nothing about what the visitor will experience. Asking
+      // them anyway is how a page ended up claiming "allowed" while every
+      // browser got a 403 challenge from ipfs.io.
+      const contentAddressed = gatewayPath(tokenURI) !== null;
+      tokenURI = gatewayURI(tokenURI);
       fetchedFrom = tokenURI;
       try {
-        const response = await fetch(tokenURI);
-        cors = corsFromHeader(
-          response.headers.get("access-control-allow-origin")
-        );
+        const response = await fetchAsService(tokenURI);
+        cors = contentAddressed
+          ? "not-applicable"
+          : corsFromHeader(response.headers.get("access-control-allow-origin"));
         if (!response.ok) {
           // A 404 body is often still valid JSON (OpenSea answers with
           // {"errors":[...]}), and parsing it as metadata yields a document

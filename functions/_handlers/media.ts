@@ -10,7 +10,9 @@
  * else's og:image, nor as a thumbnail on our own home page.
  */
 import { Metadata, parseMetadata, TokenStandard } from "../_utils/metadata";
+import { fetchAsService } from "../_utils/request";
 import { sha256 } from "../_utils/strings";
+import { gatewayURI } from "../_utils/url";
 import { generatePreviewImage, getData } from "./token";
 
 /**
@@ -144,11 +146,8 @@ export async function audioRoute(
     });
   }
 
-  let upstream = source;
-  if (upstream.startsWith("ipfs://")) {
-    upstream = `https://ipfs.io/ipfs/${upstream.slice(7)}`;
-  }
-  const response = await fetch(upstream);
+  const upstream = gatewayURI(source);
+  const response = await fetchAsService(upstream);
   if (!response.ok) {
     return new Response(`audio source returned ${response.status}`, {
       status: 502,

@@ -21,8 +21,12 @@
    * counting number, because the point is that you can type one and get a
    * token: that is why Mandalas is absent despite being onchain art, its ids
    * are 40-digit numbers derived from an address and only exist once minted.
-   * And every entry was checked against mainnet: `tokenURI` returns metadata
-   * carrying an image today, for the sample id given here.
+   * And every entry was checked THROUGH THIS SERVICE, not from a laptop: the
+   * sample id below renders a page rather than an error. That distinction is
+   * not pedantic. Checked from a laptop, CrypToadz passed; checked through the
+   * worker it returned 403, because arweave.net refuses an unidentified
+   * request and the worker was not sending a User-Agent. The list was right
+   * and the fetch was wrong, which only a check from here could tell apart.
    *
    * `token` is a sample, not a range. Where a collection starts at 0 rather
    * than 1 the sample says so.
