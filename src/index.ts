@@ -1,11 +1,14 @@
+import { ensPage } from "../functions/_handlers/ens";
 import {
-  eip721,
   generateDataURIForScreenshot,
   getData,
-} from "../functions/_handlers/eip721";
+  tokenPage,
+} from "../functions/_handlers/token";
+import { isEnsName } from "../functions/_utils/ens";
+import { parseTokenSegment } from "../functions/_utils/url";
 import { screenshotWithAllData } from "../functions/_handlers/screenshotWithAllData";
 import { Base64 } from "../functions/_utils/base64";
-import { parseMetadata } from "../functions/_utils/metadata";
+import { erc1155IdHex, parseMetadata } from "../functions/_utils/metadata";
 
 export default {
   async fetch(
@@ -78,15 +81,21 @@ export default {
       if (id) {
         const splitted = id.split("/");
         const [, chainId] = splitted[0].split(":");
-        const [erc, contract] = splitted[1].split(":");
-        if (erc !== "erc721") {
-          return new Response(`ERC ${erc} not supported for now`, {
-            status: 500,
-          });
+        const token = parseTokenSegment(splitted[1]);
+        if (!token) {
+          return new Response(
+            `unsupported token reference: ${splitted[1]}\n` +
+              `expected erc721:<contract> or erc1155:<contract>`,
+            { status: 400 }
+          );
         }
+        const { standard, contract } = token;
         const tokenID = splitted[2];
-        const data = await getData(env, chainId, contract, tokenID);
-        const metadata = await parseMetadata(data.tokenURI);
+        const data = await getData(env, chainId, contract, tokenID, standard);
+        const metadata = await parseMetadata(
+          data.tokenURI,
+          standard === "erc1155" ? erc1155IdHex(tokenID) : undefined
+        );
         const tokenURIToUse = await generateDataURIForScreenshot(
           data.tokenURI,
           metadata
@@ -100,7 +109,9 @@ export default {
     }
 
     // ------------------------------------------------------------------
-    // eip721 handler — /eip155:<chainId>/erc721:<contract>/<tokenID>
+    // Token handler — /eip155:<chainId>/erc721:<contract>/<tokenID>
+    //                 /eip155:<chainId>/erc1155:<contract>/<tokenID>
+    // This is also the exact shape of an ENSIP-12 NFT avatar record.
     // ------------------------------------------------------------------
     if (pathname.startsWith("/eip155:")) {
       const pathSegments = pathname.slice(1).split("/").filter(Boolean);
@@ -111,22 +122,39 @@ export default {
         });
       }
       const chainId = chainIdAsNumber.toString();
-      if (
-        pathSegments[1] &&
-        (pathSegments[1].startsWith("erc721:") ||
-          pathSegments[1].startsWith("eip721:"))
-      ) {
-        const contract = pathSegments[1].slice(7);
-        const tokenID = pathSegments[2];
-        return eip721(
+      const token = parseTokenSegment(pathSegments[1]);
+      if (token) {
+        return tokenPage(
           env,
           request,
+          token.standard,
           chainId,
-          contract,
-          tokenID,
+          token.contract,
+          pathSegments[2],
           !!url.searchParams.get("showScreenshot")
         );
       }
+      return new Response(
+        `unsupported token reference: ${pathSegments[1]}\n` +
+          `expected erc721:<contract> or erc1155:<contract>`,
+        { status: 400 }
+      );
+    }
+
+    // ------------------------------------------------------------------
+    // ENS names — /<name>.eth
+    // Resolves the ENSIP-12 avatar record. If it is an NFT the record is
+    // already this service's own path, so it hands over to the token
+    // pipeline; otherwise it explains what it found.
+    // ------------------------------------------------------------------
+    const ensName = isEnsName(pathname);
+    if (ensName) {
+      return ensPage(
+        env,
+        request,
+        ensName,
+        !!url.searchParams.get("showScreenshot")
+      );
     }
 
     // ------------------------------------------------------------------
@@ -134,9 +162,10 @@ export default {
     // ------------------------------------------------------------------
     if (pathname.startsWith("/eip721/") || pathname.startsWith("/erc721/")) {
       const pathSegments = pathname.slice(1).split("/").filter(Boolean);
-      return eip721(
+      return tokenPage(
         env,
         request,
+        "erc721",
         "1",
         pathSegments[1],
         pathSegments[2],

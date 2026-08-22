@@ -66,6 +66,9 @@ export function errorPage(
     tokenID?: string;
     tokenURI?: string;
     origin?: string;
+    standard?: string;
+    ensName?: string;
+    avatarRecord?: string;
   }
 ): Response {
   const info = ERROR_INFO[type];
@@ -76,8 +79,13 @@ export function errorPage(
     : undefined;
 
   const details: string[] = [];
+  if (context.ensName) details.push(`ENS name: ${escapeHtml(context.ensName)}`);
+  if (context.avatarRecord)
+    details.push(`Avatar record: ${escapeHtml(context.avatarRecord)}`);
   if (context.chainId)
     details.push(`Chain: eip155:${escapeHtml(context.chainId)}`);
+  if (context.standard)
+    details.push(`Standard: ${escapeHtml(context.standard)}`);
   if (context.contract)
     details.push(`Contract: ${escapeHtml(context.contract)}`);
   if (context.tokenID) details.push(`Token ID: ${escapeHtml(context.tokenID)}`);

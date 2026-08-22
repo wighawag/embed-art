@@ -4,17 +4,21 @@
   "description": "Embed Your Art Anywhere.",
   "scripts": {
     "dev": "wrangler dev --remote",
-    "deploy": "wrangler deploy"
+    "deploy": "wrangler deploy",
+    "test": "node test/run.mjs",
+    "test:live": "TEST_LIVE=1 node test/run.mjs"
   },
   "keywords": [],
   "author": "",
   "license": "AGPL-3.0-only",
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20250101.0",
+    "esbuild": "0.28.1",
     "wrangler": "^4.0.0"
   },
   "dependencies": {
     "@ethersproject/abi": "^5.7.0",
-    "@ethersproject/bignumber": "^5.7.0"
+    "@ethersproject/bignumber": "^5.7.0",
+    "@ethersproject/hash": "5.8.0"
   }
 }

@@ -23,92 +23,453 @@
     <link rel="apple-touch-icon" href="/apple-touch-icon.png">
     <link rel="manifest" href="/manifest.webmanifest">
     <style>
-        * {
-            background-color: #111111;
-            color: wheat;
-            margin: 0;
-            padding: 0;
-            font-family: Hack, monospace;
-        }
-
-        p,
-        h1 {
-            margin: 1em 1em 1em 1em;
-        }
-
         :root {
-            --width: 80vw;
+            --plate: #111111;
+            --surface: #171717;
+            --line: #2A2620;
+            --ink: #F5DEB3;
+            --muted: #8E826A;
+            --accent: #BE8F04;
+            --mono: ui-monospace, Hack, "JetBrains Mono", "SF Mono", Menlo,
+                Consolas, "DejaVu Sans Mono", monospace;
         }
 
-        #wrapper {
-            text-align: center;
-            height: 100%;
+        *, *::before, *::after { box-sizing: border-box; }
+
+        html { background: var(--plate); }
+
+        body {
             margin: 0;
+            background: var(--plate);
+            color: var(--ink);
+            font-family: var(--mono);
+            font-size: 16px;
+            line-height: 1.65;
+            -webkit-text-size-adjust: 100%;
         }
 
-        .main {
-            width: 46%;
+        .wrap {
+            max-width: 54rem;
+            margin: 0 auto;
+            padding: 0 1.5rem;
+        }
+
+        a { color: var(--ink); text-underline-offset: 3px; }
+        a:hover { color: var(--accent); }
+
+        :focus-visible {
+            outline: 2px solid var(--accent);
+            outline-offset: 3px;
+            border-radius: 3px;
+        }
+
+        /* ---------------------------------------------------------- header */
+        header { padding: clamp(3rem, 9vw, 5.5rem) 0 0; text-align: center; }
+
+        h1 { margin: 0; }
+
+        h1 img {
+            display: block;
+            width: 100%;
+            max-width: 26rem;
             height: auto;
+            margin: 0 auto;
         }
 
-        @media only screen and (max-width: 1000px) {
-            .main {
-                width: 60%;
-                height: auto;
-            }
+        .tagline {
+            margin: 1.75rem 0 0;
+            color: var(--muted);
+            font-size: clamp(0.95rem, 2.6vw, 1.1rem);
         }
 
-        @media only screen and (max-width: 600px) {
-            .main {
-                width: 90%;
-                height: auto;
-            }
+        /* ---------------------------------------------------------- section */
+        section { padding: clamp(2.75rem, 7vw, 4.5rem) 0 0; }
+
+        h2 {
+            font-size: 0.8rem;
+            font-weight: normal;
+            letter-spacing: 0.16em;
+            text-transform: uppercase;
+            color: var(--accent);
+            margin: 0 0 0.4rem;
         }
 
-        @media only screen and (max-width: 400px) {
-            .main {
-                width: 100%;
-                height: auto;
-            }
+        .lede { margin: 0 0 1.5rem; color: var(--muted); }
+
+        /* ---------------------------------------------------------- pattern */
+        .pattern {
+            background: var(--surface);
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            padding: 1rem 1.15rem;
+            overflow-x: auto;
+            white-space: nowrap;
+            font-size: clamp(0.72rem, 2.3vw, 0.95rem);
         }
 
-        #nft-title {
-            margin-top: 1em;
+        .pattern .var { color: var(--accent); }
+        .pattern .dim { color: var(--muted); }
+
+        /* ---------------------------------------------------------- builder */
+        .builder {
+            margin-top: 1rem;
+            background: var(--surface);
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            padding: 1.15rem;
         }
 
-        #nft-description {
-            margin-bottom: 2em;
+        .modes { display: flex; gap: 0.5rem; margin-bottom: 1.1rem; flex-wrap: wrap; }
+
+        .modes label {
+            border: 1px solid var(--line);
+            border-radius: 999px;
+            padding: 0.3rem 0.9rem;
+            font-size: 0.85rem;
+            color: var(--muted);
+            cursor: pointer;
         }
 
-        #nft-iframe {
-            min-width: 80vw;
-            min-height: 80vh;
+        .modes input { position: absolute; opacity: 0; width: 0; height: 0; }
+        .modes input:checked + span { color: var(--accent); }
+        .modes label:has(input:checked) { border-color: var(--accent); color: var(--accent); }
+        .modes label:has(input:focus-visible) { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+        .fields { display: grid; gap: 0.8rem; }
+        .fields.token { grid-template-columns: 6rem 8rem 1fr; }
+        .fields.ens { grid-template-columns: 1fr; }
+        /* a class-level `display` outranks the UA sheet's [hidden] rule */
+        .fields[hidden] { display: none; }
+
+        @media (max-width: 40rem) {
+            .fields.token { grid-template-columns: 1fr 1fr; }
+            .fields.token .grow { grid-column: 1 / -1; }
+        }
+
+        .field { display: flex; flex-direction: column; gap: 0.3rem; min-width: 0; }
+        .field span { font-size: 0.72rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+
+        input, select {
+            font-family: var(--mono);
+            font-size: 0.9rem;
+            color: var(--ink);
+            background: var(--plate);
+            border: 1px solid var(--line);
+            border-radius: 5px;
+            padding: 0.5rem 0.6rem;
+            min-width: 0;
+            width: 100%;
+        }
+
+        input::placeholder { color: #574F42; }
+
+        .result {
+            margin-top: 1.1rem;
+            padding-top: 1.1rem;
+            border-top: 1px solid var(--line);
+            display: flex;
+            gap: 0.7rem;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        #out {
+            flex: 1 1 20rem;
+            min-width: 0;
+            color: var(--accent);
+            font-size: clamp(0.72rem, 2.2vw, 0.88rem);
+            overflow-x: auto;
+            white-space: nowrap;
+            padding-bottom: 0.2rem;
+        }
+
+        .btn {
+            font-family: var(--mono);
+            font-size: 0.82rem;
+            color: var(--ink);
+            background: transparent;
+            border: 1px solid var(--line);
+            border-radius: 5px;
+            padding: 0.42rem 0.95rem;
+            cursor: pointer;
+            text-decoration: none;
+            white-space: nowrap;
+        }
+
+        .btn:hover { border-color: var(--accent); color: var(--accent); }
+
+        /* --------------------------------------------------------- examples */
+        .group { margin-bottom: 1.75rem; }
+
+        .group > p {
+            margin: 0 0 0.85rem;
+            color: var(--muted);
+            font-size: 0.88rem;
+        }
+
+        .cards { display: grid; gap: 0.7rem; grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr)); }
+
+        .card {
+            display: block;
+            background: var(--surface);
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            padding: 0.9rem 1rem;
+            text-decoration: none;
+        }
+
+        .card:hover { border-color: var(--accent); }
+        .card:hover .card-name { color: var(--accent); }
+
+        .card-name { display: block; margin-bottom: 0.15rem; }
+        .card-note { display: block; font-size: 0.78rem; color: var(--muted); }
+
+        .card.dead { border-style: dashed; }
+        .card.dead .card-name { color: var(--muted); text-decoration: line-through; }
+
+        /* ------------------------------------------------------------- note */
+        .note {
+            border: 1px solid var(--line);
+            border-left: 3px solid var(--accent);
+            border-radius: 6px;
+            padding: 1rem 1.15rem;
+            font-size: 0.88rem;
+            color: var(--muted);
+        }
+
+        .note code, .pattern code { color: var(--accent); }
+        .note p { margin: 0 0 0.7rem; }
+        .note p:last-child { margin: 0; }
+
+        /* ----------------------------------------------------------- footer */
+        footer {
+            margin-top: clamp(3rem, 8vw, 5rem);
+            padding: 1.75rem 0 2.5rem;
+            border-top: 1px solid var(--line);
+            color: var(--muted);
+            font-size: 0.82rem;
+            display: flex;
+            gap: 1.25rem;
+            flex-wrap: wrap;
+            justify-content: space-between;
         }
     </style>
 </head>
 
 <body>
-    <div id="wrapper">
+    <div class="wrap">
 
-        <p>
-            <img class="main" id="nft-image" src="/static/wordmark.svg" alt="Embed.Art" />
-        </p>
-        <p id="nft-description" style="font-size: xx-large; font-weight: bold;">Embed Your Art Anywhere.</p>
+        <header>
+            <h1><img src="/static/wordmark.svg" alt="Embed.Art" width="1142" height="196" /></h1>
+            <p class="tagline">Embed Your Art Anywhere.</p>
+        </header>
 
-        <p style="font-size: x-large;">Examples</p>
+        <main>
+            <section aria-labelledby="use-h">
+                <h2 id="use-h">The URL is the whole interface</h2>
+                <p class="lede">
+                    Point any platform at a token and it unfurls as a card, even when the art
+                    is an SVG, an animation, or sitting on IPFS.
+                </p>
 
-        <br />
-        <p><a
-                href="https://embed.art/eip155:5/erc721:0x208f425822e1a883ebfde737c77dcd88b3ab9635/400033605035889313738712496314420327986645504708">The
-                Bleep Machine (on Goerli)</a></p>
-        <p><a
-                href="https://embed.art/eip155:1/erc721:0xDaCa87395f3b1Bbc46F3FA187e996E03a5dCc985/820968253629536341503692254232196410315455531838">Mandalas</a>
-        </p>
-        <p><a href="https://embed.art/eip155:1/erc721:0x099689220846644f87d1137665cded7bf3422747/4508">Roboto</a></p>
-        <p><a href="https://embed.art/eip155:1/erc721:0x4658e9c5e1e05280e3708741aba63b7ff4e81055/1199">Void Runner</a>
-        </p>
-        <p><a href="https://embed.art/eip155:1/erc721:0x9d27527Ada2CF29fBDAB2973cfa243845a08Bd3F/1">Bleeps</a></p>
+                <div class="pattern"><span class="dim">https://embed.art/</span>eip155:<span
+                        class="var">&lt;chainId&gt;</span>/erc721:<span
+                        class="var">&lt;contract&gt;</span>/<span class="var">&lt;tokenId&gt;</span></div>
+
+                <div class="builder">
+                    <div class="modes" role="radiogroup" aria-label="What are you linking to?">
+                        <label><input type="radio" name="mode" value="token" checked><span>a token</span></label>
+                        <label><input type="radio" name="mode" value="ens"><span>an ENS name</span></label>
+                    </div>
+
+                    <div class="fields token" id="fields-token">
+                        <label class="field">
+                            <span>chain</span>
+                            <input id="chain" value="1" inputmode="numeric" autocomplete="off">
+                        </label>
+                        <label class="field">
+                            <span>standard</span>
+                            <select id="standard">
+                                <option value="erc721">erc721</option>
+                                <option value="erc1155">erc1155</option>
+                            </select>
+                        </label>
+                        <label class="field grow">
+                            <span>contract</span>
+                            <input id="contract" placeholder="0x…" spellcheck="false" autocomplete="off">
+                        </label>
+                        <label class="field grow">
+                            <span>token id</span>
+                            <input id="token" placeholder="4508" spellcheck="false" autocomplete="off">
+                        </label>
+                    </div>
+
+                    <div class="fields ens" id="fields-ens" hidden>
+                        <label class="field">
+                            <span>ens name</span>
+                            <input id="ens" placeholder="vitalik.eth" spellcheck="false" autocomplete="off">
+                        </label>
+                    </div>
+
+                    <div class="result">
+                        <div id="out">https://embed.art/</div>
+                        <button class="btn" id="copy" type="button">copy</button>
+                        <a class="btn" id="open" href="/" target="_blank" rel="noopener">open</a>
+                    </div>
+                </div>
+            </section>
+
+            <section aria-labelledby="ens-h">
+                <h2 id="ens-h">If you have an ENS avatar, you already have a link</h2>
+                <div class="note">
+                    <p>
+                        An ENS avatar can be set to an NFT you own. The record format
+                        <a href="https://docs.ens.domains/ensip/12">ENSIP-12</a> defines for that is
+                        <code>eip155:1/erc721:&lt;contract&gt;/&lt;tokenId&gt;</code>, which is
+                        character-for-character the path above. Put the domain in front of your
+                        avatar record and it works.
+                    </p>
+                    <p>
+                        Or skip the copying: <code>embed.art/&lt;name&gt;.eth</code> resolves the
+                        record for you. If the avatar is an ordinary image rather than a token,
+                        the page still shows it and says so. ERC-721 and ERC-1155 are both
+                        supported, as ENSIP-12 requires.
+                    </p>
+                </div>
+            </section>
+
+            <section aria-labelledby="ex-h">
+                <h2 id="ex-h">Examples</h2>
+                <p class="lede">
+                    Where a token keeps its metadata decides whether it is still here.
+                </p>
+
+                <div class="group">
+                    <p>Metadata stored onchain, still resolving:</p>
+                    <div class="cards">
+                        <a class="card"
+                            href="/eip155:1/erc721:0xDaCa87395f3b1Bbc46F3FA187e996E03a5dCc985/820968253629536341503692254232196410315455531838">
+                            <span class="card-name">Mandalas</span>
+                            <span class="card-note">generative SVG, generated and stored onchain</span>
+                        </a>
+                        <a class="card"
+                            href="/eip155:1/erc721:0x9d27527Ada2CF29fBDAB2973cfa243845a08Bd3F/1">
+                            <span class="card-name">Bleeps</span>
+                            <span class="card-note">sound synthesised onchain, playable on the page</span>
+                        </a>
+                    </div>
+                </div>
+
+                <div class="group">
+                    <p>Metadata on someone's web server. Neither answers today:</p>
+                    <div class="cards">
+                        <a class="card dead"
+                            href="/eip155:1/erc721:0x099689220846644f87d1137665cded7bf3422747/4508">
+                            <span class="card-name">Roboto</span>
+                            <span class="card-note">metadata host stopped responding</span>
+                        </a>
+                        <a class="card dead"
+                            href="/eip155:1/erc721:0x4658e9c5e1e05280e3708741aba63b7ff4e81055/1199">
+                            <span class="card-name">Void Runner</span>
+                            <span class="card-note">voidrunners.io returns a server error</span>
+                        </a>
+                    </div>
+                </div>
+
+                <div class="note">
+                    Those two are kept on purpose. Embed.Art cannot invent art that is gone, so it
+                    tells you exactly which URL stopped answering. An NFT is only as permanent as
+                    the least permanent thing it points at.
+                </div>
+            </section>
+        </main>
+
+        <footer>
+            <span>Embed Your Art Anywhere.</span>
+            <span>
+                <a href="https://github.com/wighawag/embed-art">source</a> &middot; AGPL-3.0
+            </span>
+        </footer>
     </div>
+
+    <script>
+        (function () {
+            var origin = location.origin && location.origin.indexOf('http') === 0
+                ? location.origin
+                : 'https://embed.art';
+
+            var out = document.getElementById('out');
+            var open = document.getElementById('open');
+            var copy = document.getElementById('copy');
+            var fieldsToken = document.getElementById('fields-token');
+            var fieldsEns = document.getElementById('fields-ens');
+            var modes = document.querySelectorAll('input[name="mode"]');
+
+            function mode() {
+                for (var i = 0; i < modes.length; i++) {
+                    if (modes[i].checked) return modes[i].value;
+                }
+                return 'token';
+            }
+
+            function val(id, fallback) {
+                var v = document.getElementById(id).value.trim();
+                return v === '' ? fallback : v;
+            }
+
+            function build() {
+                var path;
+                if (mode() === 'ens') {
+                    path = val('ens', 'vitalik.eth').toLowerCase();
+                } else {
+                    path = 'eip155:' + val('chain', '1')
+                        + '/' + document.getElementById('standard').value
+                        + ':' + val('contract', '<contract>')
+                        + '/' + val('token', '<tokenId>');
+                }
+                var url = origin + '/' + path;
+                out.textContent = url;
+                // Only offer to open a URL that is actually complete.
+                var ready = url.indexOf('<') === -1;
+                open.href = ready ? url : '#';
+                open.setAttribute('aria-disabled', ready ? 'false' : 'true');
+                open.style.opacity = ready ? '1' : '0.4';
+                return url;
+            }
+
+            function switchMode() {
+                var ens = mode() === 'ens';
+                fieldsEns.hidden = !ens;
+                fieldsToken.hidden = ens;
+                build();
+            }
+
+            document.querySelector('.builder').addEventListener('input', build);
+            for (var i = 0; i < modes.length; i++) {
+                modes[i].addEventListener('change', switchMode);
+            }
+
+            copy.addEventListener('click', function () {
+                var url = build();
+                var done = function () {
+                    copy.textContent = 'copied';
+                    setTimeout(function () { copy.textContent = 'copy'; }, 1400);
+                };
+                if (navigator.clipboard && navigator.clipboard.writeText) {
+                    navigator.clipboard.writeText(url).then(done, function () { });
+                } else {
+                    var t = document.createElement('textarea');
+                    t.value = url;
+                    document.body.appendChild(t);
+                    t.select();
+                    try { document.execCommand('copy'); done(); } catch (e) { }
+                    document.body.removeChild(t);
+                }
+            });
+
+            build();
+        })();
+    </script>
 </body>
 
 </html>

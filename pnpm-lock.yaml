@@ -14,10 +14,16 @@ importers:
       '@ethersproject/bignumber':
         specifier: ^5.7.0
         version: 5.8.0
+      '@ethersproject/hash':
+        specifier: 5.8.0
+        version: 5.8.0
     devDependencies:
       '@cloudflare/workers-types':
         specifier: ^4.20250101.0
         version: 4.20260702.1
+      esbuild:
+        specifier: 0.28.1
+        version: 0.28.1
       wrangler:
         specifier: ^4.0.0
         version: 4.118.0(@cloudflare/workers-types@4.20260702.1)

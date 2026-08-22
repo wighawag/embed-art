@@ -1,7 +1,42 @@
 import { Interface } from "@ethersproject/abi";
+import { BigNumber } from "@ethersproject/bignumber";
 import { Base64 } from "./base64";
+import { getEndpoint } from "./rpc";
+
+export type TokenStandard = "erc721" | "erc1155";
+
+/**
+ * EIP-1155 metadata: clients MUST replace an `{id}` substring with the token
+ * id in lowercase hex, zero-padded to 64 characters, no 0x prefix.
+ */
+export function erc1155IdHex(tokenID: string): string {
+  return BigNumber.from(tokenID)
+    .toHexString()
+    .slice(2)
+    .padStart(64, "0")
+    .toLowerCase();
+}
 
 const tokenURIInterface = new Interface([
+  {
+    inputs: [
+      {
+        internalType: "uint256",
+        name: "id",
+        type: "uint256",
+      },
+    ],
+    name: "uri",
+    outputs: [
+      {
+        internalType: "string",
+        name: "",
+        type: "string",
+      },
+    ],
+    stateMutability: "view",
+    type: "function",
+  },
   {
     inputs: [
       {
@@ -60,8 +95,8 @@ export type ContractMetadata = {
 
 function recursiveReplace(json: any, from: string, to: string): any {
   if (typeof json === "string") {
-    return json.replace(from, to);
-  } else if (typeof json === "object") {
+    return json.split(from).join(to);
+  } else if (typeof json === "object" && json !== null) {
     if (Array.isArray(json)) {
       return json.map((v) => recursiveReplace(v, from, to));
     } else {
@@ -86,15 +121,12 @@ export async function fetchBlockchainData(
   env: any,
   chainId: string,
   contract: string,
-  tokenID: string
+  tokenID: string,
+  standard: TokenStandard = "erc721"
 ): Promise<BlockchainData> {
-  let endpoint = env[`ETHEREUM_NODE_${chainId}`];
-  if (!endpoint) {
-    endpoint = env.ETHEREUM_NODE;
-    if (!endpoint) {
-      throw new Error(`no ethereum node specified for chainId ${chainId}`);
-    }
-  }
+  const endpoint = getEndpoint(env, chainId);
+  // ERC-721 exposes tokenURI(uint256); ERC-1155 exposes uri(uint256).
+  const uriMethod = standard === "erc1155" ? "uri" : "tokenURI";
 
   // ------------------------------------------------------------------------------------------------------------------
   // Block informatiom
@@ -219,7 +251,7 @@ export async function fetchBlockchainData(
   let data;
   try {
     //   const tokenURISig = "0xc87b56dd";
-    data = tokenURIInterface.encodeFunctionData("tokenURI", [tokenID]);
+    data = tokenURIInterface.encodeFunctionData(uriMethod, [tokenID]);
   } catch (err) {
     throw new Error(`failed to encode eth_call: ${err.message}\n${err.stack}`);
   }
@@ -255,13 +287,17 @@ export async function fetchBlockchainData(
   let tokenURI;
   try {
     tokenURI = tokenURIInterface.decodeFunctionResult(
-      "tokenURI",
+      uriMethod,
       json.result
     )[0];
   } catch (err) {
     throw new Error(
       `failed to decode eth_call result for ${contract}/${tokenID}\n${err.message}\n${err.stack}`
     );
+  }
+
+  if (standard === "erc1155") {
+    tokenURI = tokenURI.split("{id}").join(erc1155IdHex(tokenID));
   }
 
   // ------------------------------------------------------------------------------------------------------------------
@@ -292,7 +328,10 @@ export async function fetchBlockchainData(
   };
 }
 
-export async function parseMetadata(tokenURI: string): Promise<Metadata> {
+export async function parseMetadata(
+  tokenURI: string,
+  idHex?: string
+): Promise<Metadata> {
   // ------------------------------------------------------------------------------------------------------------------
   // DECODE URI
   // ------------------------------------------------------------------------------------------------------------------
@@ -361,6 +400,11 @@ export async function parseMetadata(tokenURI: string): Promise<Metadata> {
     throw new Error(
       `failed to parse metadata: ${err.message}\n${err.stack}\ntokenURI: ${tokenURI}`
     );
+  }
+
+  // EIP-1155 allows `{id}` inside the metadata document too, not just the URI.
+  if (idHex) {
+    metadata = recursiveReplace(metadata, "{id}", idHex);
   }
 
   return metadata;

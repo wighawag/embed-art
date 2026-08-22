@@ -12,6 +12,32 @@ The format these meta tags support are limited. In particular they do not suppor
 
 The idea behind Embed.Art is to allow you to have an easy way to share your token on such platform without having to run your own preview generator.
 
+## URLs it serves
+
+| URL | What it does |
+|-----|--------------|
+| `/eip155:<chainID>/erc721:<contract>/<tokenID>` | an ERC-721 token |
+| `/eip155:<chainID>/erc1155:<contract>/<tokenID>` | an ERC-1155 token |
+| `/<name>.eth` | resolves the name's ENS avatar record and renders it |
+
+The token path is deliberately identical to the NFT avatar format defined by
+[ENSIP-12](https://docs.ens.domains/ensip/12) (via CAIP-22 and CAIP-29), so an
+ENS `avatar` text record can be turned into a shareable page by prefixing the
+origin, with nothing to translate.
+
+`/<name>.eth` does that resolution for you and branches on what it finds:
+
+- **an NFT avatar** goes through the normal token pipeline;
+- **a plain image avatar** (`https`, `ipfs`, `data`) is displayed, with the page
+  stating that it is not an NFT and nothing about it is verifiable onchain;
+- **no avatar record**, or no resolver at all, gets a page explaining that and
+  showing how to set one.
+
+Known limits of the ENS path: `.eth` only, no ENSIP-10 wildcard/CCIP-read (so
+offchain subnames report no resolver), ethers' nameprep rather than full
+ENSIP-15 normalisation, and no ownership check (ENSIP-12 says clients SHOULD
+verify the name's `addr` still owns the token; this one renders regardless).
+
 ## How it works ?
 
 When you navigate to `https://embed.art/eip155:<chainID>/erc721:<contractAddress>/<tokenID>` Embed.art backend, running on cloudflare will
@@ -34,14 +60,19 @@ embed-art/
 ├── src/index.ts              # Worker entry point — routes all requests
 ├── functions/                # Handler & utility modules (imported by src/index.ts)
 │   ├── _handlers/
-│   │   ├── eip721.ts          # ERC-721 logic + screenshot generation
+│   │   ├── token.ts           # ERC-721 / ERC-1155 logic + screenshot generation
+│   │   ├── ens.ts             # ENS avatar resolution and its three outcomes
+│   │   ├── errorPage.ts       # Failure pages (blockchain/metadata/image/screenshot)
 │   │   ├── pageWithRawData.ts # HTML page generator
 │   │   └── screenshotWithAllData.ts # Screenshot page HTML generator
 │   └── _utils/
+│       ├── ens.ts             # namehash + registry/resolver reads, record parsing
+│       ├── rpc.ts             # eth_call helper + endpoint selection
 │       ├── base64.ts, metadata.ts, strings.ts, url.ts, request.ts
 ├── public/                   # Static assets (served by Workers Static Assets)
 │   ├── index.html            # Landing page
 │   └── static/               # Static images
+├── assets/brand/             # Identity sources + build (see its own README)
 ├── wrangler.toml             # Configuration (bindings, assets, etc.)
 ```
 
@@ -81,6 +112,19 @@ pnpm dev   # wrangler dev --remote
 > infrastructure, so `--remote` is required for local development. You need to
 > be logged in to Cloudflare (`npx wrangler login`).
 
+### Tests
+
+```bash
+pnpm test        # offline: record parsing, path parsing, {id} encoding
+pnpm test:live   # also reads mainnet (ENS resolution + an ERC-1155 token)
+```
+
+The live suite is opt-in because it needs network and asserts on records other
+people control. It earns its keep: the offline tests all passed while
+`parseAvatarRecord` was still rejecting `sassal.eth`, whose avatar is registered
+with an uppercase `ERC1155` namespace. Only a real record exposed that.
+Override the node with `TEST_RPC=https://your-node pnpm test:live`.
+
 ### Deploy
 
 ```bash
@@ -99,3 +143,6 @@ usage is minimal.
 - support hot reload so you can watch dyanmic NFT in the page
 - test with more assets
 - support old contracts (cryptopunks, autoglyphs, etc...)
+- a stable direct-image route (`/image/<same path>`) so the generated preview
+  can be used as someone else's `og:image` without scraping the page for it
+- ENS: CCIP-read for offchain names, and optional ownership verification

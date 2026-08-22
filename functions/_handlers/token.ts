@@ -1,9 +1,11 @@
 import { Base64 } from "../_utils/base64";
 import {
   BlockchainData,
+  erc1155IdHex,
   fetchBlockchainData,
   Metadata,
   parseMetadata,
+  TokenStandard,
 } from "../_utils/metadata";
 import { sha256 } from "../_utils/strings";
 import { blobToDataURI, getImageUrl } from "../_utils/url";
@@ -15,9 +17,13 @@ export async function getData(
   env: any,
   chainId: string,
   contract: string,
-  tokenID: string
+  tokenID: string,
+  standard: TokenStandard = "erc721"
 ): Promise<BlockchainData> {
-  const cacheID = `eip721:${chainId}:${contract}:${tokenID}`.toLowerCase();
+  // The standard is part of the key: the same address can answer both
+  // tokenURI() and uri(), and they need not agree.
+  const cacheID =
+    `${standard}:${chainId}:${contract}:${tokenID}`.toLowerCase();
   let data: BlockchainData;
   try {
     data = await env.DATA_CACHE.get(cacheID, { type: "json" });
@@ -27,7 +33,7 @@ export async function getData(
     );
   }
   if (!data) {
-    data = await fetchBlockchainData(env, chainId, contract, tokenID);
+    data = await fetchBlockchainData(env, chainId, contract, tokenID, standard);
     try {
       await env.DATA_CACHE.put(cacheID, JSON.stringify(data));
     } catch (err) {
@@ -76,18 +82,19 @@ async function getScreenshotHTML(
   return screenshotHTML(tokenURIToUse);
 }
 
-async function generatePreview(
+/**
+ * Render a token URI + metadata pair into a cached JPEG preview and return its
+ * URL. Shared by the token pages and by ENS avatars that are plain images
+ * rather than NFTs, which is why it takes an imageID rather than deriving one.
+ */
+export async function generatePreviewImage(
   env: any,
   request: Request,
-  chainId: string,
-  contract: string,
-  tokenID: string,
-  data: BlockchainData,
-  metadata: Metadata
-): Promise<string | null> {
-  const uriHash = await sha256(data.tokenURI);
-  const imageID =
-    `${chainId}_${contract}_${tokenID}`.toLowerCase() + `_${uriHash}.jpg`;
+  imageID: string,
+  tokenURI: string,
+  metadata: Metadata,
+  customMetadata: Record<string, string>
+): Promise<string> {
   const imageURL = getImageUrl(request, imageID);
   let imageHead = await env.IMAGES.head(imageID);
   if (imageHead) {
@@ -102,7 +109,9 @@ async function generatePreview(
 
   // Generate the self-contained screenshot page HTML (assets are embedded as data-URIs
   // so the headless browser does not need to make any network requests).
-  const html = await getScreenshotHTML(data, metadata);
+  const html = screenshotHTML(
+    await generateDataURIForScreenshot(tokenURI, metadata)
+  );
 
   let screenshotResponse: Response;
   try {
@@ -131,10 +140,6 @@ async function generatePreview(
     );
   }
 
-  const customMetadata = {
-    number: "" + data.block.number,
-    hash: data.block.hash,
-  };
   try {
     const imageBuffer = await screenshotResponse.arrayBuffer();
     await env.IMAGES.put(imageID, imageBuffer, {
@@ -149,23 +154,45 @@ async function generatePreview(
   return imageURL;
 }
 
-export async function eip721(
+async function generatePreview(
   env: any,
   request: Request,
+  chainId: string,
+  contract: string,
+  tokenID: string,
+  data: BlockchainData,
+  metadata: Metadata
+): Promise<string | null> {
+  const uriHash = await sha256(data.tokenURI);
+  // The standard is deliberately NOT part of this key: changing it would
+  // orphan every preview already in R2, and the URI hash already separates
+  // an erc721 and an erc1155 that share an address.
+  const imageID =
+    `${chainId}_${contract}_${tokenID}`.toLowerCase() + `_${uriHash}.jpg`;
+  return generatePreviewImage(env, request, imageID, data.tokenURI, metadata, {
+    number: "" + data.block.number,
+    hash: data.block.hash,
+  });
+}
+
+export async function tokenPage(
+  env: any,
+  request: Request,
+  standard: TokenStandard,
   chainId: string,
   contract: string,
   tokenID: string,
   returnScreenshot = false
 ): Promise<Response> {
   const origin = new URL(request.url).origin;
-  const ctx = { chainId, contract, tokenID, origin };
+  const ctx = { chainId, contract, tokenID, origin, standard };
 
   // ------------------------------------------------------------------
   // Stage 1: Blockchain data (RPC node)
   // ------------------------------------------------------------------
   let data: BlockchainData;
   try {
-    data = await getData(env, chainId, contract, tokenID);
+    data = await getData(env, chainId, contract, tokenID, standard);
   } catch (err: any) {
     return errorPage("blockchain", err, ctx);
   }
@@ -175,7 +202,10 @@ export async function eip721(
   // ------------------------------------------------------------------
   let metadata: Metadata;
   try {
-    metadata = await parseMetadata(data.tokenURI);
+    metadata = await parseMetadata(
+      data.tokenURI,
+      standard === "erc1155" ? erc1155IdHex(tokenID) : undefined
+    );
   } catch (err: any) {
     return errorPage("metadata", err, { ...ctx, tokenURI: data.tokenURI });
   }
