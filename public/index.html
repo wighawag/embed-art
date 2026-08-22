@@ -152,6 +152,7 @@
         .fields.ens { grid-template-columns: 1fr; }
         /* a class-level `display` outranks the UA sheet's [hidden] rule */
         .fields[hidden] { display: none; }
+        .fields.token .full { grid-column: 1 / -1; }
 
         @media (max-width: 40rem) {
             .fields.token { grid-template-columns: 1fr 1fr; }
@@ -159,7 +160,29 @@
         }
 
         .field { display: flex; flex-direction: column; gap: 0.3rem; min-width: 0; }
-        .field span { font-size: 0.72rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+        .field > span:not(.hint) { font-size: 0.72rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+
+        /* Reserves its line whether or not it says anything, so the fields do
+           not jump every time a name resolves. */
+        .hint {
+            font-size: 0.72rem;
+            color: var(--accent);
+            min-height: 1.1em;
+            line-height: 1.1;
+            overflow-wrap: anywhere;
+            text-transform: none;
+            letter-spacing: 0;
+        }
+
+        .hint.bad { color: #FF4444; }
+
+        .builder-note {
+            margin: 1rem 0 0;
+            font-size: 0.78rem;
+            color: var(--muted);
+        }
+
+        .builder-note code { color: var(--accent); }
 
         input, select {
             font-family: var(--mono);
@@ -316,6 +339,12 @@
                     </div>
 
                     <div class="fields token" id="fields-token">
+                        <label class="field full">
+                            <span>known collection</span>
+                            <select id="known">
+                                <option value="">pick one, or fill the fields yourself…</option>
+                            </select>
+                        </label>
                         <label class="field">
                             <span>chain</span>
                             <input id="chain" value="1" inputmode="numeric" autocomplete="off">
@@ -329,11 +358,13 @@
                         </label>
                         <label class="field grow">
                             <span>contract</span>
-                            <input id="contract" placeholder="0x…" spellcheck="false" autocomplete="off">
+                            <input id="contract" placeholder="0x… or bleeps.eth" spellcheck="false" autocomplete="off">
+                            <span class="hint" id="contract-hint" aria-live="polite"></span>
                         </label>
-                        <label class="field grow">
+                        <label class="field full">
                             <span>token id</span>
-                            <input id="token" placeholder="4508" spellcheck="false" autocomplete="off">
+                            <input id="token" placeholder="4508 or 0x119c" spellcheck="false" autocomplete="off">
+                            <span class="hint" id="token-hint" aria-live="polite"></span>
                         </label>
                     </div>
 
@@ -343,6 +374,14 @@
                             <input id="ens" placeholder="vitalik.eth" spellcheck="false" autocomplete="off">
                         </label>
                     </div>
+
+                    <p class="builder-note">
+                        The contract field takes an ENS name too: <code>bleeps.eth</code> is
+                        that collection's contract. It is resolved here and the address is what
+                        goes in the URL, never the name, since a name can be repointed and the
+                        link would then mean something else. A token id may be typed in hex;
+                        the URL carries the decimal form.
+                    </p>
 
                     <div class="result">
                         <div id="out">https://embed.art/</div>
@@ -446,84 +485,7 @@
         </footer>
     </div>
 
-    <script>
-        (function () {
-            var origin = location.origin && location.origin.indexOf('http') === 0
-                ? location.origin
-                : 'https://embed.art';
-
-            var out = document.getElementById('out');
-            var open = document.getElementById('open');
-            var copy = document.getElementById('copy');
-            var fieldsToken = document.getElementById('fields-token');
-            var fieldsEns = document.getElementById('fields-ens');
-            var modes = document.querySelectorAll('input[name="mode"]');
-
-            function mode() {
-                for (var i = 0; i < modes.length; i++) {
-                    if (modes[i].checked) return modes[i].value;
-                }
-                return 'token';
-            }
-
-            function val(id, fallback) {
-                var v = document.getElementById(id).value.trim();
-                return v === '' ? fallback : v;
-            }
-
-            function build() {
-                var path;
-                if (mode() === 'ens') {
-                    path = val('ens', 'vitalik.eth').toLowerCase();
-                } else {
-                    path = 'eip155:' + val('chain', '1')
-                        + '/' + document.getElementById('standard').value
-                        + ':' + val('contract', '<contract>')
-                        + '/' + val('token', '<tokenId>');
-                }
-                var url = origin + '/' + path;
-                out.textContent = url;
-                // Only offer to open a URL that is actually complete.
-                var ready = url.indexOf('<') === -1;
-                open.href = ready ? url : '#';
-                open.setAttribute('aria-disabled', ready ? 'false' : 'true');
-                open.style.opacity = ready ? '1' : '0.4';
-                return url;
-            }
-
-            function switchMode() {
-                var ens = mode() === 'ens';
-                fieldsEns.hidden = !ens;
-                fieldsToken.hidden = ens;
-                build();
-            }
-
-            document.querySelector('.builder').addEventListener('input', build);
-            for (var i = 0; i < modes.length; i++) {
-                modes[i].addEventListener('change', switchMode);
-            }
-
-            copy.addEventListener('click', function () {
-                var url = build();
-                var done = function () {
-                    copy.textContent = 'copied';
-                    setTimeout(function () { copy.textContent = 'copy'; }, 1400);
-                };
-                if (navigator.clipboard && navigator.clipboard.writeText) {
-                    navigator.clipboard.writeText(url).then(done, function () { });
-                } else {
-                    var t = document.createElement('textarea');
-                    t.value = url;
-                    document.body.appendChild(t);
-                    t.select();
-                    try { document.execCommand('copy'); done(); } catch (e) { }
-                    document.body.removeChild(t);
-                }
-            });
-
-            build();
-        })();
-    </script>
+    <script src="/static/builder.js" defer></script>
 </body>
 
 </html>

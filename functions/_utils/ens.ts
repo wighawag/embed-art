@@ -55,11 +55,24 @@ export type AvatarRef =
 const NFT_RECORD =
   /^eip155:(\d+)\/(erc721|erc1155):(0x[0-9a-fA-F]{40})\/(\d+)$/i;
 
+const ENS_NAME = /^[^\s/?#]+\.eth$/i;
+
+/**
+ * Accepts a bare name as a user would type it and returns the lowercased form,
+ * or null if it is not a name this service can resolve (`.eth` only).
+ * Separate from isEnsName because the builder's contract field and the resolve
+ * API take a name that never was a path.
+ */
+export function normalizeEnsName(value: string | null | undefined): string | null {
+  const trimmed = (value || "").trim();
+  return ENS_NAME.test(trimmed) ? trimmed.toLowerCase() : null;
+}
+
 export function isEnsName(pathname: string): string | null {
-  const match = /^\/([^/?#]+\.eth)$/i.exec(pathname);
+  const match = /^\/([^/?#]+)$/.exec(pathname);
   if (!match) return null;
   try {
-    return decodeURIComponent(match[1]).toLowerCase();
+    return normalizeEnsName(decodeURIComponent(match[1]));
   } catch {
     return null;
   }
@@ -96,22 +109,20 @@ export type EnsResolution = {
   address: string | null;
 };
 
-async function resolveUncached(
-  env: any,
-  name: string
-): Promise<EnsResolution> {
-  const endpoint = getEndpoint(env, "1");
-
-  let node: string;
+function nodeOf(name: string): string {
   try {
-    node = namehash(name);
+    return namehash(name);
   } catch (err: any) {
     throw new Error(`not a valid ENS name: ${err.message}`);
   }
+}
 
-  // owner() distinguishes "nobody has ever registered this" from "registered
-  // but never configured", which are very different things to tell a visitor.
-  let owner: string | null = null;
+// owner() distinguishes "nobody has ever registered this" from "registered
+// but never configured", which are very different things to tell a visitor.
+async function lookupOwner(
+  endpoint: string,
+  node: string
+): Promise<string | null> {
   try {
     const ownerResult = await ethCall(
       endpoint,
@@ -122,11 +133,16 @@ async function resolveUncached(
       "owner",
       ownerResult
     )[0];
-    owner = decoded && decoded !== ZERO_ADDRESS ? decoded : null;
+    return decoded && decoded !== ZERO_ADDRESS ? decoded : null;
   } catch {
-    owner = null;
+    return null;
   }
+}
 
+async function lookupResolver(
+  endpoint: string,
+  node: string
+): Promise<string | null> {
   const resolverResult = await ethCall(
     endpoint,
     ENS_REGISTRY,
@@ -136,8 +152,41 @@ async function resolveUncached(
     "resolver",
     resolverResult
   )[0];
+  return !resolver || resolver === ZERO_ADDRESS ? null : resolver;
+}
 
-  if (!resolver || resolver === ZERO_ADDRESS) {
+async function lookupAddress(
+  endpoint: string,
+  resolver: string,
+  node: string
+): Promise<string | null> {
+  try {
+    const addrResult = await ethCall(
+      endpoint,
+      resolver,
+      resolverInterface.encodeFunctionData("addr", [node])
+    );
+    const decoded = resolverInterface.decodeFunctionResult(
+      "addr",
+      addrResult
+    )[0];
+    return decoded && decoded !== ZERO_ADDRESS ? decoded : null;
+  } catch {
+    return null;
+  }
+}
+
+async function resolveUncached(
+  env: any,
+  name: string
+): Promise<EnsResolution> {
+  const endpoint = getEndpoint(env, "1");
+  const node = nodeOf(name);
+
+  const owner = await lookupOwner(endpoint, node);
+  const resolver = await lookupResolver(endpoint, node);
+
+  if (!resolver) {
     return { name, owner, resolver: null, record: null, address: null };
   }
 
@@ -155,21 +204,7 @@ async function resolveUncached(
     record = null;
   }
 
-  let address: string | null = null;
-  try {
-    const addrResult = await ethCall(
-      endpoint,
-      resolver,
-      resolverInterface.encodeFunctionData("addr", [node])
-    );
-    const decoded = resolverInterface.decodeFunctionResult(
-      "addr",
-      addrResult
-    )[0];
-    address = decoded && decoded !== ZERO_ADDRESS ? decoded : null;
-  } catch {
-    address = null;
-  }
+  const address = await lookupAddress(endpoint, resolver, node);
 
   return {
     name,
@@ -195,4 +230,35 @@ export async function resolveEns(
   name: string
 ): Promise<EnsResolution> {
   return resolveUncached(env, name);
+}
+
+export type EnsAddress = {
+  name: string;
+  owner: string | null;
+  resolver: string | null;
+  address: string | null;
+};
+
+/**
+ * Just the `addr` record: what a name points at, with no avatar read.
+ *
+ * This is the lookup behind the builder's contract field, where a name like
+ * `bleeps.eth` stands for its NFT contract. It is a different question from
+ * resolveEns(), with no avatar involved, and it is asked on every debounced
+ * keystroke, so it does not pay for the text() call it would never read.
+ * Not cached, for the same reason nothing keyed by a name is.
+ */
+export async function resolveEnsAddress(
+  env: any,
+  name: string
+): Promise<EnsAddress> {
+  const endpoint = getEndpoint(env, "1");
+  const node = nodeOf(name);
+
+  const owner = await lookupOwner(endpoint, node);
+  const resolver = await lookupResolver(endpoint, node);
+  if (!resolver) return { name, owner, resolver: null, address: null };
+
+  const address = await lookupAddress(endpoint, resolver, node);
+  return { name, owner, resolver, address };
 }

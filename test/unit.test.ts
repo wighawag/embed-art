@@ -5,7 +5,7 @@
  */
 import { gatewayURI } from "../functions/_handlers/ens";
 import { audioSource } from "../functions/_handlers/media";
-import { isEnsName, parseAvatarRecord } from "../functions/_utils/ens";
+import { isEnsName, normalizeEnsName, parseAvatarRecord } from "../functions/_utils/ens";
 import { erc1155IdHex, isRenderable } from "../functions/_utils/metadata";
 import { parseTokenSegment } from "../functions/_utils/url";
 import { eq, report, section } from "./assert";
@@ -107,6 +107,18 @@ eq("token path is not a name", isEnsName("/eip155:1/erc721:0xabc/1"), null);
 eq("root", isEnsName("/"), null);
 eq("nested path", isEnsName("/a/b.eth"), null);
 eq("bare .eth with query is not matched", isEnsName("/a.eth?x=1"), null);
+
+section("normalizeEnsName (the resolve API and the builder's contract field)");
+eq("plain name", normalizeEnsName("bleeps.eth"), "bleeps.eth");
+eq("uppercase lowered", normalizeEnsName("Bleeps.ETH"), "bleeps.eth");
+eq("surrounding whitespace", normalizeEnsName("  bleeps.eth "), "bleeps.eth");
+eq("subname", normalizeEnsName("sub.bleeps.eth"), "sub.bleeps.eth");
+eq("an address is not a name", normalizeEnsName("0xbc4ca0eda7647a8ab7c2061c2e118a18a936f13d"), null);
+eq("other TLDs are not resolved here", normalizeEnsName("bleeps.xyz"), null);
+eq("a path is not a name", normalizeEnsName("a/b.eth"), null);
+eq("a query is not a name", normalizeEnsName("a.eth?x=1"), null);
+eq("empty", normalizeEnsName(""), null);
+eq("null", normalizeEnsName(null), null);
 
 section("gatewayURI");
 eq("ipfs", gatewayURI("ipfs://QmAbc"), "https://ipfs.io/ipfs/QmAbc");

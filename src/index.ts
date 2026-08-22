@@ -6,6 +6,7 @@ import {
   tokenPage,
 } from "../functions/_handlers/token";
 import { isEnsName } from "../functions/_utils/ens";
+import { resolveApiRoute } from "../functions/_handlers/resolveApi";
 import { parseTokenSegment } from "../functions/_utils/url";
 import { screenshotWithAllData } from "../functions/_handlers/screenshotWithAllData";
 import { Base64 } from "../functions/_utils/base64";
@@ -34,6 +35,22 @@ export default {
         return env.ASSETS.fetch(request);
       }
       return new Response("Not found", { status: 404 });
+    }
+
+    // ------------------------------------------------------------------
+    // Resolve API: /api/resolve/<name>.eth
+    // Serves the front page's contract field, which accepts a name where an
+    // address is expected.  Kept above the ENS page route: that one only ever
+    // matches a single path segment, but the intent here is explicit.
+    // ------------------------------------------------------------------
+    if (pathname.startsWith("/api/resolve/")) {
+      let name = pathname.slice("/api/resolve/".length);
+      try {
+        name = decodeURIComponent(name);
+      } catch {
+        /* keep the raw form; the handler will reject it */
+      }
+      return resolveApiRoute(env, name);
     }
 
     // ------------------------------------------------------------------

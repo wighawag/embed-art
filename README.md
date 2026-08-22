@@ -21,6 +21,7 @@ The idea behind Embed.Art is to allow you to have an easy way to share your toke
 | `/<name>.eth` | resolves the name's ENS avatar record and renders it |
 | `/image/<token path>` | 302 to the generated preview JPEG |
 | `/audio/<token path>` | the token's audio, if its `animation_url` is one |
+| `/api/resolve/<name>.eth` | JSON: what that name's `addr` record points at |
 
 The preview's real URL embeds `sha256(tokenURI)`, which nothing outside the
 worker can compute, so `/image/` exists to give it a stable, guessable address:
@@ -67,6 +68,37 @@ Known limits of the ENS path: `.eth` only, no ENSIP-10 wildcard/CCIP-read (so
 offchain subnames report no resolver), ethers' nameprep rather than full
 ENSIP-15 normalisation, and no ownership check (ENSIP-12 says clients SHOULD
 verify the name's `addr` still owns the token; this one renders regardless).
+
+## The front page's URL builder
+
+The builder (`public/static/builder.js`) is the only part a visitor drives by
+hand, and it takes two liberties with what you type.
+
+**The contract field accepts an ENS name.** Many collections are easier to name
+than to spell: `bleeps.eth` *is* the Bleeps ERC-721. The name is resolved
+through `/api/resolve/<name>.eth`, which reads the `addr` record server-side
+because the node URL is a secret, and the **address** is what goes in the URL.
+The name never does. A name is a mutable pointer, so a link built from one
+would quietly come to mean a different token the day it is repointed. Until it
+resolves the URL keeps its `<contract>` placeholder and the open button stays
+disabled, rather than producing a link that looks finished and is not. A name
+that fails says which way it failed: not registered, no resolver, or resolver
+with no address. Nothing about the lookup is cached, for the reason ENS pages
+are not either.
+
+**The token id field accepts hex.** Explorers and calldata quote ids as
+`0x119c`; the ENSIP-12 path is `(\d+)`. Typing hex converts it to decimal, and
+the field says `0x119c → 4508` so the rewrite is visible rather than a surprise
+in the URL bar. The conversion is done digit by digit, not through `Number`,
+because token ids run well past 2^53.
+
+**A known-collection list** fills chain, standard, contract and a sample id in
+one pick. Two rules decide what is on it: the ids have to be small counting
+numbers, and the entry has to have been checked against mainnet, `tokenURI`
+returning metadata with an image today. That is why Mandalas is absent despite
+being the front page's own example of onchain art: its ids are 40-digit numbers
+derived from an address, and they do not exist until minted, so there is
+nothing you could type.
 
 ## How it works ?
 
@@ -121,6 +153,7 @@ embed-art/
 │   ├── _handlers/
 │   │   ├── token.ts           # ERC-721 / ERC-1155 logic + screenshot generation
 │   │   ├── ens.ts             # ENS avatar resolution and its three outcomes
+│   │   ├── resolveApi.ts      # /api/resolve/<name>.eth, for the URL builder
 │   │   ├── errorPage.ts       # Failure pages (blockchain/metadata/image/screenshot)
 │   │   ├── pageWithRawData.ts # HTML page generator
 │   │   └── screenshotWithAllData.ts # Screenshot page HTML generator
@@ -130,7 +163,7 @@ embed-art/
 │       ├── base64.ts, metadata.ts, strings.ts, url.ts, request.ts
 ├── public/                   # Static assets (served by Workers Static Assets)
 │   ├── index.html            # Landing page
-│   └── static/               # Static images
+│   └── static/               # Static images + builder.js (the URL builder)
 ├── assets/brand/             # Identity sources + build (see its own README)
 ├── wrangler.toml             # Configuration (bindings, assets, etc.)
 ```
@@ -174,7 +207,8 @@ pnpm dev   # wrangler dev --remote
 ### Tests
 
 ```bash
-pnpm test        # offline: record parsing, path parsing, {id} encoding
+pnpm test        # offline: record parsing, path parsing, {id} encoding,
+                 #          the URL builder's hex/ENS/known-collection rules
 pnpm test:live   # also reads mainnet (ENS resolution + an ERC-1155 token)
 ```
 
