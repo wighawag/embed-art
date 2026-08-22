@@ -8,19 +8,24 @@ import { pageWithRawData } from "../functions/_handlers/pageWithRawData";
 import { CorsStatus } from "../functions/_utils/metadata";
 import { eq, report, section } from "./assert";
 
-async function render(cors: CorsStatus, tokenURI = "https://example.com/meta/1") {
-  const res = await pageWithRawData(
+const CANON = "https://embed.art/eip155:1/erc1155:0xabc/1";
+
+function build(extra: Record<string, unknown> = {}) {
+  return pageWithRawData(
     { contract: "0xabc", id: "1" },
-    tokenURI,
+    "https://example.com/meta/1",
     { name: "Test", symbol: "TST" },
     {
-      url: "https://embed.art/x",
+      url: "https://embed.art/sassal.eth",
       previewURL: "https://embed.art/images/a.jpg",
-      cors,
-    },
+      ...extra,
+    } as any,
     { name: "Tok", description: "d" }
   );
-  return res.text();
+}
+
+async function render(cors: CorsStatus) {
+  return (await build({ cors })).text();
 }
 
 function lastScript(html: string): string {
@@ -63,6 +68,29 @@ async function main() {
     false
   );
   eq("preview URL is available to the script", blocked.includes("const PREVIEW ="), true);
+
+  section("canonical URL and ENS caching");
+
+  const viaEns = await build({
+    canonical: CANON,
+    ensName: "sassal.eth",
+    noStore: true,
+  });
+  const ensHtml = await viaEns.text();
+
+  eq("rel=canonical points at the token", ensHtml.includes(`<link rel="canonical" href="${CANON}">`), true);
+  eq("og:url is the canonical, not the ENS alias", ensHtml.includes(`<meta property="og:url" content="${CANON}">`), true);
+  eq("twitter:url is the canonical too", ensHtml.includes(`<meta name="twitter:url" content="${CANON}">`), true);
+  eq("the ENS alias is not used as og:url", ensHtml.includes('og:url" content="https://embed.art/sassal.eth"'), false);
+  eq("canonical is visible on the page", ensHtml.includes(`<a href="${CANON}">${CANON}</a>`), true);
+  eq("page names the ENS it came from", ensHtml.includes("sassal.eth</strong>"), true);
+  eq("ENS-derived page is not cacheable", viaEns.headers.get("cache-control"), "no-store");
+
+  const direct = await build({ canonical: CANON });
+  const directHtml = await direct.text();
+  eq("direct token page still gets a canonical", directHtml.includes(`<link rel="canonical" href="${CANON}">`), true);
+  eq("direct page does not mention ENS", directHtml.includes("ENS avatar"), false);
+  eq("direct token page is cacheable", direct.headers.get("cache-control"), null);
 
   report();
 }

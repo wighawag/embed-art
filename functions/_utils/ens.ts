@@ -158,29 +158,18 @@ async function resolveUncached(
 }
 
 /**
- * Avatar records change, so this cache is short-lived rather than permanent
- * like the token data cache.
+ * Deliberately NOT cached.
+ *
+ * A name to avatar mapping is mutable: the owner can repoint it at any moment,
+ * and unlike a token URI there is no hash to notice the change. Caching it
+ * means serving somebody's previous avatar, which is worse than the two
+ * eth_calls this costs. What IS cached is everything downstream keyed by
+ * content: the token's own data, and the rendered image keyed by the URI it
+ * came from.
  */
 export async function resolveEns(
   env: any,
   name: string
 ): Promise<EnsResolution> {
-  const cacheID = `ens:avatar:${name}`;
-  try {
-    const cached = await env.DATA_CACHE.get(cacheID, { type: "json" });
-    if (cached) return cached as EnsResolution;
-  } catch {
-    // a cache miss must never take the page down
-  }
-
-  const resolution = await resolveUncached(env, name);
-
-  try {
-    await env.DATA_CACHE.put(cacheID, JSON.stringify(resolution), {
-      expirationTtl: 300,
-    });
-  } catch {
-    // ditto
-  }
-  return resolution;
+  return resolveUncached(env, name);
 }

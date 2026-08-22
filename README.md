@@ -42,6 +42,20 @@ origin, with nothing to translate.
 - **no avatar record**, or no resolver at all, gets a page explaining that and
   showing how to set one.
 
+An ENS page always shows the token's **canonical** address, and points
+`rel=canonical`, `og:url` and `twitter:url` at it rather than at the name. The
+name is a mutable pointer; the `eip155:` path is the permanent one. Direct
+token pages get a canonical too, which normalises the legacy `/erc721/` and
+`eip721:` aliases onto the modern form.
+
+**Nothing keyed by an ENS name is cached.** The owner can repoint a record at
+any moment and, unlike a token URI, there is no hash that would reveal the
+change, so a cached mapping just serves yesterday's avatar. Resolution runs on
+every request, and ENS-derived pages are returned `cache-control: no-store`.
+Everything keyed by *content* is still cached normally: the token's own data,
+and rendered images, which for a plain-image avatar are stored under
+`avatar_<sha256(uri)>.jpg` with the name deliberately absent from the key.
+
 Known limits of the ENS path: `.eth` only, no ENSIP-10 wildcard/CCIP-read (so
 offchain subnames report no resolver), ethers' nameprep rather than full
 ENSIP-15 normalisation, and no ownership check (ENSIP-12 says clients SHOULD

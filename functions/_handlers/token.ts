@@ -183,10 +183,15 @@ export async function tokenPage(
   chainId: string,
   contract: string,
   tokenID: string,
-  returnScreenshot = false
+  returnScreenshot = false,
+  /** set when this token was reached indirectly, e.g. via an ENS avatar */
+  via?: { ensName?: string; noStore?: boolean }
 ): Promise<Response> {
   const origin = new URL(request.url).origin;
   const ctx = { chainId, contract, tokenID, origin, standard };
+  // The permanent address of this token, regardless of which alias was
+  // followed to get here: an ENS name, a legacy /erc721/ path, or eip721:.
+  const canonical = `${origin}/eip155:${chainId}/${standard}:${contract}/${tokenID}`;
 
   // ------------------------------------------------------------------
   // Stage 1: Blockchain data (RPC node)
@@ -271,6 +276,9 @@ export async function tokenPage(
       url: request.url,
       previewURL,
       cors,
+      canonical,
+      ensName: via?.ensName,
+      noStore: via?.noStore,
     },
     metadata
   );

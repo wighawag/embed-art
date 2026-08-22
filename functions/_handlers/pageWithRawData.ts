@@ -10,10 +10,18 @@ export async function pageWithRawData(
     previewURL: string;
     tokenURIBase64Encoded?: string;
     cors?: CorsStatus;
+    /** the permanent eip155: address of this token, whatever path got here */
+    canonical?: string;
+    /** set when the visitor arrived via an ENS name's avatar record */
+    ensName?: string;
+    /** ENS-derived pages must not be cached: the record can change */
+    noStore?: boolean;
   },
   metadata?: Metadata,
 ): Promise<Response> {
   const url = extra.url;
+  // og:url should be the canonical address, not whichever alias was followed.
+  const canonical = extra.canonical || url;
   const title =
     metadata?.name ||
     (contractMetadata.symbol
@@ -36,8 +44,9 @@ export async function pageWithRawData(
             ? `<meta name="description" content="${description}">`
             : ""
         }
+        <link rel="canonical" href="${canonical}">
         <meta property="og:type" content="website">
-        <meta property="og:url" content="${url}">
+        <meta property="og:url" content="${canonical}">
         <meta property="og:title" content="${title}">
         ${
           description
@@ -46,7 +55,7 @@ export async function pageWithRawData(
         }
         <meta property="og:image" content="${preview}">
         <meta name="twitter:card" content="summary_large_image">
-        <meta name="twitter:url" content="${url}">
+        <meta name="twitter:url" content="${canonical}">
         <meta name="twitter:title" content="${title}">
         ${
           description
@@ -138,6 +147,19 @@ export async function pageWithRawData(
         .notice strong { color: #BE8F04; font-weight: normal; }
         .notice code { color: #BE8F04; word-break: break-all; }
 
+        .canonical {
+          max-width: 42em;
+          margin: 2.5em auto 2em;
+          padding-top: 1.2em;
+          border-top: 1px solid #2A2620;
+          font-size: 0.78em;
+          opacity: 0.55;
+          text-align: left;
+          line-height: 1.7;
+        }
+        .canonical a { color: #BE8F04; word-break: break-all; }
+        .canonical .label { display: block; opacity: 0.75; }
+
         #nft-iframe {
           min-width: 80vw;
           min-height: 80vh;
@@ -156,6 +178,15 @@ export async function pageWithRawData(
         <p id="nft-error" class="error" style="display:none;"></p>
         <p id="global-error" class="error" style="display:none;"></p>
         <div id="cors-notice" class="notice" style="display:none;"></div>
+        ${
+          extra.canonical
+            ? `<div class="canonical">${
+                extra.ensName
+                  ? `<span class="label">Shown because it is <strong>${extra.ensName}</strong>'s ENS avatar. That record can be changed at any time; this token cannot:</span>`
+                  : `<span class="label">Permanent address for this token:</span>`
+              }<a href="${extra.canonical}">${extra.canonical}</a></div>`
+            : ""
+        }
         <p id="nft-description" style="display:none;"></p>
           <p>
             <iframe class="main" style="display:none;" id="nft-iframe"></iframe>
@@ -343,7 +374,12 @@ export async function pageWithRawData(
       </script>
     </body>
 </html>`;
-  return new Response(page, {
-    headers: { "content-type": "text/html" },
-  });
+  const headers: Record<string, string> = { "content-type": "text/html" };
+  if (extra.noStore) {
+    // An ENS name points wherever its owner currently says. Caching that
+    // mapping would serve yesterday's avatar; the token behind it is still
+    // cached normally, keyed by its own URI.
+    headers["cache-control"] = "no-store";
+  }
+  return new Response(page, { headers });
 }

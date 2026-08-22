@@ -67,6 +67,8 @@ function shell(opts: {
   body: string;
   card?: "summary" | "summary_large_image";
 }): Response {
+  // Every page here is keyed by an ENS name, whose meaning its owner can
+  // change at will, so none of them may be cached.
   const t = escapeHtml(opts.title);
   const d = escapeHtml(opts.description);
   const page = `<!DOCTYPE html>
@@ -91,7 +93,9 @@ function shell(opts: {
     </head>
     <body><div class="wrap">${opts.body}</div></body>
 </html>`;
-  return new Response(page, { headers: { "content-type": "text/html" } });
+  return new Response(page, {
+    headers: { "content-type": "text/html", "cache-control": "no-store" },
+  });
 }
 
 function detailBlock(rows: [string, string | null | undefined][]): string {
@@ -153,9 +157,11 @@ async function imageAvatarPage(
   let previewURL: string | undefined;
   try {
     const metadata: Metadata = { name, image: displayURI };
-    // ENS names are UTF-8 and may contain anything; keep the R2 key boring.
-    const safeName = name.replace(/[^a-z0-9.-]/gi, "_").toLowerCase();
-    const imageID = `ens_${safeName}_${await sha256(ref.uri)}.jpg`;
+    // Keyed by the avatar URI alone, NOT by the ENS name. The name is a
+    // mutable pointer; the image is content. Two names sharing an avatar share
+    // the render, and repointing a name simply lands on a different key rather
+    // than serving a stale one under the old name.
+    const imageID = `avatar_${await sha256(ref.uri)}.jpg`;
     // base64, not raw JSON: an unencoded data: URI breaks on '#' and friends.
     const syntheticTokenURI = `data:application/json;base64,${Base64.encode(
       JSON.stringify({ image: displayURI })
@@ -254,7 +260,8 @@ export async function ensPage(
 
     case "nft":
       // The record IS the path this service already serves, so hand straight
-      // over to the normal token pipeline.
+      // over to the normal token pipeline. It is told where it came from, so
+      // the page can show the token's permanent address and refuse caching.
       return tokenPage(
         env,
         request,
@@ -262,7 +269,8 @@ export async function ensPage(
         ref.chainId,
         ref.contract,
         ref.tokenID,
-        returnScreenshot
+        returnScreenshot,
+        { ensName: name, noStore: true }
       );
 
     case "image":
