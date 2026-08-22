@@ -1,10 +1,11 @@
 import { Base64 } from "../_utils/base64";
 import {
   BlockchainData,
+  CorsStatus,
   erc1155IdHex,
   fetchBlockchainData,
   Metadata,
-  parseMetadata,
+  parseMetadataWithCors,
   TokenStandard,
 } from "../_utils/metadata";
 import { sha256 } from "../_utils/strings";
@@ -201,11 +202,14 @@ export async function tokenPage(
   // Stage 2: Metadata parsing (tokenURI server)
   // ------------------------------------------------------------------
   let metadata: Metadata;
+  let cors: CorsStatus;
   try {
-    metadata = await parseMetadata(
+    const result = await parseMetadataWithCors(
       data.tokenURI,
       standard === "erc1155" ? erc1155IdHex(tokenID) : undefined
     );
+    metadata = result.metadata;
+    cors = result.cors;
   } catch (err: any) {
     return errorPage("metadata", err, { ...ctx, tokenURI: data.tokenURI });
   }
@@ -266,6 +270,7 @@ export async function tokenPage(
     {
       url: request.url,
       previewURL,
+      cors,
     },
     metadata
   );

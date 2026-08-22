@@ -14,7 +14,7 @@ import { join, dirname, basename } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 const here = dirname(fileURLToPath(import.meta.url));
-const files = ["unit.test.ts"];
+const files = ["unit.test.ts", "page.test.ts"];
 if (process.env.TEST_LIVE) files.push("live.test.ts");
 else console.log("\n  (skipping live tests; set TEST_LIVE=1 to include them)");
 

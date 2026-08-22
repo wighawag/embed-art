@@ -46,6 +46,14 @@
             font-size: 16px;
             line-height: 1.65;
             -webkit-text-size-adjust: 100%;
+            /* Programming ligatures are actively harmful here. A monospace
+               face shapes ':' + '<' into one cluster, and when those two
+               characters sit in differently coloured spans the whole cluster
+               is painted in the second span's colour: the ':' in
+               'erc721:<contract>' disappeared into the placeholder. Nothing
+               on this page is prose, so turn contextual shaping off. */
+            font-variant-ligatures: none;
+            font-feature-settings: "liga" 0, "calt" 0, "dlig" 0;
         }
 
         .wrap {
@@ -104,11 +112,15 @@
             padding: 1rem 1.15rem;
             overflow-x: auto;
             white-space: nowrap;
-            font-size: clamp(0.72rem, 2.3vw, 0.95rem);
+            font-size: clamp(0.8rem, 2.3vw, 1rem);
         }
 
+        /* Every part of the pattern carries its own colour, so no separator
+           is left to inherit. See the ligature note on body: that was the
+           other half of the same bug. */
         .pattern .var { color: var(--accent); }
         .pattern .dim { color: var(--muted); }
+        .pattern .lit { color: var(--ink); }
 
         /* ---------------------------------------------------------- builder */
         .builder {
@@ -207,25 +219,48 @@
             font-size: 0.88rem;
         }
 
-        .cards { display: grid; gap: 0.7rem; grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr)); }
+        /* align-items:start so a card next to one carrying an audio control
+           does not stretch to match it and end in dead space */
+        .cards {
+            display: grid;
+            gap: 0.7rem;
+            align-items: start;
+            grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+        }
 
         .card {
             display: block;
             background: var(--surface);
             border: 1px solid var(--line);
             border-radius: 8px;
-            padding: 0.9rem 1rem;
+            overflow: hidden;
             text-decoration: none;
         }
 
         .card:hover { border-color: var(--accent); }
         .card:hover .card-name { color: var(--accent); }
 
+        /* 2:1, the shape the service emits, so the thumbnail IS the product */
+        .card-shot {
+            display: block;
+            width: 100%;
+            aspect-ratio: 2 / 1;
+            object-fit: contain;
+            background: #0C0C0C;
+            border-bottom: 1px solid var(--line);
+        }
+
+        .card-body { display: block; padding: 0.85rem 1rem; }
         .card-name { display: block; margin-bottom: 0.15rem; }
         .card-note { display: block; font-size: 0.78rem; color: var(--muted); }
 
         .card.dead { border-style: dashed; }
         .card.dead .card-name { color: var(--muted); text-decoration: line-through; }
+
+        /* Audio is a sibling of the card, never inside it: a control nested in
+           a link cannot be operated without navigating away. */
+        .with-audio { display: flex; flex-direction: column; gap: 0.5rem; }
+        .with-audio audio { width: 100%; height: 2.1rem; }
 
         /* ------------------------------------------------------------- note */
         .note {
@@ -272,9 +307,7 @@
                     is an SVG, an animation, or sitting on IPFS.
                 </p>
 
-                <div class="pattern"><span class="dim">https://embed.art/</span>eip155:<span
-                        class="var">&lt;chainId&gt;</span>/erc721:<span
-                        class="var">&lt;contract&gt;</span>/<span class="var">&lt;tokenId&gt;</span></div>
+                <div class="pattern"><span class="dim">https://embed.art/</span><span class="lit">eip155:</span><span class="var">&lt;chainId&gt;</span><span class="lit">/erc721:</span><span class="var">&lt;contract&gt;</span><span class="lit">/</span><span class="var">&lt;tokenId&gt;</span></div>
 
                 <div class="builder">
                     <div class="modes" role="radiogroup" aria-label="What are you linking to?">
@@ -349,14 +382,27 @@
                     <div class="cards">
                         <a class="card"
                             href="/eip155:1/erc721:0xDaCa87395f3b1Bbc46F3FA187e996E03a5dCc985/820968253629536341503692254232196410315455531838">
-                            <span class="card-name">Mandalas</span>
-                            <span class="card-note">generative SVG, generated and stored onchain</span>
+                            <img class="card-shot" loading="lazy" alt="Preview of a Mandala"
+                                src="/image/eip155:1/erc721:0xDaCa87395f3b1Bbc46F3FA187e996E03a5dCc985/820968253629536341503692254232196410315455531838">
+                            <span class="card-body">
+                                <span class="card-name">Mandalas</span>
+                                <span class="card-note">generative SVG, generated and stored onchain</span>
+                            </span>
                         </a>
-                        <a class="card"
-                            href="/eip155:1/erc721:0x9d27527Ada2CF29fBDAB2973cfa243845a08Bd3F/1">
-                            <span class="card-name">Bleeps</span>
-                            <span class="card-note">sound synthesised onchain, playable on the page</span>
-                        </a>
+                        <div class="with-audio">
+                            <a class="card"
+                                href="/eip155:1/erc721:0x9d27527Ada2CF29fBDAB2973cfa243845a08Bd3F/1">
+                                <img class="card-shot" loading="lazy" alt="Preview of a Bleep"
+                                    src="/image/eip155:1/erc721:0x9d27527Ada2CF29fBDAB2973cfa243845a08Bd3F/1">
+                                <span class="card-body">
+                                    <span class="card-name">Bleeps</span>
+                                    <span class="card-note">sound synthesised onchain, playable here</span>
+                                </span>
+                            </a>
+                            <audio controls preload="none"
+                                src="/audio/eip155:1/erc721:0x9d27527Ada2CF29fBDAB2973cfa243845a08Bd3F/1">
+                            </audio>
+                        </div>
                     </div>
                 </div>
 
@@ -365,13 +411,21 @@
                     <div class="cards">
                         <a class="card dead"
                             href="/eip155:1/erc721:0x099689220846644f87d1137665cded7bf3422747/4508">
-                            <span class="card-name">Roboto</span>
-                            <span class="card-note">metadata host stopped responding</span>
+                            <img class="card-shot" loading="lazy" alt="Roboto preview is unavailable"
+                                src="/image/eip155:1/erc721:0x099689220846644f87d1137665cded7bf3422747/4508">
+                            <span class="card-body">
+                                <span class="card-name">Roboto</span>
+                                <span class="card-note">metadata host stopped responding</span>
+                            </span>
                         </a>
                         <a class="card dead"
                             href="/eip155:1/erc721:0x4658e9c5e1e05280e3708741aba63b7ff4e81055/1199">
-                            <span class="card-name">Void Runner</span>
-                            <span class="card-note">voidrunners.io returns a server error</span>
+                            <img class="card-shot" loading="lazy" alt="Void Runner preview is unavailable"
+                                src="/image/eip155:1/erc721:0x4658e9c5e1e05280e3708741aba63b7ff4e81055/1199">
+                            <span class="card-body">
+                                <span class="card-name">Void Runner</span>
+                                <span class="card-note">voidrunners.io returns a server error</span>
+                            </span>
                         </a>
                     </div>
                 </div>

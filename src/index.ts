@@ -1,4 +1,5 @@
 import { ensPage } from "../functions/_handlers/ens";
+import { audioRoute, imageRoute } from "../functions/_handlers/media";
 import {
   generateDataURIForScreenshot,
   getData,
@@ -106,6 +107,41 @@ export default {
       return new Response(`no image specified: ${request.url}`, {
         status: 500,
       });
+    }
+
+    // ------------------------------------------------------------------
+    // Direct media — /image/<token path> and /audio/<token path>
+    // The preview's real URL embeds sha256(tokenURI), which nobody outside
+    // this worker can compute, so these give it a stable, guessable address.
+    // ------------------------------------------------------------------
+    for (const [prefix, handler] of [
+      ["/image/", imageRoute],
+      ["/audio/", audioRoute],
+    ] as const) {
+      if (pathname.startsWith(prefix)) {
+        const segments = pathname.slice(prefix.length).split("/").filter(Boolean);
+        if (segments.length < 3 || !segments[0].startsWith("eip155:")) {
+          return new Response(
+            `expected ${prefix}eip155:<chainId>/erc721:<contract>/<tokenId>`,
+            { status: 400 }
+          );
+        }
+        const chainIdAsNumber = parseInt(segments[0].slice(7));
+        const token = parseTokenSegment(segments[1]);
+        if (isNaN(chainIdAsNumber) || !token) {
+          return new Response(`invalid token reference in ${pathname}`, {
+            status: 400,
+          });
+        }
+        return handler(
+          env,
+          request,
+          token.standard,
+          chainIdAsNumber.toString(),
+          token.contract,
+          segments[2]
+        );
+      }
     }
 
     // ------------------------------------------------------------------

@@ -328,10 +328,43 @@ export async function fetchBlockchainData(
   };
 }
 
+/**
+ * Whether a browser would be allowed to fetch this metadata itself.
+ *
+ * The token page renders client-side on purpose, so a metadata server that
+ * omits Access-Control-Allow-Origin breaks the page even though the preview
+ * card is fine (we fetch it server-side, where CORS does not apply). The
+ * browser cannot tell a CORS rejection from a dropped connection, but we can:
+ * we make the same request and can read the headers.
+ */
+export type CorsStatus = "allowed" | "blocked" | "unknown" | "not-applicable";
+
+export type MetadataResult = {
+  metadata: Metadata;
+  cors: CorsStatus;
+  /** the URL the browser would have to reach, after ipfs:// rewriting */
+  fetchedFrom?: string;
+};
+
+function corsFromHeader(value: string | null): CorsStatus {
+  if (value === null) return "blocked";
+  if (value === "*") return "allowed";
+  // A specific origin (or a Vary-driven echo) may or may not match ours; we
+  // cannot decide that here, so do not claim to know.
+  return "unknown";
+}
+
 export async function parseMetadata(
   tokenURI: string,
   idHex?: string
 ): Promise<Metadata> {
+  return (await parseMetadataWithCors(tokenURI, idHex)).metadata;
+}
+
+export async function parseMetadataWithCors(
+  tokenURI: string,
+  idHex?: string
+): Promise<MetadataResult> {
   // ------------------------------------------------------------------------------------------------------------------
   // DECODE URI
   // ------------------------------------------------------------------------------------------------------------------
@@ -350,6 +383,8 @@ export async function parseMetadata(
   // parse metadata
   // ------------------------------------------------------------------------------------------------------------------
   let metadata;
+  let cors: CorsStatus = "not-applicable";
+  let fetchedFrom: string | undefined;
   try {
     /// ata:text/plain;charset=utf-8,
     if (urlDecodedTokenURI.startsWith("data:")) {
@@ -383,8 +418,13 @@ export async function parseMetadata(
       if (tokenURI.startsWith("ipfs://")) {
         tokenURI = `https://ipfs.io/ipfs/${tokenURI.slice(7)}`;
       }
+      fetchedFrom = tokenURI;
       try {
-        metadata = await fetch(tokenURI).then((v) => v.json());
+        const response = await fetch(tokenURI);
+        cors = corsFromHeader(
+          response.headers.get("access-control-allow-origin")
+        );
+        metadata = await response.json();
         metadata = recursiveReplace(
           metadata,
           "ipfs://",
@@ -407,5 +447,5 @@ export async function parseMetadata(
     metadata = recursiveReplace(metadata, "{id}", idHex);
   }
 
-  return metadata;
+  return { metadata, cors, fetchedFrom };
 }

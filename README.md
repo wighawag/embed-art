@@ -19,6 +19,15 @@ The idea behind Embed.Art is to allow you to have an easy way to share your toke
 | `/eip155:<chainID>/erc721:<contract>/<tokenID>` | an ERC-721 token |
 | `/eip155:<chainID>/erc1155:<contract>/<tokenID>` | an ERC-1155 token |
 | `/<name>.eth` | resolves the name's ENS avatar record and renders it |
+| `/image/<token path>` | 302 to the generated preview JPEG |
+| `/audio/<token path>` | the token's audio, if its `animation_url` is one |
+
+The preview's real URL embeds `sha256(tokenURI)`, which nothing outside the
+worker can compute, so `/image/` exists to give it a stable, guessable address:
+use it as your own `og:image`, or as a thumbnail, without scraping a page for
+it. Both media routes fall back to the matching `static/error-*.png` rather
+than failing, and set a cache lifetime so a dead metadata server is not
+re-queried on every view.
 
 The token path is deliberately identical to the NFT avatar format defined by
 [ENSIP-12](https://docs.ens.domains/ensip/12) (via CAIP-22 and CAIP-29), so an
@@ -50,6 +59,20 @@ When you navigate to `https://embed.art/eip155:<chainID>/erc721:<contractAddress
   (The preview is generated at 824x412, with a transparent background)
 - That preview is then saved to R2
 - It finally return html page that display the NFT, its title, description, image but also audio (if present). If an iframe is present, it replaces the image.
+
+### When the metadata server blocks the browser
+
+The token page fetches the metadata **client-side**, deliberately, so what you
+see is rendered from the token URI rather than from a server-side copy. That
+breaks when a metadata host omits `Access-Control-Allow-Origin`, as OpenSea's
+does: the browser refuses the read and cannot tell you why, because from
+JavaScript a CORS rejection and a dead network look identical.
+
+The backend can tell, because it fetches the same URL where CORS does not
+apply, and reads the response headers. The page is therefore told the verdict
+up front: when the header is missing it says so plainly, names the URL at
+fault, shows the server-rendered preview instead of nothing, and points out
+that the unfurled card is unaffected. No hedging in front of the visitor.
 
 ## Architecture
 
@@ -143,6 +166,6 @@ usage is minimal.
 - support hot reload so you can watch dyanmic NFT in the page
 - test with more assets
 - support old contracts (cryptopunks, autoglyphs, etc...)
-- a stable direct-image route (`/image/<same path>`) so the generated preview
-  can be used as someone else's `og:image` without scraping the page for it
 - ENS: CCIP-read for offchain names, and optional ownership verification
+- check the home page's examples at request time instead of describing their
+  health in hardcoded copy, since which ones are alive keeps changing

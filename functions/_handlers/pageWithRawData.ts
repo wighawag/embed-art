@@ -1,11 +1,16 @@
-import { ContractMetadata, Metadata } from "../_utils/metadata";
+import { ContractMetadata, CorsStatus, Metadata } from "../_utils/metadata";
 
 export async function pageWithRawData(
   token: { contract: string; id: string },
   tokenURI: string,
   contractMetadata: ContractMetadata,
   //   contractURI: string, TODO
-  extra: { url: string; previewURL: string; tokenURIBase64Encoded?: string },
+  extra: {
+    url: string;
+    previewURL: string;
+    tokenURIBase64Encoded?: string;
+    cors?: CorsStatus;
+  },
   metadata?: Metadata,
 ): Promise<Response> {
   const url = extra.url;
@@ -110,6 +115,29 @@ export async function pageWithRawData(
           color: #FF3333;
         }
 
+        /* ':' and '<' shape into one cluster in monospace faces with
+           contextual alternates, and the cluster takes the colour of whichever
+           run it ends in. That hid the colon in things like erc721:<contract>. */
+        * {
+          font-variant-ligatures: none;
+          font-feature-settings: "liga" 0, "calt" 0, "dlig" 0;
+        }
+
+        .notice {
+          max-width: 42em;
+          margin: 0 auto 2em;
+          padding: 1em 1.2em;
+          border: 1px solid #2A2620;
+          border-left: 3px solid #BE8F04;
+          border-radius: 6px;
+          text-align: left;
+          font-size: 0.85em;
+          opacity: 0.9;
+          line-height: 1.6;
+        }
+        .notice strong { color: #BE8F04; font-weight: normal; }
+        .notice code { color: #BE8F04; word-break: break-all; }
+
         #nft-iframe {
           min-width: 80vw;
           min-height: 80vh;
@@ -127,6 +155,7 @@ export async function pageWithRawData(
         }
         <p id="nft-error" class="error" style="display:none;"></p>
         <p id="global-error" class="error" style="display:none;"></p>
+        <div id="cors-notice" class="notice" style="display:none;"></div>
         <p id="nft-description" style="display:none;"></p>
           <p>
             <iframe class="main" style="display:none;" id="nft-iframe"></iframe>
@@ -154,6 +183,29 @@ export async function pageWithRawData(
               : `atobUTF8(location.hash.slice(1))`
         };
         const regex = /\\//gm;
+        // What the SERVER learned fetching this very metadata URL. A browser
+        // cannot tell a CORS rejection from a dead connection, but we made the
+        // identical request and read the response headers, so this page never
+        // has to guess out loud in front of the visitor.
+        const CORS = ${JSON.stringify(extra.cors || "unknown")};
+        const PREVIEW = ${JSON.stringify(extra.previewURL || "")};
+
+        const showNotice = (html) => {
+          const el = document.getElementById('cors-notice');
+          el.innerHTML = html;
+          el.style.display = 'block';
+        };
+
+        // The artwork could not be loaded in the browser, but the preview we
+        // rendered server-side is perfectly good. Show that rather than
+        // nothing, and be explicit about what the visitor is looking at.
+        const showServerPreview = () => {
+          if (!PREVIEW) return;
+          const img = document.getElementById('nft-image');
+          img.src = PREVIEW;
+          img.style.display = 'inline-block';
+        };
+
         const cssURLEscaped = (uri) => {
           return uri.replace(regex, "\\/");
         };
@@ -208,11 +260,30 @@ export async function pageWithRawData(
           try {
             metadataResponse = await fetch(metadataURLToFetch);
           } catch(err) {
-            if (tokenURI.startsWith('http') && err.response === undefined) {
-              const message = \`<h2>Could not fetch token's metadata.</h2><p>This could be a CORS issue or a dropped internet connection.</p><p>It is not possible for us to know. (Please check in your browser console.)</p><p>If it is a CORS issue, please contact the persons responsible for the project and tell them to allow CORS.</p><p>This page fetches all token data client side to ensure full compliance with web standard.</p>\`;
-              showError(message);
+            if (CORS === 'blocked') {
+              // Not a guess: our server fetched this same URL and the response
+              // carried no Access-Control-Allow-Origin header.
+              showNotice(
+                "<strong>The artwork below was rendered by Embed.Art, not by your browser.</strong>" +
+                "<p>This token's metadata server does not send an " +
+                "<code>Access-Control-Allow-Origin</code> header, so browsers refuse to " +
+                "read it from another site. This page renders tokens client-side on " +
+                "purpose, so it cannot show you the live artwork.</p>" +
+                "<p>The preview card that unfurls on social platforms is unaffected: " +
+                "we generate it server-side, where CORS does not apply.</p>" +
+                "<p>Only the project can fix this, by allowing cross-origin reads on " +
+                "<code>" + metadataURLToFetch + "</code>.</p>"
+              );
+              showServerPreview();
+            } else if (tokenURI.startsWith('http') && err.response === undefined) {
+              showError("<h2>Could not fetch token's metadata.</h2><p>" +
+                "The request failed before any response arrived. Our server could " +
+                "reach this metadata URL, so this is most likely your connection " +
+                "or a network in between.</p>");
+              showServerPreview();
             } else {
               showError("<h2>Could not fetch token's metadata.</h2><p>" + (err.message || err) + "</p>");
+              showServerPreview();
             }
             return;
           }

@@ -33,7 +33,12 @@ export function gatewayURI(uri: string): string {
 const PAGE_CSS = `
   html { background-color: #111111; color: #F5DEB3; }
   * { margin: 0; padding: 0; box-sizing: border-box;
-      font-family: ui-monospace, Hack, "DejaVu Sans Mono", monospace; }
+      font-family: ui-monospace, Hack, "DejaVu Sans Mono", monospace;
+      /* ':' and '<' shape into one cluster in monospace faces with contextual
+         alternates, and the cluster takes the colour of whichever span it
+         ends in, hiding the colon in 'erc721:<contract>'. */
+      font-variant-ligatures: none;
+      font-feature-settings: "liga" 0, "calt" 0, "dlig" 0; }
   body { display: flex; flex-direction: column; align-items: center;
          justify-content: center; min-height: 100vh; text-align: center;
          padding: 2rem 1.25rem; line-height: 1.6; }

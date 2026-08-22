@@ -4,6 +4,7 @@
  * page that says "unreadable" about a perfectly good token.
  */
 import { gatewayURI } from "../functions/_handlers/ens";
+import { audioSource } from "../functions/_handlers/media";
 import { isEnsName, parseAvatarRecord } from "../functions/_utils/ens";
 import { erc1155IdHex } from "../functions/_utils/metadata";
 import { parseTokenSegment } from "../functions/_utils/url";
@@ -113,5 +114,16 @@ eq("ipfs with redundant prefix", gatewayURI("ipfs://ipfs/QmAbc"), "https://ipfs.
 eq("arweave", gatewayURI("ar://xyz"), "https://arweave.net/xyz");
 eq("https untouched", gatewayURI("https://a/b.png"), "https://a/b.png");
 eq("data untouched", gatewayURI("data:image/png;base64,AA"), "data:image/png;base64,AA");
+
+
+
+section("audioSource (which animation_url counts as audio)");
+eq("inline wav", audioSource({ animation_url: "data:audio/wav;base64,AA" }), "data:audio/wav;base64,AA");
+eq("mp3 by extension", audioSource({ animation_url: "https://x/y.mp3" }), "https://x/y.mp3");
+eq("uppercase extension", audioSource({ animation_url: "https://x/Y.WAV" }), "https://x/Y.WAV");
+eq("html animation is not audio", audioSource({ animation_url: "https://x/y.html" }), null);
+eq("inline html is not audio", audioSource({ animation_url: "data:text/html,<b>" }), null);
+eq("no animation_url", audioSource({ image: "https://x/y.png" }), null);
+eq("empty metadata", audioSource({}), null);
 
 report();
