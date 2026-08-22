@@ -6,7 +6,7 @@
 import { gatewayURI } from "../functions/_handlers/ens";
 import { audioSource } from "../functions/_handlers/media";
 import { isEnsName, parseAvatarRecord } from "../functions/_utils/ens";
-import { erc1155IdHex } from "../functions/_utils/metadata";
+import { erc1155IdHex, isRenderable } from "../functions/_utils/metadata";
 import { parseTokenSegment } from "../functions/_utils/url";
 import { eq, report, section } from "./assert";
 
@@ -125,5 +125,16 @@ eq("html animation is not audio", audioSource({ animation_url: "https://x/y.html
 eq("inline html is not audio", audioSource({ animation_url: "data:text/html,<b>" }), null);
 eq("no animation_url", audioSource({ image: "https://x/y.png" }), null);
 eq("empty metadata", audioSource({}), null);
+
+section("isRenderable (is there anything to screenshot?)");
+eq("image only", isRenderable({ image: "https://x/a.png" }), true);
+eq("animation only", isRenderable({ animation_url: "https://x/a.html" }), true);
+eq("both", isRenderable({ image: "a", animation_url: "b" }), true);
+eq("name but no media", isRenderable({ name: "Tok", description: "d" }), false);
+// OpenSea answers a missing token with HTTP 404 and a JSON error body; parsed
+// as metadata it yields this, and the old code spent 30s screenshotting it.
+eq("a 404 error body", isRenderable({ errors: ["not found"] } as any), false);
+eq("empty object", isRenderable({}), false);
+eq("null", isRenderable(null as any), false);
 
 report();

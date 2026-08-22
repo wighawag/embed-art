@@ -56,6 +56,105 @@ CARD_RULE = (120.0, 6.0)
 CARD_GAP_RULE = 48.0        # lockup ink bottom -> rule top
 CARD_GAP_TAG = 34.0         # rule bottom -> tagline ink top
 
+# ---------------------------------------------------------- state cards
+# Every failure state gets a branded 1280x640 card, so a link that unfurls to
+# an error still unfurls as Embed.Art rather than borrowing the front page's
+# card and implying everything is fine.
+# The lockup sits top-left like a letterhead rather than leading the card. The
+# subject of a failure card is the failure; the icon carries that. The brand
+# should be clearly present and still lose the fight for attention.
+STATE_CARD_LOCKUP_W = 300.0
+STATE_BRAND_X = 72.0
+STATE_BRAND_Y = 60.0
+STATE_ICON = 148.0          # drawn from a 24-unit viewBox
+STATE_GAP_ICON = 52.0       # icon bottom -> headline ink top
+STATE_CARD_HEAD_CAP = 58.0
+STATE_CARD_SUB_CAP = 25.0
+
+# Icon geometry, 24x24. These mirror the icons the HTML error page draws; keep
+# the two in step (functions/_handlers/errorPage.ts).
+_SLASH = '<line x1="2" y1="2" x2="22" y2="22" stroke="#FF4444" stroke-width="2"/>'
+STATE_ICONS = {
+    "error-blockchain":
+        '<path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>'
+        '<path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.72-1.71"/>' + _SLASH,
+    "error-metadata":
+        '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>'
+        '<polyline points="14 2 14 8 20 8"/>'
+        '<line x1="9" y1="13" x2="15" y2="13" stroke="#FF4444"/>' + _SLASH,
+    "error-image":
+        '<rect x="3" y="3" width="18" height="18" rx="2"/>'
+        '<circle cx="9" cy="9" r="2"/>'
+        '<path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/>' + _SLASH,
+    "error-screenshot":
+        '<path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/>'
+        '<circle cx="12" cy="13" r="3"/>' + _SLASH,
+    "error-notfound":
+        '<circle cx="11" cy="11" r="8"/>'
+        '<line x1="8" y1="11" x2="14" y2="11" stroke="#FF4444"/>' + _SLASH,
+    "error-empty":
+        '<rect x="3" y="3" width="18" height="18" rx="2"/>'
+        '<line x1="3" y1="3" x2="21" y2="21" stroke="#FF4444"/>',
+    # The ENS states are not breakages: a name simply has no avatar yet. Same
+    # drawing language, no red slash.
+    "ens-unregistered":
+        '<circle cx="12" cy="12" r="9"/>'
+        '<line x1="12" y1="7.5" x2="12" y2="13"/>'
+        '<line x1="12" y1="16.3" x2="12" y2="16.31"/>',
+    "ens-no-avatar":
+        '<circle cx="12" cy="12" r="9.2" stroke-dasharray="3 3"/>'
+        '<circle cx="12" cy="9.6" r="2.8"/>'
+        '<path d="M7.2 18.4a5 5 0 0 1 9.6 0"/>',
+    "ens-unknown":
+        '<circle cx="12" cy="12" r="9"/>'
+        '<path d="M9.3 9.4a2.9 2.9 0 0 1 5.5 1.1c0 2-2.75 2.4-2.75 3.9"/>'
+        '<line x1="12" y1="17.2" x2="12" y2="17.21"/>',
+}
+# Cap height alone would run the longest headline off the card, so the size is
+# whichever of the two constraints binds first.
+STATE_CARD_MAX_W = 1100.0
+STATE_GAP_HEAD = 76.0
+STATE_GAP_SUB = 42.0
+
+STATE_CARDS = {
+    "error-blockchain": (
+        "Blockchain Data Unavailable",
+        "The chain could not be read for this token.",
+    ),
+    "error-metadata": (
+        "Metadata Unavailable",
+        "This token's metadata server did not answer.",
+    ),
+    "error-image": (
+        "Image Unavailable",
+        "The artwork itself could not be fetched.",
+    ),
+    "error-screenshot": (
+        "Preview Generation Failed",
+        "Usually temporary. Try again shortly.",
+    ),
+    "error-notfound": (
+        "No Such Token",
+        "This token id does not exist on that contract.",
+    ),
+    "error-empty": (
+        "Nothing To Show",
+        "The metadata has no image and no animation.",
+    ),
+    "ens-unregistered": (
+        "Name Not Registered",
+        "Nobody owns this ENS name.",
+    ),
+    "ens-no-avatar": (
+        "No Avatar Set",
+        "This ENS name has no avatar record.",
+    ),
+    "ens-unknown": (
+        "Avatar Not Readable",
+        "The record is not a form ENSIP-12 defines.",
+    ),
+}
+
 
 def outlines():
     with open(os.path.join(HERE, "outlines.json")) as fh:
@@ -204,6 +303,78 @@ def preview_svg():
     ]), ink=INK_DARK)
 
 
+def state_card_svg(key: str):
+    """A 1280x640 card for one failure state: lockup, headline, one line of
+    plain explanation. Same plate and glow as the main card."""
+    o = outlines()
+    caps = o["_caps"]
+    wm = o["wordmark"]
+    head = o[f"head:{key}"]
+    sub = o[f"sub:{key}"]
+
+    word_scale_in_lockup = WORD_INK_H / wm["ink"][3]
+    lockup_w = MARK_INK + LOCKUP_GAP + wm["ink"][2] * word_scale_in_lockup
+    s = STATE_CARD_LOCKUP_W / lockup_w
+    lockup_h = MARK_INK * s
+
+    head_scale = min(
+        STATE_CARD_HEAD_CAP / caps["bold"], STATE_CARD_MAX_W / head["ink"][2]
+    )
+    sub_scale = min(
+        STATE_CARD_SUB_CAP / caps["regular"], STATE_CARD_MAX_W / sub["ink"][2]
+    )
+    head_h = head["ink"][3] * head_scale
+    sub_h = sub["ink"][3] * sub_scale
+
+    # letterhead: lockup pinned top-left, out of the subject's way
+    mark_x = STATE_BRAND_X - MARK_INK_ORIGIN * s
+    mark_y = STATE_BRAND_Y - MARK_INK_ORIGIN * s
+    word_x = (
+        STATE_BRAND_X + (MARK_INK + LOCKUP_GAP) * s
+        - wm["ink"][0] * word_scale_in_lockup * s
+    )
+    word_y = STATE_BRAND_Y + lockup_h / 2.0 - (
+        wm["ink"][1] + wm["ink"][3] / 2.0
+    ) * word_scale_in_lockup * s
+
+    # the state itself, centred: icon over headline over one line of prose
+    stack = STATE_ICON + STATE_GAP_ICON + head_h + STATE_GAP_SUB + sub_h
+    top = (CARD_H - stack) / 2.0 + 28.0   # nudged down to balance the letterhead
+
+    icon_x = (CARD_W - STATE_ICON) / 2.0
+    head_y = top + STATE_ICON + STATE_GAP_ICON - head["ink"][1] * head_scale
+    head_x = (CARD_W - head["ink"][2] * head_scale) / 2.0 - head["ink"][0] * head_scale
+    sub_y = (
+        top + STATE_ICON + STATE_GAP_ICON + head_h + STATE_GAP_SUB
+        - sub["ink"][1] * sub_scale
+    )
+    sub_x = (CARD_W - sub["ink"][2] * sub_scale) / 2.0 - sub["ink"][0] * sub_scale
+
+    return _svg(CARD_W, CARD_H, "\n".join([
+        '  <defs>',
+        '    <radialGradient id="glow" cx="0.18" cy="0.82" r="0.62">',
+        f'      <stop offset="0" stop-color="{ACCENT}" stop-opacity="0.16"/>',
+        f'      <stop offset="1" stop-color="{ACCENT}" stop-opacity="0"/>',
+        '    </radialGradient>',
+        '  </defs>',
+        f'  <rect width="{CARD_W:g}" height="{CARD_H:g}" fill="{PLATE}"/>',
+        f'  <rect width="{CARD_W:g}" height="{CARD_H:g}" fill="url(#glow)"/>',
+        f'  <g transform="translate({mark_x:.4f} {mark_y:.4f}) scale({s:.6f})"'
+        f' style="color: {INK_DARK}">',
+        mark_body(MARK_STROKE, BRACKET_L, BRACKET_R, GUEST_RX),
+        '  </g>',
+        glyphs("wordmark", word_scale_in_lockup * s, word_x, word_y, fill=INK_DARK),
+        f'  <g transform="translate({icon_x:.4f} {top:.4f})'
+        f' scale({STATE_ICON / 24.0:.6f})" fill="none" stroke="{INK_DARK}"'
+        ' stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"'
+        ' opacity="0.55">',
+        f'    {STATE_ICONS[key]}',
+        '  </g>',
+        glyphs(f"head:{key}", head_scale, head_x, head_y, fill=INK_DARK),
+        glyphs(f"sub:{key}", sub_scale, sub_x, sub_y, fill=MUTED),
+    ]), ink=INK_DARK)
+
+
 FILES = {
     "logo.svg": logo_svg,
     "wordmark.svg": wordmark_svg,
@@ -213,6 +384,10 @@ FILES = {
     "icon.svg": icon_svg,
     "icon-bare.svg": icon_bare_svg,
     "preview.svg": preview_svg,
+    **{
+        f"state-{key}.svg": (lambda k=key: state_card_svg(k))
+        for key in STATE_CARDS
+    },
 }
 
 if __name__ == "__main__":

@@ -1,4 +1,10 @@
-type ErrorType = "blockchain" | "metadata" | "image" | "screenshot";
+export type ErrorType =
+  | "blockchain"
+  | "metadata"
+  | "image"
+  | "screenshot"
+  | "notfound"
+  | "empty";
 
 function escapeHtml(s: string): string {
   return s
@@ -9,6 +15,10 @@ function escapeHtml(s: string): string {
     .replace(/'/g, "&#039;");
 }
 
+/**
+ * These icons are mirrored on the generated unfurl cards. If you change one,
+ * change the other: assets/brand/spec.py, STATE_ICONS.
+ */
 const ERROR_INFO: Record<
   ErrorType,
   { title: string; message: string; icon: string }
@@ -43,6 +53,25 @@ const ERROR_INFO: Record<
       <circle cx="9" cy="9" r="2"/>
       <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/>
       <line x1="2" y1="2" x2="22" y2="22" stroke="#FF4444" stroke-width="2"/>
+    </svg>`,
+  },
+  notfound: {
+    title: "No Such Token",
+    message:
+      "The contract answered, but the metadata for this token id does not exist. Most likely the token was never minted, or the id is wrong.",
+    icon: `<svg class="icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="11" cy="11" r="8"/>
+      <line x1="8" y1="11" x2="14" y2="11" stroke="#FF4444"/>
+      <line x1="2" y1="2" x2="22" y2="22" stroke="#FF4444" stroke-width="2"/>
+    </svg>`,
+  },
+  empty: {
+    title: "Nothing To Show",
+    message:
+      "This token's metadata loaded, but it contains no image and no animation, so there is nothing to render.",
+    icon: `<svg class="icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+      <rect x="3" y="3" width="18" height="18" rx="2"/>
+      <line x1="3" y1="3" x2="21" y2="21" stroke="#FF4444"/>
     </svg>`,
   },
   screenshot: {
@@ -122,12 +151,27 @@ export function errorPage(
         <style>
           html {
             background-color: #111111;
-            color: wheat;
+            color: #F5DEB3;
           }
           * {
             margin: 0;
             padding: 0;
-            font-family: Hack, monospace;
+            font-family: ui-monospace, Hack, "DejaVu Sans Mono", monospace;
+            /* ':' and '<' otherwise shape into one cluster and the colon is
+               painted with the following run's colour. See the home page. */
+            font-variant-ligatures: none;
+            font-feature-settings: "liga" 0, "calt" 0, "dlig" 0;
+          }
+          /* Letterhead, matching the unfurl cards: present, not competing. */
+          .brand {
+            position: absolute;
+            top: 30px;
+            left: 34px;
+          }
+          .brand img {
+            height: 26px;
+            width: auto;
+            display: block;
           }
           body {
             display: flex;
@@ -168,6 +212,7 @@ export function errorPage(
         </style>
     </head>
     <body>
+        <a class="brand" href="/"><img src="/static/wordmark.svg" alt="Embed.Art"></a>
         ${info.icon}
         <h1>${escTitle}</h1>
         <p>${escMessage}</p>

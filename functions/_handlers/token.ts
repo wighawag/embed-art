@@ -4,6 +4,8 @@ import {
   CorsStatus,
   erc1155IdHex,
   fetchBlockchainData,
+  HttpStatusError,
+  isRenderable,
   Metadata,
   parseMetadataWithCors,
   TokenStandard,
@@ -192,6 +194,10 @@ export async function tokenPage(
   // The permanent address of this token, regardless of which alias was
   // followed to get here: an ENS name, a legacy /erc721/ path, or eip721:.
   const canonical = `${origin}/eip155:${chainId}/${standard}:${contract}/${tokenID}`;
+  // Only worth showing when the visitor did NOT arrive by it.
+  const arrivedCanonically =
+    new URL(request.url).pathname.toLowerCase() ===
+    new URL(canonical).pathname.toLowerCase();
 
   // ------------------------------------------------------------------
   // Stage 1: Blockchain data (RPC node)
@@ -216,7 +222,23 @@ export async function tokenPage(
     metadata = result.metadata;
     cors = result.cors;
   } catch (err: any) {
-    return errorPage("metadata", err, { ...ctx, tokenURI: data.tokenURI });
+    // A 404 from the metadata host means the token id does not exist, which
+    // is a different story from a host that is down.
+    const type =
+      err instanceof HttpStatusError && err.status === 404
+        ? "notfound"
+        : "metadata";
+    return errorPage(type, err, { ...ctx, tokenURI: data.tokenURI });
+  }
+
+  // Bail before the browser: with no image and no animation there is nothing
+  // for the screenshot to wait on, and it would time out after 30s.
+  if (!isRenderable(metadata)) {
+    return errorPage(
+      "empty",
+      new Error("metadata contains neither image nor animation_url"),
+      { ...ctx, tokenURI: data.tokenURI }
+    );
   }
 
   const contractMetadata = data.contractMetadata;
@@ -277,6 +299,7 @@ export async function tokenPage(
       previewURL,
       cors,
       canonical,
+      showCanonical: !arrivedCanonically,
       ensName: via?.ensName,
       noStore: via?.noStore,
     },

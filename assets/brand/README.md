@@ -19,6 +19,7 @@ Nothing in the generated column should ever be edited by hand. `build.sh` refuse
 | `icon.svg`, `icon-bare.svg` | generated | `python3 spec.py` |
 | `preview.svg` | generated | `python3 spec.py` |
 | `../../public/static/preview.png` | generated | `./build.sh` |
+| `../../public/static/{error,ens}-*.png` | generated | `./build.sh` |
 | `../../public/static/icon{,-192,-512}.{svg,png}` | generated | `./build.sh` |
 | `../../public/static/icon-maskable-{192,512}.png` | generated | `./build.sh` |
 | `../../public/static/favicon-{16,32}.png`, `wordmark.svg` | generated | `./build.sh` |
@@ -47,6 +48,10 @@ Each of these looks like a mistake and is not.
 - **The wordmark's period is manually tightened by 0.17em on each side.** Hack is monospace, so it gives `.` a full character cell and the wordmark reads as two words, `embed . art`. The value is in `make_outlines.py:TIGHTEN` and is baked into the outlines; changing it means re-running `make_outlines.py`.
 - **The card has no motif texture.** The stack fills the card, so faint marks in the corners had to be cropped by the edge, which read as rendering glitches rather than texture. The radial glow carries the depth alone.
 - **The card reuses the approved lockup's proportions.** An earlier draft followed a generic grid and ended up with a mark-to-wordmark ratio of 2.98 against the approved 1.4. If you change `CARD_LOCKUP_W`, the ratio stays fixed because both parts scale together; do not scale them separately.
+- **Failure states get their own cards.** `STATE_CARDS` in `spec.py` produces a branded 1280x640 card per failure (`error-notfound`, `ens-no-avatar`, and so on). Without them a link that unfurls to an error borrows the front page's card and tells the reader everything is fine. The copy lives in `spec.py` only; `make_outlines.py` imports it, so headline text cannot drift between the card and the outline set.
+- **On a failure card the brand is deliberately small and top-left.** The subject of that card is the failure, so the icon leads and the lockup sits in a letterhead position. A first attempt put the lockup across the top at full size and it read as an advert with an error attached. The same letterhead is repeated on the HTML error and ENS pages so the three agree.
+- **The card icons are mirrored in `functions/_handlers/errorPage.ts`.** Two copies of the same 24x24 paths, one for the raster card and one for the HTML page. Change one, change the other; there is no check that will catch it.
+- **Card headlines are sized by two constraints, not one.** Cap height alone runs the longest headline ("Blockchain Data Unavailable") off a 1280px card, so the scale is `min(cap-height fit, width fit)`. Shortening a headline will make it bigger; that is intended.
 - **`wordmark-dark.svg` duplicates `wordmark.svg`.** An `<img>` tag and a GitHub README cannot pass `currentColor` into an SVG, so the dark-ink cut must exist as a real file. Both come from one function, so they cannot diverge.
 
 ## Solved type values

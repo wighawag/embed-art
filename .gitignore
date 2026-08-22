@@ -5,3 +5,6 @@ node_modules/
 /log*
 _tests/
 .wrangler
+
+# make_outlines.py imports spec.py, so Python leaves bytecode here
+__pycache__/

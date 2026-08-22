@@ -43,6 +43,9 @@ const PAGE_CSS = `
          justify-content: center; min-height: 100vh; text-align: center;
          padding: 2rem 1.25rem; line-height: 1.6; }
   .wrap { max-width: 40rem; }
+  /* Letterhead, matching the unfurl cards and the error pages. */
+  .brand { position: absolute; top: 30px; left: 34px; }
+  .brand img { height: 26px; width: auto; display: block; }
   h1 { font-size: 1.35rem; margin-bottom: 0.75rem; }
   .name { color: #BE8F04; }
   p { opacity: 0.72; margin-bottom: 1rem; }
@@ -91,7 +94,10 @@ function shell(opts: {
         <link rel="icon" type="image/svg+xml" href="/static/icon.svg">
         <style>${PAGE_CSS}</style>
     </head>
-    <body><div class="wrap">${opts.body}</div></body>
+    <body>
+      <a class="brand" href="/"><img src="/static/wordmark.svg" alt="Embed.Art"></a>
+      <div class="wrap">${opts.body}</div>
+    </body>
 </html>`;
   return new Response(page, {
     headers: { "content-type": "text/html", "cache-control": "no-store" },
@@ -106,35 +112,69 @@ function detailBlock(rows: [string, string | null | undefined][]): string {
     .join("")}</div>`;
 }
 
-/** The name resolves but has no avatar text record (or no resolver at all). */
+/**
+ * No avatar to show. Three distinct situations, and telling them apart is the
+ * difference between "you typed a name nobody owns" and "your name is fine,
+ * you just have not set an avatar".
+ */
 function noAvatarPage(
   url: string,
   resolution: EnsResolution,
-  reason: "no-resolver" | "no-record"
+  reason: "unregistered" | "no-resolver" | "no-record"
 ): Response {
   const name = resolution.name;
-  const explanation =
-    reason === "no-resolver"
-      ? `<code>${escapeHtml(name)}</code> has no resolver set, so it has no records at all. Either the name is unregistered, or it has never been configured.`
-      : `<code>${escapeHtml(name)}</code> resolves, but its <code>avatar</code> text record is empty. There is nothing for Embed.Art to show.`;
+  const esc = escapeHtml(name);
+  const origin = new URL(url).origin;
 
-  return shell({
-    title: `${name} has no avatar`,
-    description: `${name} has no ENS avatar record set.`,
-    url,
-    image: `${new URL(url).origin}/static/preview.png`,
-    body: `
-      <h1><span class="name">${escapeHtml(name)}</span> has no avatar</h1>
-      <p>${explanation}</p>
-      <div class="note">
+  const copy = {
+    unregistered: {
+      heading: "is not registered",
+      card: "ens-unregistered",
+      title: `${name} is not registered`,
+      description: `Nobody owns the ENS name ${name}.`,
+      body: `The ENS registry has no owner for <code>${esc}</code>. Either it has never been registered, or its registration expired and the grace period ran out.`,
+    },
+    "no-resolver": {
+      heading: "has no resolver",
+      card: "ens-no-avatar",
+      title: `${name} has no resolver`,
+      description: `${name} is registered but has no records set.`,
+      body: `<code>${esc}</code> is registered, but no resolver is set on it, so it holds no records at all: no address, no avatar, nothing to read.`,
+    },
+    "no-record": {
+      heading: "has no avatar",
+      card: "ens-no-avatar",
+      title: `${name} has no avatar`,
+      description: `${name} has no ENS avatar record set.`,
+      body: `<code>${esc}</code> resolves, but its <code>avatar</code> text record is empty. There is nothing for Embed.Art to show.`,
+    },
+  }[reason];
+
+  const howTo =
+    reason === "unregistered"
+      ? `<div class="note"><strong>If it is yours to claim:</strong> register it,
+         then set an <code>avatar</code> record. Pointing that record at an NFT
+         you own makes this page render your token.</div>`
+      : `<div class="note">
         <strong>To set one:</strong> the <code>avatar</code> record accepts an
         image URL, or a reference to an NFT you own, written as
         <code>eip155:1/erc721:&lt;contract&gt;/&lt;tokenId&gt;</code>.
         That NFT form is exactly the path this site serves, so setting it makes
         this page render your token.
-      </div>
+      </div>`;
+
+  return shell({
+    title: copy.title,
+    description: copy.description,
+    url,
+    image: `${origin}/static/${copy.card}.png`,
+    body: `
+      <h1><span class="name">${esc}</span> ${copy.heading}</h1>
+      <p>${copy.body}</p>
+      ${howTo}
       ${detailBlock([
         ["Name", name],
+        ["Owner", resolution.owner],
         ["Resolver", resolution.resolver],
         ["Address", resolution.address],
       ])}`,
@@ -213,7 +253,7 @@ function unknownAvatarPage(
     title: `${name}'s avatar is not readable`,
     description: `${name} has an avatar record in an unrecognised format.`,
     url,
-    image: `${new URL(url).origin}/static/preview.png`,
+    image: `${new URL(url).origin}/static/ens-unknown.png`,
     body: `
       <h1><span class="name">${escapeHtml(name)}</span> has an unreadable avatar</h1>
       <p>The <code>avatar</code> record is set, but it is not a URI scheme
@@ -248,6 +288,9 @@ export async function ensPage(
     return errorPage("blockchain", err, { origin, ensName: name });
   }
 
+  if (!resolution.owner && !resolution.resolver) {
+    return noAvatarPage(url, resolution, "unregistered");
+  }
   if (!resolution.resolver) {
     return noAvatarPage(url, resolution, "no-resolver");
   }

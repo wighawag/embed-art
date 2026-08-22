@@ -26,6 +26,7 @@ const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
 
 const registryInterface = new Interface([
   "function resolver(bytes32 node) view returns (address)",
+  "function owner(bytes32 node) view returns (address)",
 ]);
 const resolverInterface = new Interface([
   "function text(bytes32 node, string key) view returns (string)",
@@ -87,6 +88,9 @@ export function parseAvatarRecord(record: string | null): AvatarRef {
 
 export type EnsResolution = {
   name: string;
+  /** null means the registry has no owner for this node: never registered,
+   *  or registered and since expired and released */
+  owner: string | null;
   resolver: string | null;
   record: string | null;
   address: string | null;
@@ -105,6 +109,24 @@ async function resolveUncached(
     throw new Error(`not a valid ENS name: ${err.message}`);
   }
 
+  // owner() distinguishes "nobody has ever registered this" from "registered
+  // but never configured", which are very different things to tell a visitor.
+  let owner: string | null = null;
+  try {
+    const ownerResult = await ethCall(
+      endpoint,
+      ENS_REGISTRY,
+      registryInterface.encodeFunctionData("owner", [node])
+    );
+    const decoded = registryInterface.decodeFunctionResult(
+      "owner",
+      ownerResult
+    )[0];
+    owner = decoded && decoded !== ZERO_ADDRESS ? decoded : null;
+  } catch {
+    owner = null;
+  }
+
   const resolverResult = await ethCall(
     endpoint,
     ENS_REGISTRY,
@@ -116,7 +138,7 @@ async function resolveUncached(
   )[0];
 
   if (!resolver || resolver === ZERO_ADDRESS) {
-    return { name, resolver: null, record: null, address: null };
+    return { name, owner, resolver: null, record: null, address: null };
   }
 
   // A resolver that does not implement text() is not an error worth failing
@@ -151,6 +173,7 @@ async function resolveUncached(
 
   return {
     name,
+    owner,
     resolver,
     record: record && record.length > 0 ? record : null,
     address,

@@ -56,6 +56,15 @@ cp wordmark-dark.svg "$OUTDIR/static/wordmark.svg"
 # --- the card ----------------------------------------------------------------
 png preview.svg "$OUTDIR/static/preview.png" 1280 640
 
+# --- failure-state cards -------------------------------------------------------
+# A link that unfurls to an error should still unfurl as Embed.Art, not borrow
+# the front page's card and imply everything worked. Names match what the
+# handlers request: /static/<state>.png
+for svg in state-*.svg; do
+  state="${svg#state-}"; state="${state%.svg}"
+  png "$svg" "$OUTDIR/static/$state.png" 1280 640
+done
+
 # --- icons -------------------------------------------------------------------
 png icon.svg "$OUTDIR/static/icon-512.png" 512
 png icon.svg "$OUTDIR/static/icon-192.png" 192
@@ -103,4 +112,5 @@ echo "  public/static/icon.svg  wordmark.svg"
 echo "  public/static/icon-512.png  icon-192.png"
 echo "  public/static/favicon-16.png favicon-32.png"
 echo "  public/static/icon-maskable-{192,512}.png"
+echo "  public/static/{error-*,ens-*}.png        branded failure cards"
 echo "  public/favicon.ico  public/apple-touch-icon.png"

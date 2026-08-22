@@ -26,12 +26,24 @@ REGULAR = "font-family:'Hack';font-weight:normal"
 # mono face gives "." a full character width and the wordmark reads as two words.
 TIGHTEN = 0.17
 
+def _esc(s: str) -> str:
+    return s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+
+
 STRINGS = {
     # key: (style, markup at font-size 100)
     "wordmark": (BOLD, f'embed<tspan dx="{-TIGHTEN * PROBE:g}">.</tspan>'
                        f'<tspan dx="{-TIGHTEN * PROBE:g}">art</tspan>'),
     "tagline": (REGULAR, "Embed Your Art Anywhere."),
 }
+
+# One headline + one explanation per failure state, taken straight from
+# spec.py so the copy lives in exactly one place.
+from spec import STATE_CARDS  # noqa: E402
+
+for _key, (_head, _sub) in STATE_CARDS.items():
+    STRINGS[f"head:{_key}"] = (BOLD, _esc(_head))
+    STRINGS[f"sub:{_key}"] = (REGULAR, _esc(_sub))
 
 
 def _probe_svg(style, markup, tid="t"):
@@ -87,7 +99,14 @@ def paths(style, markup):
 
 
 def build():
-    data = {}
+    # Cap height is a property of the face, not the string, and every card
+    # solves its size against it. Measured once here rather than guessed.
+    data = {
+        "_caps": {
+            "bold": ink_box(BOLD, "EA")[3],
+            "regular": ink_box(REGULAR, "EA")[3],
+        }
+    }
     for key, (style, markup) in STRINGS.items():
         box = ink_box(style, markup)
         ds = paths(style, markup)
@@ -102,7 +121,10 @@ def build():
         json.dump(data, fh, indent=1, sort_keys=True)
         fh.write("\n")
     for k, v in data.items():
-        print(f"{k:<9} ink {['%.2f' % n for n in v['ink']]}  {len(v['paths'])} paths")
+        if k == "_caps":
+            print(f"{k:<22} {v}")
+            continue
+        print(f"{k:<22} ink {['%.2f' % n for n in v['ink']]}  {len(v['paths'])} paths")
 
 
 if __name__ == "__main__":

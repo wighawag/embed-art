@@ -46,7 +46,14 @@ An ENS page always shows the token's **canonical** address, and points
 `rel=canonical`, `og:url` and `twitter:url` at it rather than at the name. The
 name is a mutable pointer; the `eip155:` path is the permanent one. Direct
 token pages get a canonical too, which normalises the legacy `/erc721/` and
-`eip721:` aliases onto the modern form.
+`eip721:` aliases onto the modern form. The visible "permanent address" block
+only appears when you did not already arrive by it.
+
+A name with no avatar is reported precisely, because the cases differ: the
+registry's `owner` distinguishes **not registered** from **registered but no
+resolver**, which in turn differs from **resolver set, avatar empty**. Each
+gets its own explanation and its own branded unfurl card, rather than
+borrowing the front page's.
 
 **Nothing keyed by an ENS name is cached.** The owner can repoint a record at
 any moment and, unlike a token URI, there is no hash that would reveal the
@@ -73,6 +80,21 @@ When you navigate to `https://embed.art/eip155:<chainID>/erc721:<contractAddress
   (The preview is generated at 824x412, with a transparent background)
 - That preview is then saved to R2
 - It finally return html page that display the NFT, its title, description, image but also audio (if present). If an iframe is present, it replaces the image.
+
+### When a token does not exist
+
+A metadata host may answer a missing token with `404` and a body that is still
+valid JSON, as OpenSea's does. Parsing that as metadata yields a document with
+no image, and the screenshot then waits the full 30 seconds for content that
+will never appear, reporting "Preview Generation Failed" for what is really
+"no such token". So the HTTP status is now checked, a 404 is reported as **No
+Such Token**, and metadata carrying neither `image` nor `animation_url` is
+rejected before the browser is involved at all.
+
+Every failure state has a branded 1280x640 card under `public/static/`,
+generated from `assets/brand/spec.py`, so a link that unfurls to an error still
+unfurls as Embed.Art instead of borrowing the front page's card and implying
+everything worked.
 
 ### When the metadata server blocks the browser
 

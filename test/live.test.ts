@@ -38,6 +38,8 @@ async function main() {
     "thisnamealmostcertainlydoesnotexist12345.eth"
   );
   eq("unregistered name has no resolver", missing.resolver, null);
+  eq("unregistered name has no registry owner", missing.owner, null);
+  eq("a registered name does have an owner", !!vitalik.owner, true);
   eq("unregistered name has no record", parseAvatarRecord(missing.record).kind, "none");
 
   section("ERC-1155 token read (OpenSea shared storefront)");

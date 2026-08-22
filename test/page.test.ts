@@ -82,9 +82,16 @@ async function main() {
   eq("og:url is the canonical, not the ENS alias", ensHtml.includes(`<meta property="og:url" content="${CANON}">`), true);
   eq("twitter:url is the canonical too", ensHtml.includes(`<meta name="twitter:url" content="${CANON}">`), true);
   eq("the ENS alias is not used as og:url", ensHtml.includes('og:url" content="https://embed.art/sassal.eth"'), false);
-  eq("canonical is visible on the page", ensHtml.includes(`<a href="${CANON}">${CANON}</a>`), true);
+  eq("canonical block is shown when arriving via ENS", ensHtml.includes(`<a href="${CANON}">${CANON}</a>`), true);
   eq("page names the ENS it came from", ensHtml.includes("sassal.eth</strong>"), true);
   eq("ENS-derived page is not cacheable", viaEns.headers.get("cache-control"), "no-store");
+
+  const onCanonical = await build({ canonical: CANON, showCanonical: false });
+  const onCanonicalHtml = await onCanonical.text();
+  eq("no canonical block when already on the canonical URL",
+     onCanonicalHtml.includes('class="canonical"'), false);
+  eq("rel=canonical is still emitted there",
+     onCanonicalHtml.includes(`<link rel="canonical" href="${CANON}">`), true);
 
   const direct = await build({ canonical: CANON });
   const directHtml = await direct.text();

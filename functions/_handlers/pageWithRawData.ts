@@ -12,6 +12,8 @@ export async function pageWithRawData(
     cors?: CorsStatus;
     /** the permanent eip155: address of this token, whatever path got here */
     canonical?: string;
+    /** false when the visitor is already ON the canonical URL */
+    showCanonical?: boolean;
     /** set when the visitor arrived via an ENS name's avatar record */
     ensName?: string;
     /** ENS-derived pages must not be cached: the record can change */
@@ -179,7 +181,7 @@ export async function pageWithRawData(
         <p id="global-error" class="error" style="display:none;"></p>
         <div id="cors-notice" class="notice" style="display:none;"></div>
         ${
-          extra.canonical
+          extra.canonical && extra.showCanonical !== false
             ? `<div class="canonical">${
                 extra.ensName
                   ? `<span class="label">Shown because it is <strong>${extra.ensName}</strong>'s ENS avatar. That record can be changed at any time; this token cannot:</span>`

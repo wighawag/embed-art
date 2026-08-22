@@ -79,6 +79,22 @@ const tokenURIInterface = new Interface([
   },
 ]);
 
+/** Thrown when the metadata URL answers, but not with a success status. */
+export class HttpStatusError extends Error {
+  status: number;
+  url: string;
+  constructor(status: number, url: string) {
+    super(`metadata URL returned HTTP ${status}: ${url}`);
+    this.status = status;
+    this.url = url;
+  }
+}
+
+/** Nothing in the document can be drawn: no image and no animation. */
+export function isRenderable(metadata: Metadata): boolean {
+  return !!(metadata && (metadata.image || metadata.animation_url));
+}
+
 export type Metadata = {
   name?: string;
   description?: string;
@@ -424,6 +440,13 @@ export async function parseMetadataWithCors(
         cors = corsFromHeader(
           response.headers.get("access-control-allow-origin")
         );
+        if (!response.ok) {
+          // A 404 body is often still valid JSON (OpenSea answers with
+          // {"errors":[...]}), and parsing it as metadata yields a document
+          // with no image, which then burns 30s in the headless browser
+          // waiting for something that will never render.
+          throw new HttpStatusError(response.status, tokenURI);
+        }
         metadata = await response.json();
         metadata = recursiveReplace(
           metadata,
@@ -431,12 +454,14 @@ export async function parseMetadataWithCors(
           `https://ipfs.io/ipfs/`
         );
       } catch (err) {
+        if (err instanceof HttpStatusError) throw err;
         throw new Error(
           `failed to fetch URI:\n${err.message}\n${err.stack}\ntokenURI: ${tokenURI}`
         );
       }
     }
   } catch (err) {
+    if (err instanceof HttpStatusError) throw err;
     throw new Error(
       `failed to parse metadata: ${err.message}\n${err.stack}\ntokenURI: ${tokenURI}`
     );
