@@ -144,8 +144,16 @@ eq("no inline builder script left behind", html.includes("function build()"), fa
 for (const id of ["known", "chain", "standard", "contract", "token", "out", "open", "copy", "ens"]) {
   eq(`#${id} exists in the markup`, html.includes(`id="${id}"`), true);
 }
-for (const id of ["contract-hint", "token-hint"]) {
+for (const id of ["contract-hint", "token-hint", "builder-note"]) {
   eq(`#${id} exists in the markup`, html.includes(`id="${id}"`), true);
 }
+// The note is about the contract and token id fields. In ENS mode those are
+// hidden, so advice about them reads as advice about the name field, and its
+// bleeps.eth example would suggest that name has an avatar. It does not.
+const builderSource = readFileSync(
+  join(process.cwd(), "public", "static", "builder.js"),
+  "utf8"
+);
+eq("the note is hidden in ENS mode", builderSource.includes("note.hidden = ens"), true);
 
 report();

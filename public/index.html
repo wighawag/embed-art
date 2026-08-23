@@ -251,6 +251,11 @@
             grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
         }
 
+        /* A lone card in an auto-fit grid stretches the full width and its 2:1
+           thumbnail turns into a banner. Cap it at the width it would have
+           had with company. */
+        .cards.one { grid-template-columns: minmax(15rem, 26rem); }
+
         .card {
             display: block;
             background: var(--surface);
@@ -375,7 +380,7 @@
                         </label>
                     </div>
 
-                    <p class="builder-note">
+                    <p class="builder-note" id="builder-note">
                         The contract field takes an ENS name too: <code>bleeps.eth</code> is
                         that collection's contract. It is resolved here and the address is what
                         goes in the URL, never the name, since a name can be repointed and the
@@ -413,7 +418,8 @@
             <section aria-labelledby="ex-h">
                 <h2 id="ex-h">Examples</h2>
                 <p class="lede">
-                    Where a token keeps its metadata decides whether it is still here.
+                    Where a token keeps its metadata decides whether it is still here, and
+                    how it wrote that down decides how long it stays reachable.
                 </p>
 
                 <div class="group">
@@ -446,33 +452,71 @@
                 </div>
 
                 <div class="group">
-                    <p>Metadata on someone's web server. Neither answers today:</p>
-                    <div class="cards">
-                        <a class="card dead"
+                    <p>Metadata on IPFS, written down as one particular gateway:</p>
+                    <div class="cards one">
+                        <a class="card"
                             href="/eip155:1/erc721:0x099689220846644f87d1137665cded7bf3422747/4508">
-                            <img class="card-shot" loading="lazy" alt="Roboto preview is unavailable"
+                            <img class="card-shot" loading="lazy" alt="Preview of a Roboto"
                                 src="/image/eip155:1/erc721:0x099689220846644f87d1137665cded7bf3422747/4508">
                             <span class="card-body">
                                 <span class="card-name">Roboto</span>
-                                <span class="card-note">metadata host stopped responding</span>
+                                <span class="card-note">tokenURI names one gateway; the CID is the address</span>
                             </span>
                         </a>
+                    </div>
+                </div>
+
+                <div class="group">
+                    <p>Gone anyway. A server that stopped answering, and a hash nobody keeps:</p>
+                    <div class="cards">
                         <a class="card dead"
                             href="/eip155:1/erc721:0x4658e9c5e1e05280e3708741aba63b7ff4e81055/1199">
                             <img class="card-shot" loading="lazy" alt="Void Runner preview is unavailable"
                                 src="/image/eip155:1/erc721:0x4658e9c5e1e05280e3708741aba63b7ff4e81055/1199">
                             <span class="card-body">
                                 <span class="card-name">Void Runner</span>
-                                <span class="card-note">voidrunners.io returns a server error</span>
+                                <span class="card-note">voidrunners.io answers its own API with a 500</span>
+                            </span>
+                        </a>
+                        <a class="card dead"
+                            href="/eip155:1/erc721:0xecdd2f733bd20e56865750ebce33f17da0bee461/1">
+                            <img class="card-shot" loading="lazy" alt="CryptoDads preview is unavailable"
+                                src="/image/eip155:1/erc721:0xecdd2f733bd20e56865750ebce33f17da0bee461/1">
+                            <span class="card-body">
+                                <span class="card-name">CryptoDads</span>
+                                <span class="card-note">10,000 pictures on IPFS that no gateway can find</span>
                             </span>
                         </a>
                     </div>
                 </div>
 
                 <div class="note">
-                    Those two are kept on purpose. Embed.Art cannot invent art that is gone, so it
-                    tells you exactly which URL stopped answering. An NFT is only as permanent as
-                    the least permanent thing it points at.
+                    <p>
+                        Both are kept on purpose. Embed.Art cannot invent art that is gone, so it
+                        tells you exactly which URL stopped answering. An NFT is only as permanent
+                        as the least permanent thing it points at.
+                    </p>
+                    <p>
+                        Roboto used to sit here. Nothing about the token changed: its
+                        <code>tokenURI</code> hardcodes <code>gateway.pinata.cloud</code>, which is
+                        read as the content address inside it and fetched from whichever gateway
+                        answers. That fixes a courier, and only a courier.
+                    </p>
+                    <p>
+                        CryptoDads shows the difference. Ten thousand profile pictures from 2021,
+                        every token still owned, and all of them naming one CID under
+                        <code>bafybeief647gvyslgm&hellip;</code> that ipfs.io, dweb.link, w3s.link
+                        and nftstorage.link all give up looking for. A hash is a promise about
+                        <em>which</em> bytes, never a promise that anyone is still holding them.
+                        Content addressing takes the courier out of the trust list; it does not
+                        remove the need for somebody, somewhere, to keep the file.
+                    </p>
+                    <p>
+                        It is not an unlucky one, either, which is the uncomfortable part. Of 545
+                        content-addressed collections sampled from 2021 and 2022 trading activity,
+                        <strong>88 could not be fetched from any gateway</strong>:
+                        <a href="/unpinned">the survey, the raw data and the tool are here</a>.
+                    </p>
                 </div>
             </section>
         </main>

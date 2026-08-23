@@ -255,6 +255,7 @@
     var contractHint = doc.getElementById("contract-hint");
     var token = doc.getElementById("token");
     var tokenHint = doc.getElementById("token-hint");
+    var note = doc.getElementById("builder-note");
     var modes = doc.querySelectorAll('input[name="mode"]');
     if (!out || !known || !contract) return;
 
@@ -435,6 +436,12 @@
       var ens = mode() === "ens";
       fieldsEns.hidden = !ens;
       fieldsToken.hidden = ens;
+      // The note describes the contract and token id fields, which are not on
+      // screen in ENS mode. Left visible it reads as advice about the field
+      // you are actually looking at, and its example makes a claim about
+      // bleeps.eth that is only true of the contract field: the name resolves
+      // to a contract, it has no avatar record at all.
+      if (note) note.hidden = ens;
       build();
     }
 

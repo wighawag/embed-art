@@ -23,6 +23,8 @@ The idea behind Embed.Art is to allow you to have an easy way to share your toke
 | `/audio/<token path>` | the token's audio, if its `animation_url` is one |
 | `/api/resolve/<name>.eth` | JSON: what that name's `addr` record points at |
 | `/ipfs/<cid>`, `/ipns/<name>`, `/ar/<txid>` | content-addressed bytes, fetched server-side |
+| `/unpinned` | a survey of how much sampled NFT art no gateway can still fetch |
+| `/data/unpinned-survey.json` | that survey's raw dataset |
 
 The preview's real URL embeds `sha256(tokenURI)`, which nothing outside the
 worker can compute, so `/image/` exists to give it a stable, guessable address:
@@ -184,6 +186,28 @@ We try our own gateways in order and, if the token named one itself, that one
 courier we cannot reach still beats no bytes at all. The page does the same,
 falling back to the token's own URL if our path cannot produce the content.
 
+### A hash is a promise about which bytes, not that anyone kept them
+
+Content addressing removes the courier from the trust list. It does not remove
+the need for somebody to keep the file, and when nobody does, every gateway
+hunts for a provider and eventually gives up. Dirt Birds is the front page's
+example: 10,000 profile pictures from 2022, still owned and still trading,
+whose single metadata CID ipfs.io, dweb.link, w3s.link and nftstorage.link all
+answer with `504` and Pinata with `404`.
+
+It was found rather than remembered, by a survey that is now part of the repo
+and published at **[/unpinned](https://embed.art/unpinned)**. See
+[the survey](#the-unpinned-survey) below.
+
+That case is also why every outbound fetch now has a **time budget**
+(`fetchFirstAvailable`): 12 seconds for one source to answer, 25 seconds
+overall. Gateways hold a request open while they search (ipfs.io for 28
+seconds), so trying three of them in sequence turned unpinned content into a
+minute of silence before the error page. The timer bounds *time to answer* and
+is cleared the moment the headers arrive, so a large image still streams for as
+long as it needs. A CID nobody pins is now reported as gone in 25 seconds
+rather than eventually.
+
 ### When the metadata server blocks the browser
 
 The token page fetches the metadata **client-side**, deliberately, so what you
@@ -197,6 +221,53 @@ apply, and reads the response headers. The page is therefore told the verdict
 up front: when the header is missing it says so plainly, names the URL at
 fault, shows the server-rendered preview instead of nothing, and points out
 that the unfurled card is unaffected. No hedging in front of the visitor.
+
+## The unpinned survey
+
+`/unpinned` publishes a measurement rather than an opinion: how often does an
+NFT's own content address fail to produce anything? Two scripts do the work,
+and both are meant to be re-run by anyone.
+
+```bash
+pnpm survey          # sample the chain, test the gateways, write the dataset
+pnpm survey:render   # turn that dataset into public/unpinned.html
+```
+
+| Stage | What it does |
+|-------|--------------|
+| Sample | Reads ERC-721 `Transfer` logs from blocks spread across the range, so the contracts come from real activity rather than from a curated list |
+| Resolve | Calls `tokenURI` and keeps the content-addressed ones, using the **worker's own** `gatewayPath`, so a hardcoded gateway URL counts as the CID it contains |
+| Verify | Asks five public gateways concurrently, twice, with a timeout, and counts a collection as unreachable only if every gateway failed every time |
+| Enrich | Adds `name`, `symbol`, `totalSupply` and whether the sampled token is currently owned |
+
+The window is arguments, so widening it is two numbers:
+
+```bash
+node tools/survey-unpinned.mjs --from 16200000 --to 21000000
+node tools/survey-unpinned.mjs --help
+```
+
+Three things keep the result honest.
+
+**The page is generated from the dataset** (`tools/render-unpinned.mjs`), so no
+number on it can drift from the measurement it describes, and
+`test/unpinned.test.ts` renders a fixture and checks the page really does read
+its figures out of the data, escapes contract-supplied names, and keeps the
+caveats.
+
+**Unreachable is not the same as destroyed.** It means no gateway asked could
+find a provider within the timeout. Somebody may hold the bytes offline, and
+one node re-providing them revives every CID in the dataset instantly, with the
+same hash and nothing changed onchain. The page says so, and says how.
+
+**The sample has known limits**, also stated on the page: Ethereum mainnet
+only; a collection with no transfers in the sampled blocks is invisible to it;
+and only the *metadata* address is tested, so a collection whose metadata
+resolves may still point at an image nobody keeps. It is a lower bound.
+
+The raw dataset ships at `/data/unpinned-survey.json`, including every gateway
+answer and the collections that did resolve, so the denominator can be checked
+rather than taken on trust.
 
 ## Architecture
 
@@ -220,7 +291,12 @@ embed-art/
 │       ├── base64.ts, metadata.ts, strings.ts, url.ts, request.ts
 ├── public/                   # Static assets (served by Workers Static Assets)
 │   ├── index.html            # Landing page
+│   ├── unpinned.html         # Generated: the survey (do not hand-edit)
+│   ├── data/                 # The survey dataset, served for anyone to check
 │   └── static/               # Static images + builder.js (the URL builder)
+├── tools/
+│   ├── survey-unpinned.mjs   # Samples the chain and tests the gateways
+│   └── render-unpinned.mjs   # Renders the dataset into the page
 ├── assets/brand/             # Identity sources + build (see its own README)
 ├── wrangler.toml             # Configuration (bindings, assets, etc.)
 ```
@@ -300,6 +376,8 @@ usage is minimal.
 ## Future plan
 
 - support hot reload so you can watch dyanmic NFT in the page
+- try the gateways concurrently rather than one after another, so a cold CID is
+  found as fast as the quickest gateway rather than as slow as the first one
 - test with more assets
 - support old contracts (cryptopunks, autoglyphs, etc...)
 - ENS: CCIP-read for offchain names, and optional ownership verification

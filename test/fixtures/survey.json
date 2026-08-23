@@ -1,0 +1,51 @@
+{
+ "generatedAt": "2026-01-02T03:04:05.678Z",
+ "method": {
+  "blocksSampled": 6,
+  "blockRange": [12700000, 12900000],
+  "blockStep": 100000,
+  "gateways": ["https://ipfs.io/ipfs/", "https://dweb.link/ipfs/"],
+  "arweaveGateways": ["https://arweave.net/"],
+  "timeoutMs": 60000,
+  "rounds": 2,
+  "rpcCalls": 1234,
+  "note": "Unreachable means no listed gateway returned 200."
+ },
+ "totals": {
+  "contracts": 40,
+  "contentAddressed": 10,
+  "unreachable": 2
+ },
+ "unreachable": [
+  {
+   "name": "Test Birds",
+   "symbol": "TB",
+   "address": "0xc907ddb25a926d51784aedd4cf9c04e3eb5da12c",
+   "totalSupply": 10000,
+   "sampledTokenId": "907",
+   "sampledTokenIsOwned": true,
+   "tokenURI": "ipfs://bafybeie7nf2jf3zih4rshj4dmj4rsam3syss46m5pp5llv6xoxre4nmwa4/907",
+   "kind": "ipfs",
+   "attempts": [
+    { "gateway": "https://ipfs.io/ipfs/", "round": 1, "status": 504, "ms": 28000 },
+    { "gateway": "https://dweb.link/ipfs/", "round": 1, "status": "timeout", "ms": 60000 }
+   ]
+  },
+  {
+   "name": "Small & <Escaped>",
+   "symbol": "SE",
+   "address": "0x0b03651b674c2092b513f1fd10fcda2a287174ea",
+   "totalSupply": 500,
+   "sampledTokenId": "3",
+   "sampledTokenIsOwned": false,
+   "tokenURI": "https://gateway.pinata.cloud/ipfs/QmUa8LnVu9J9fGqW9U42ZUCeVF1VyPpe4F8MneLz2H5PYx/3.json",
+   "kind": "ipfs",
+   "attempts": [
+    { "gateway": "https://ipfs.io/ipfs/", "round": 1, "status": 410, "ms": 300 }
+   ]
+  }
+ ],
+ "reachable": [
+  { "address": "0xbc4ca0eda7647a8ab7c2061c2e118a18a936f13d", "tokenURI": "ipfs://QmeSjSinHpPnmXmspMjwiXyN6zS4E9zccariGR3jxcaWtq/0" }
+ ]
+}

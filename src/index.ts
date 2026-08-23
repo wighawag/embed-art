@@ -30,7 +30,10 @@ export default {
     if (
       pathname === "/" ||
       pathname === "/index.html" ||
-      pathname.startsWith("/static")
+      pathname === "/unpinned" ||
+      pathname === "/unpinned.html" ||
+      pathname.startsWith("/static") ||
+      pathname.startsWith("/data/")
     ) {
       if (env.ASSETS) {
         return env.ASSETS.fetch(request);

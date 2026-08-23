@@ -6,7 +6,9 @@
     "dev": "wrangler dev --remote",
     "deploy": "wrangler deploy",
     "test": "node test/run.mjs",
-    "test:live": "TEST_LIVE=1 node test/run.mjs"
+    "test:live": "TEST_LIVE=1 node test/run.mjs",
+    "survey": "node tools/survey-unpinned.mjs",
+    "survey:render": "node tools/render-unpinned.mjs"
   },
   "keywords": [],
   "author": "",

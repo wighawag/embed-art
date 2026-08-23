@@ -1,0 +1,959 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <title>Unpinned &middot; Embed.Art</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta name="description" content="88 of 545 sampled NFT collections name a content address no gateway can still fetch.">
+    <meta property="og:type" content="article">
+    <meta property="og:url" content="https://embed.art/unpinned">
+    <meta property="og:title" content="Unpinned: NFT art nobody is keeping">
+    <meta property="og:description" content="88 of 545 sampled collections name a content address no gateway can still fetch. Method, data and tool included.">
+    <meta property="og:image" content="https://embed.art/static/preview.png">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Unpinned: NFT art nobody is keeping">
+    <meta name="twitter:description" content="88 of 545 sampled collections name a content address no gateway can still fetch.">
+    <meta name="twitter:image" content="https://embed.art/static/preview.png">
+    <meta name="theme-color" content="#111111">
+    <link rel="icon" href="/favicon.ico" sizes="32x32">
+    <link rel="icon" type="image/svg+xml" href="/static/icon.svg">
+    <link rel="canonical" href="https://embed.art/unpinned">
+    <style>
+        :root {
+            --plate: #111111;
+            --surface: #171717;
+            --line: #2A2620;
+            --ink: #F5DEB3;
+            --muted: #8E826A;
+            --accent: #BE8F04;
+            --alarm: #FF4444;
+            --mono: ui-monospace, Hack, "JetBrains Mono", "SF Mono", Menlo,
+                Consolas, "DejaVu Sans Mono", monospace;
+        }
+
+        *, *::before, *::after { box-sizing: border-box; }
+        html { background: var(--plate); }
+
+        body {
+            margin: 0;
+            background: var(--plate);
+            color: var(--ink);
+            font-family: var(--mono);
+            font-size: 16px;
+            line-height: 1.65;
+            -webkit-text-size-adjust: 100%;
+            font-variant-ligatures: none;
+            font-feature-settings: "liga" 0, "calt" 0, "dlig" 0;
+        }
+
+        .wrap { max-width: 60rem; margin: 0 auto; padding: 0 1.5rem; }
+        a { color: var(--accent); text-underline-offset: 3px; }
+        a:hover { color: var(--ink); }
+        :focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+
+        header { padding: clamp(2.5rem, 7vw, 4rem) 0 0; }
+        .home { color: var(--muted); font-size: 0.8rem; text-decoration: none; }
+        .home:hover { color: var(--accent); }
+
+        h1 {
+            margin: 1.5rem 0 0;
+            font-size: clamp(1.6rem, 5vw, 2.4rem);
+            font-weight: normal;
+            letter-spacing: -0.01em;
+        }
+
+        .lede { margin: 1rem 0 0; color: var(--muted); max-width: 46rem; }
+
+        section { padding: clamp(2rem, 5vw, 3rem) 0 0; }
+
+        h2 {
+            font-size: 0.8rem;
+            font-weight: normal;
+            letter-spacing: 0.16em;
+            text-transform: uppercase;
+            color: var(--accent);
+            margin: 0 0 0.8rem;
+        }
+
+        p { max-width: 46rem; }
+
+        .figures {
+            display: grid;
+            gap: 0.7rem;
+            grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+            margin: 0 0 1.5rem;
+        }
+
+        .figure {
+            background: var(--surface);
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            padding: 1rem 1.15rem;
+        }
+
+        .figure b {
+            display: block;
+            font-size: 1.9rem;
+            font-weight: normal;
+            color: var(--accent);
+            line-height: 1.2;
+        }
+
+        .figure span { display: block; font-size: 0.78rem; color: var(--muted); }
+
+        ol, ul { max-width: 46rem; padding-left: 1.2rem; }
+        li { margin-bottom: 0.5rem; }
+
+        code {
+            color: var(--accent);
+            word-break: break-all;
+            font-size: 0.86em;
+        }
+
+        pre {
+            background: var(--surface);
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            padding: 1rem 1.15rem;
+            overflow-x: auto;
+            font-size: 0.85rem;
+        }
+
+        pre code { color: var(--ink); }
+
+        .note {
+            border: 1px solid var(--line);
+            border-left: 3px solid var(--accent);
+            border-radius: 6px;
+            padding: 1rem 1.15rem;
+            font-size: 0.9rem;
+            color: var(--muted);
+            max-width: 46rem;
+        }
+
+        .note strong { color: var(--ink); font-weight: normal; }
+
+        .scroll { overflow-x: auto; border: 1px solid var(--line); border-radius: 8px; }
+
+        table { border-collapse: collapse; width: 100%; font-size: 0.82rem; }
+
+        th, td {
+            text-align: left;
+            padding: 0.55rem 0.8rem;
+            border-bottom: 1px solid var(--line);
+            vertical-align: top;
+            white-space: nowrap;
+        }
+
+        thead th {
+            position: sticky;
+            top: 0;
+            background: var(--surface);
+            color: var(--muted);
+            font-weight: normal;
+            font-size: 0.72rem;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+        }
+
+        tbody tr:last-child th, tbody tr:last-child td { border-bottom: 0; }
+        tbody tr:hover { background: #161616; }
+        tbody th { font-weight: normal; }
+        .num { text-align: right; color: var(--muted); }
+
+        .tag {
+            display: inline-block;
+            border: 1px solid var(--alarm);
+            border-radius: 999px;
+            padding: 0 0.5rem;
+            font-size: 0.7rem;
+            color: var(--alarm);
+        }
+        .dim { color: var(--muted); font-size: 0.76rem; white-space: normal; }
+        .gateways { white-space: nowrap; font-size: 0.72rem; }
+        .why { white-space: nowrap; }
+
+        footer {
+            margin-top: clamp(3rem, 8vw, 5rem);
+            padding: 1.75rem 0 2.5rem;
+            border-top: 1px solid var(--line);
+            color: var(--muted);
+            font-size: 0.82rem;
+            display: flex;
+            gap: 1.25rem;
+            flex-wrap: wrap;
+            justify-content: space-between;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="wrap">
+        <header>
+            <a class="home" href="/">&larr; embed.art</a>
+            <h1>Unpinned</h1>
+            <p class="lede">
+                A content address says <em>which</em> bytes an NFT means. It does not say that
+                anybody is still keeping them. This is a count of how often that difference
+                matters, taken on 2026-08-23, with the method and the raw data attached so you
+                can check it or extend it.
+            </p>
+        </header>
+
+        <main>
+            <section aria-labelledby="numbers-h">
+                <h2 id="numbers-h">What the sample found</h2>
+                <div class="figures">
+                    <div class="figure">
+                        <b>1,038</b>
+                        <span>ERC-721 contracts sampled</span>
+                    </div>
+                    <div class="figure">
+                        <b>545</b>
+                        <span>of them content-addressed</span>
+                    </div>
+                    <div class="figure">
+                        <b>88</b>
+                        <span>no gateway could fetch</span>
+                    </div>
+                    <div class="figure">
+                        <b>16%</b>
+                        <span>of the content-addressed ones</span>
+                    </div>
+                </div>
+                <p>
+                    Those 88 collections account for
+                    448,570 minted tokens, and every single token tested is owned by somebody right now. Their metadata is not slow and not rate-limited: the gateways look for a
+                    provider and find none.
+                </p>
+                <p>
+                    2 of them fail differently. Every gateway answers
+                    <code>410 Gone</code>, which is a refusal rather than a shrug: the content is
+                    on a public gateway denylist. Those bytes may still exist and still be served
+                    peer to peer; what has been withdrawn is the relay that ordinary browsers
+                    depend on. Among them: RebelBots, nothings.
+                </p>
+            </section>
+
+            <section aria-labelledby="method-h">
+                <h2 id="method-h">How it was measured</h2>
+                <ol>
+                    <li>
+                        <strong>Sample.</strong> Read ERC-721 <code>Transfer</code> logs from
+                        108 blocks spread across
+                        12,700,000&ndash;16,200,000,
+                        which yields contracts that were genuinely in use then rather than a list
+                        somebody curated.
+                    </li>
+                    <li>
+                        <strong>Resolve.</strong> Ask each contract for a <code>tokenURI</code> and
+                        keep the content-addressed ones. A hardcoded gateway URL counts:
+                        <code>https://ipfs.io/ipfs/&lt;cid&gt;</code> names a CID, and the CID is
+                        what is being tested.
+                    </li>
+                    <li>
+                        <strong>Verify.</strong> Fetch that address from
+                        5 public gateways,
+                        2 rounds, 40s each. A
+                        collection counts as unreachable only if every gateway failed every time.
+                    </li>
+                </ol>
+                <div class="note">
+                    <strong>What a failure means.</strong> No gateway asked could find a provider
+                    within the timeout. That is evidence the content is unpinned, not proof it is
+                    destroyed. Somebody may hold the bytes offline, and a single node re-providing
+                    them revives every CID on this page instantly, with the same hash and no
+                    change onchain. That is the good half of content addressing: the art can come
+                    back, and it will still be provably the same art.
+                </div>
+            </section>
+
+            <section aria-labelledby="list-h">
+                <h2 id="list-h">The collections</h2>
+                <p>
+                    Names link to this service, which will try again live and tell you what it
+                    got. Sorted by supply.
+                </p>
+                <div class="scroll">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th scope="col">Collection</th>
+                                <th scope="col" class="num">Supply</th>
+                                <th scope="col">Why</th>
+                                <th scope="col">Token URI</th>
+                                <th scope="col">Gateways asked</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+        <tr>
+          <th scope="row"><a href="/eip155:1/erc721:0xddf704feba9e0a89245d50b87489f91539782b4c/9012">Womenoid</a></th>
+          <td class="num">11,108</td>
+          <td class="why"><span class="dim">no provider</span></td>
+          <td><code title="https://bafybeiakskuk2pd6o2d6kwb7ac5p6fdtcx3sv3aiabtmtoulk6codabjpi.ipfs.nftstorage.link/9012.json">https://bafybeiakskuk2pd6o2d6kwb7ac5p6fdtcx3sv3ai…</code></td>
+          <td class="dim gateways" title="ipfs.io: 504, dweb.link: timeout, w3s.link: 504, nftstorage.link: timeout, gateway.pinata.cloud: 429">ipfs 504 · dweb t/o · w3s 504 · nftstorage t/o · pinata 429</td>
+        </tr>
+        <tr>
+          <th scope="row"><a href="/eip155:1/erc721:0x8c3fb10693b228e8b976ff33ce88f97ce2ea9563/2573">The Plague</a></th>
+          <td class="num">11,000</td>
+          <td class="why"><span class="dim">no provider</span></td>
+          <td><code title="ipfs://bafybeifw3xo26pfbgjuidf65ct2sgwn77hgmbpobeirjsispe7uraxx2iy/2573">ipfs://bafybeifw3xo26pfbgjuidf65ct2sgwn77hgmbpobe…</code></td>
+          <td class="dim gateways" title="ipfs.io: 504, dweb.link: 504, w3s.link: 504, nftstorage.link: 504, gateway.pinata.cloud: 429">ipfs 504 · dweb 504 · w3s 504 · nftstorage 504 · pinata 429</td>
+        </tr>
+        <tr>
+          <th scope="row"><a href="/eip155:1/erc721:0xfbc3661021539b2a2102bd2476e7f2371cb8d763/608">Alpha Mutants</a></th>
+          <td class="num">10,520</td>
+          <td class="why"><span class="dim">no provider</span></td>
+          <td><code title="https://ipfs.io/ipfs/QmeRy1joUeUepJ7h3EaAP64ufpwiR7gkrAxwDTL1eGvSjt/608">https://ipfs.io/ipfs/QmeRy1joUeUepJ7h3EaAP64ufpwi…</code></td>
+          <td class="dim gateways" title="ipfs.io: 504, dweb.link: timeout, w3s.link: 504, nftstorage.link: timeout, gateway.pinata.cloud: 429">ipfs 504 · dweb t/o · w3s 504 · nftstorage t/o · pinata 429</td>
+        </tr>
+        <tr>
+          <th scope="row"><a href="/eip155:1/erc721:0x15c2b137e59620552bd0d712fe7279cf1f47468d/2627">Glue Factory Show</a></th>
+          <td class="num">10,000</td>
+          <td class="why"><span class="dim">no provider</span></td>
+          <td><code title="https://ipfs.io/ipfs/Qmbd9N5yse7xAUiQAHrdezaJH6z2VAW5jc7FavLxDvK5kk/2627">https://ipfs.io/ipfs/Qmbd9N5yse7xAUiQAHrdezaJH6z2…</code></td>
+          <td class="dim gateways" title="ipfs.io: 504, dweb.link: 504, w3s.link: 504, nftstorage.link: 504, gateway.pinata.cloud: 404">ipfs 504 · dweb 504 · w3s 504 · nftstorage 504 · pinata 404</td>
+        </tr>
+        <tr>
+          <th scope="row"><a href="/eip155:1/erc721:0xecdd2f733bd20e56865750ebce33f17da0bee461/9583">CryptoDads</a></th>
+          <td class="num">10,000</td>
+          <td class="why"><span class="dim">no provider</span></td>
+          <td><code title="ipfs://bafybeief647gvyslgmnkquwpy6g6vjq6hvh2cjgxirktuea55wvk5xklca/9583">ipfs://bafybeief647gvyslgmnkquwpy6g6vjq6hvh2cjgxi…</code></td>
+          <td class="dim gateways" title="ipfs.io: 504, dweb.link: 504, w3s.link: 504, nftstorage.link: 504, gateway.pinata.cloud: 404">ipfs 504 · dweb 504 · w3s 504 · nftstorage 504 · pinata 404</td>
+        </tr>
+        <tr>
+          <th scope="row"><a href="/eip155:1/erc721:0x338866f8ba75bb9d7a00502e11b099a2636c2c18/5475">Women and Weapons</a></th>
+          <td class="num">10,000</td>
+          <td class="why"><span class="dim">no provider</span></td>
+          <td><code title="https://ipfs.io/ipfs/bafybeigrytqzipxv4sekrofqfz4etp4f6c7a3bssi5oyerccmeksm4czku/5475">https://ipfs.io/ipfs/bafybeigrytqzipxv4sekrofqfz4…</code></td>
+          <td class="dim gateways" title="ipfs.io: 504, dweb.link: 504, w3s.link: 504, nftstorage.link: 504, gateway.pinata.cloud: 429">ipfs 504 · dweb 504 · w3s 504 · nftstorage 504 · pinata 429</td>
+        </tr>
+        <tr>
+          <th scope="row"><a href="/eip155:1/erc721:0xbbe23e96c48030dc5d4906e73c4876c254100d33/6373">RebelBots</a></th>
+          <td class="num">10,000</td>
+          <td class="why"><span class="tag">blocked</span></td>
+          <td><code title="https://ipfs.io/ipfs/QmcppAK4QBpLGmDcvjmVgeahjGWnKrbri8Pwr1JKzRpBNo/6373">https://ipfs.io/ipfs/QmcppAK4QBpLGmDcvjmVgeahjGWn…</code></td>
+          <td class="dim gateways" title="ipfs.io: 410, dweb.link: 410, w3s.link: 410, nftstorage.link: 410, gateway.pinata.cloud: 429">ipfs 410 · dweb 410 · w3s 410 · nftstorage 410 · pinata 429</td>
+        </tr>
+        <tr>
+          <th scope="row"><a href="/eip155:1/erc721:0x4bb08998a697d0db666783ba5b56e85b33ba262f/953">Frenly Pandas</a></th>
+          <td class="num">10,000</td>
+          <td class="why"><span class="dim">no provider</span></td>
+          <td><code title="https://ipfs.io/ipfs/QmNcoaNf9rnyhsDkyt9aB9vvEb5uEdG1bHx62AtfbWpEJF/953.json">https://ipfs.io/ipfs/QmNcoaNf9rnyhsDkyt9aB9vvEb5u…</code></td>
+          <td class="dim gateways" title="ipfs.io: 504, dweb.link: 504, w3s.link: timeout, nftstorage.link: timeout, gateway.pinata.cloud: 429">ipfs 504 · dweb 504 · w3s t/o · nftstorage t/o · pinata 429</td>
+        </tr>
+        <tr>
+          <th scope="row"><a href="/eip155:1/erc721:0xca95777971c7c438eecbd8bfc23249fbee99e716/6401">Mutant Shiba Club</a></th>
+          <td class="num">10,000</td>
+          <td class="why"><span class="dim">no provider</span></td>
+          <td><code title="https://ipfs.io/ipfs/bafybeibs5k6b62rmqxnhxuhxyij4olupnko3szeafbjqj4hsjoxrvq322a/6401">https://ipfs.io/ipfs/bafybeibs5k6b62rmqxnhxuhxyij…</code></td>
+          <td class="dim gateways" title="ipfs.io: 504, dweb.link: 504, w3s.link: timeout, nftstorage.link: timeout, gateway.pinata.cloud: 404">ipfs 504 · dweb 504 · w3s t/o · nftstorage t/o · pinata 404</td>
+        </tr>
+        <tr>
+          <th scope="row"><a href="/eip155:1/erc721:0x9f9b2b8e268d06dc67f0f76627654b80e219e1d6/9259">pieceofshit</a></th>
+          <td class="num">10,000</td>
+          <td class="why"><span class="dim">no provider</span></td>
+          <td><code title="ipfs://bafybeihek6zx5cnnfep2exoo5aou22flxl4v24prer3z4d2sb4jk7zzn7y/9259.json">ipfs://bafybeihek6zx5cnnfep2exoo5aou22flxl4v24pre…</code></td>
+          <td class="dim gateways" title="ipfs.io: 504, dweb.link: 504, w3s.link: 504, nftstorage.link: 504, gateway.pinata.cloud: 404">ipfs 504 · dweb 504 · w3s 504 · nftstorage 504 · pinata 404</td>
+        </tr>
+        <tr>
+          <th scope="row"><a href="/eip155:1/erc721:0xb7ab762d27959802aabfb0ddd8d45df0817242ed/4292">Voodoos Club</a></th>
+          <td class="num">10,000</td>
+          <td class="why"><span class="dim">no provider</span></td>
+          <td><code title="ipfs://QmV1uZM782hzfo4J54JiwsR4fMZkp8K9MFDksHU6E6tSRt/4292.json">ipfs://QmV1uZM782hzfo4J54JiwsR4fMZkp8K9MFDksHU6E6…</code></td>
+          <td class="dim gateways" title="ipfs.io: 504, dweb.link: 504, w3s.link: timeout, nftstorage.link: timeout, gateway.pinata.cloud: 429">ipfs 504 · dweb 504 · w3s t/o · nftstorage t/o · pinata 429</td>
+        </tr>
+        <tr>
+          <th scope="row"><a href="/eip155:1/erc721:0x5d95c4c73e152727750df27ff7da1c7169430dd6/172">Bored Gorilla Yacht Club</a></th>
+          <td class="num">10,000</td>
+          <td class="why"><span class="dim">no provider</span></td>
+          <td><code title="ipfs://bafybeic3nvd4xuhyxaeg7nmcmyfofb2jggpb5b76346uiv4y7qlr7gupqe/172.json">ipfs://bafybeic3nvd4xuhyxaeg7nmcmyfofb2jggpb5b763…</code></td>
+          <td class="dim gateways" title="ipfs.io: 504, dweb.link: timeout, w3s.link: 504, nftstorage.link: timeout, gateway.pinata.cloud: 429">ipfs 504 · dweb t/o · w3s 504 · nftstorage t/o · pinata 429</td>
+        </tr>
+        <tr>
+          <th scope="row"><a href="/eip155:1/erc721:0xcca8050215e585e2a223c6ea9d1d1f9b30beaf3e/5662">CryptoSimeji</a></th>
+          <td class="num">10,000</td>
+          <td class="why"><span class="dim">no provider</span></td>
+          <td><code title="ipfs://bafybeievpwedrt7soo6nbgkdttmjjmpkcsjkzpyaz4zox74fr45blo5boe/5662">ipfs://bafybeievpwedrt7soo6nbgkdttmjjmpkcsjkzpyaz…</code></td>
+          <td class="dim gateways" title="ipfs.io: 504, dweb.link: timeout, w3s.link: 504, nftstorage.link: timeout, gateway.pinata.cloud: 429">ipfs 504 · dweb t/o · w3s 504 · nftstorage t/o · pinata 429</td>
+        </tr>
+        <tr>
+          <th scope="row"><a href="/eip155:1/erc721:0xf442459c8bb4b891b789e816775232b812eb2ccd/567">Porkers</a></th>
+          <td class="num">10,000</td>
+          <td class="why"><span class="dim">no provider</span></td>
+          <td><code title="ipfs://bafybeieyknbsgnl3dtrfrapn3nkckex6ggzded2ayimhkg73pihcdny4jy/567">ipfs://bafybeieyknbsgnl3dtrfrapn3nkckex6ggzded2ay…</code></td>
+          <td class="dim gateways" title="ipfs.io: 504, dweb.link: 504, w3s.link: 504, nftstorage.link: 504, gateway.pinata.cloud: 429">ipfs 504 · dweb 504 · w3s 504 · nftstorage 504 · pinata 429</td>
+        </tr>
+        <tr>
+          <th scope="row"><a href="/eip155:1/erc721:0x2e8abf4d802b0495a0848fb4132581cd005caa75/1061">Merge Dark Ape</a></th>
+          <td class="num">10,000</td>
+          <td class="why"><span class="dim">no provider</span></td>
+          <td><code title="ipfs://bafybeiechnolhgm6qvkfjkc7zwpd7igtywibvh75fxwzezuzp3mh55j3ce/1061.json">ipfs://bafybeiechnolhgm6qvkfjkc7zwpd7igtywibvh75f…</code></td>
+          <td class="dim gateways" title="ipfs.io: 504, dweb.link: 504, w3s.link: 504, nftstorage.link: 504, gateway.pinata.cloud: 429">ipfs 504 · dweb 504 · w3s 504 · nftstorage 504 · pinata 429</td>
+        </tr>
+        <tr>
+          <th scope="row"><a href="/eip155:1/erc721:0xfe58fc763ba915013aee93c6f0890bfddbe03608/8242">Beep Boop Botz</a></th>
+          <td class="num">10,000</td>
+          <td class="why"><span class="dim">no provider</span></td>
+          <td><code title="ipfs://bafybeiesi6gcebnsirg55itvohcru47i4t36sncptusfrcvrgezu6re6rq/8242.json">ipfs://bafybeiesi6gcebnsirg55itvohcru47i4t36sncpt…</code></td>
+          <td class="dim gateways" title="ipfs.io: 504, dweb.link: 504, w3s.link: 504, nftstorage.link: 504, gateway.pinata.cloud: 429">ipfs 504 · dweb 504 · w3s 504 · nftstorage 504 · pinata 429</td>
+        </tr>
+        <tr>
+          <th scope="row"><a href="/eip155:1/erc721:0xdcaf23e44639daf29f6532da213999d737f15aa4/8770">Moon Bats</a></th>
+          <td class="num">10,000</td>
+          <td class="why"><span class="dim">no provider</span></td>
+          <td><code title="ipfs://bafybeigs6k6dzq6xpqo4yt7l25jwq43kevzvj6l5kr5fdhwzobm2m6j7au/8770">ipfs://bafybeigs6k6dzq6xpqo4yt7l25jwq43kevzvj6l5k…</code></td>
+          <td class="dim gateways" title="ipfs.io: 504, dweb.link: 504, w3s.link: 504, nftstorage.link: 504, gateway.pinata.cloud: 429">ipfs 504 · dweb 504 · w3s 504 · nftstorage 504 · pinata 429</td>
+        </tr>
+        <tr>
+          <th scope="row"><a href="/eip155:1/erc721:0x9f648eef45b73e1a32ce7b624a44266226a85d88/6245">Doge Club</a></th>
+          <td class="num">10,000</td>
+          <td class="why"><span class="dim">no provider</span></td>
+          <td><code title="https://ipfs.filebase.io/ipfs/QmckgM4kkpfXkWGAFfs9EnMKR597tZzWsBrdrYmxycbncq/6245">https://ipfs.filebase.io/ipfs/QmckgM4kkpfXkWGAFfs…</code></td>
+          <td class="dim gateways" title="ipfs.io: 504, dweb.link: timeout, w3s.link: 504, nftstorage.link: timeout, gateway.pinata.cloud: 429">ipfs 504 · dweb t/o · w3s 504 · nftstorage t/o · pinata 429</td>
+        </tr>
+        <tr>
+          <th scope="row"><a href="/eip155:1/erc721:0x54f7c7df7258cb5f2ceb2dcff5f7f50585ca3923/2139">Teddies</a></th>
+          <td class="num">10,000</td>
+          <td class="why"><span class="dim">no provider</span></td>
+          <td><code title="ipfs://bafybeigdtg7zxsfnvhfq3yw35lwwy3aaighd5wkknhbd2jyfobkn2w5zdm/2139.json">ipfs://bafybeigdtg7zxsfnvhfq3yw35lwwy3aaighd5wkkn…</code></td>
+          <td class="dim gateways" title="ipfs.io: 504, dweb.link: 504, w3s.link: 504, nftstorage.link: 504, gateway.pinata.cloud: 429">ipfs 504 · dweb 504 · w3s 504 · nftstorage 504 · pinata 429</td>
+        </tr>
+        <tr>
+          <th scope="row"><a href="/eip155:1/erc721:0x9a54988016e97fdc388d1b084bcbfe32de91b70c/1239">Gutter Punks</a></th>
+          <td class="num">9,999</td>
+          <td class="why"><span class="dim">no provider</span></td>
+          <td><code title="ipfs://bafybeicpnl7k7erfqkt35dkgywoeuyseehyfbwtseuqpzen46urfgjt4qe/1239.json">ipfs://bafybeicpnl7k7erfqkt35dkgywoeuyseehyfbwtse…</code></td>
+          <td class="dim gateways" title="ipfs.io: 504, dweb.link: 504, w3s.link: 504, nftstorage.link: 504, gateway.pinata.cloud: 429">ipfs 504 · dweb 504 · w3s 504 · nftstorage 504 · pinata 429</td>
+        </tr>
+        <tr>
+          <th scope="row"><a href="/eip155:1/erc721:0xeed41d06ae195ca8f5cacace4cd691ee75f0683f/703">Cigawrettes</a></th>
+          <td class="num">9,998</td>
+          <td class="why"><span class="dim">no provider</span></td>
+          <td><code title="ipfs://bafybeidgwnebxxrcjj3glcxtncvkeuokynlvb3oimrp4nwmv7sds34lela/703.json">ipfs://bafybeidgwnebxxrcjj3glcxtncvkeuokynlvb3oim…</code></td>
+          <td class="dim gateways" title="ipfs.io: 504, dweb.link: 504, w3s.link: 504, nftstorage.link: 504, gateway.pinata.cloud: 429">ipfs 504 · dweb 504 · w3s 504 · nftstorage 504 · pinata 429</td>
+        </tr>
+        <tr>
+          <th scope="row"><a href="/eip155:1/erc721:0x1d20a51f088492a0f1c57f047a9e30c9ab5c07ea/12035">loomlocknft</a></th>
+          <td class="num">9,644</td>
+          <td class="why"><span class="dim">no provider</span></td>
+          <td><code title="https://arweave.net/LGlMDKAWgcDyvYoft1YV6Y2pBBAwjWaFuZrDP9yD-RY/12035.json">https://arweave.net/LGlMDKAWgcDyvYoft1YV6Y2pBBAwj…</code></td>
+          <td class="dim gateways" title="arweave.net: 404, g8way.io: error">arweave 404 · g8way error</td>
+        </tr>
+        <tr>
+          <th scope="row"><a href="/eip155:1/erc721:0x9d418c2cae665d877f909a725402ebd3a0742844/304">Fang Gang</a></th>
+          <td class="num">8,888</td>
+          <td class="why"><span class="dim">no provider</span></td>
+          <td><code title="ipfs://bafybeiaknts3w24ipn446fxrrcn52qqjgjhquprh7bgtm22ozvj6qb64my/304">ipfs://bafybeiaknts3w24ipn446fxrrcn52qqjgjhquprh7…</code></td>
+          <td class="dim gateways" title="ipfs.io: 504, dweb.link: 504, w3s.link: 504, nftstorage.link: 504, gateway.pinata.cloud: 404">ipfs 504 · dweb 504 · w3s 504 · nftstorage 504 · pinata 404</td>
+        </tr>
+        <tr>
+          <th scope="row"><a href="/eip155:1/erc721:0xfa4020b0064aacdbb0ed8becac28c0c95bb29840/2952">TrapMonkie</a></th>
+          <td class="num">8,888</td>
+          <td class="why"><span class="dim">no provider</span></td>
+          <td><code title="https://fano.mypinata.cloud/ipfs/QmRoK83veGD4XL7oJ53VMtGdAuYvXi9wackYxyaFfwr3o2/2952.json">https://fano.mypinata.cloud/ipfs/QmRoK83veGD4XL7o…</code></td>
+          <td class="dim gateways" title="ipfs.io: 504, dweb.link: timeout, w3s.link: 504, nftstorage.link: timeout, gateway.pinata.cloud: 429">ipfs 504 · dweb t/o · w3s 504 · nftstorage t/o · pinata 429</td>
+        </tr>
+        <tr>
+          <th scope="row"><a href="/eip155:1/erc721:0x5f758581590c45a308f7a66dfd679a80f83c4b52/6997">SKELLYZ</a></th>
+          <td class="num">8,001</td>
+          <td class="why"><span class="dim">no provider</span></td>
+          <td><code title="https://theklubrises.mypinata.cloud/ipfs/Qmbkytx83im144JV7g9sfSqufZujuBXFoP4kRx6mkM4WEG/6997">https://theklubrises.mypinata.cloud/ipfs/Qmbkytx8…</code></td>
+          <td class="dim gateways" title="ipfs.io: 404, dweb.link: 404, w3s.link: 404, nftstorage.link: 404, gateway.pinata.cloud: 429">ipfs 404 · dweb 404 · w3s 404 · nftstorage 404 · pinata 429</td>
+        </tr>
+        <tr>
+          <th scope="row"><a href="/eip155:1/erc721:0xc154ce707849b7359cf6abd32e3c270a1ee0d729/219">KongClub</a></th>
+          <td class="num">7,777</td>
+          <td class="why"><span class="dim">no provider</span></td>
+          <td><code title="ipfs://QmVAoAmrdPvwjbtjrymD3mwucNQb8ecqz6Q25LqNxPfXwf/219.json">ipfs://QmVAoAmrdPvwjbtjrymD3mwucNQb8ecqz6Q25LqNxP…</code></td>
+          <td class="dim gateways" title="ipfs.io: 504, dweb.link: timeout, w3s.link: 504, nftstorage.link: timeout, gateway.pinata.cloud: timeout">ipfs 504 · dweb t/o · w3s 504 · nftstorage t/o · pinata t/o</td>
+        </tr>
+        <tr>
+          <th scope="row"><a href="/eip155:1/erc721:0x2b9fd4d651414e51c9ba56ae1add36bb71cca24b/3092">Fat Rat Mafia</a></th>
+          <td class="num">7,777</td>
+          <td class="why"><span class="dim">no provider</span></td>
+          <td><code title="ipfs://bafybeifrgw3apmlfjo7ylcwlddptiu5tbbw2u6znh6iihs45kdvrrnjz5u/3092.json">ipfs://bafybeifrgw3apmlfjo7ylcwlddptiu5tbbw2u6znh…</code></td>
+          <td class="dim gateways" title="ipfs.io: 504, dweb.link: timeout, w3s.link: 504, nftstorage.link: timeout, gateway.pinata.cloud: 429">ipfs 504 · dweb t/o · w3s 504 · nftstorage t/o · pinata 429</td>
+        </tr>
+        <tr>
+          <th scope="row"><a href="/eip155:1/erc721:0x360c8a7c01fd75b00814d6282e95eaff93837f27/7637">LeprechaunTown_WTF</a></th>
+          <td class="num">7,772</td>
+          <td class="why"><span class="dim">no provider</span></td>
+          <td><code title="ipfs://Qmd8mRK3WzKcyCA7GFF7RTjk6g1dinzpuGNat5usPkwAki/7637">ipfs://Qmd8mRK3WzKcyCA7GFF7RTjk6g1dinzpuGNat5usPk…</code></td>
+          <td class="dim gateways" title="ipfs.io: 504, dweb.link: 504, w3s.link: 504, nftstorage.link: 504, gateway.pinata.cloud: 429">ipfs 504 · dweb 504 · w3s 504 · nftstorage 504 · pinata 429</td>
+        </tr>
+        <tr>
+          <th scope="row"><a href="/eip155:1/erc721:0x02d4ccfb596ac2a8b1878d3bf8a390730f42bba7/4033">Baby Okay Bears</a></th>
+          <td class="num">7,704</td>
+          <td class="why"><span class="dim">no provider</span></td>
+          <td><code title="https://gateway.pinata.cloud/ipfs/QmQckEPcV46qU4jqJLHNfLtgkNnR84dY7K9uMJKs7vGtGZ/4033">https://gateway.pinata.cloud/ipfs/QmQckEPcV46qU4j…</code></td>
+          <td class="dim gateways" title="ipfs.io: 504, dweb.link: 504, w3s.link: timeout, nftstorage.link: timeout, gateway.pinata.cloud: 429">ipfs 504 · dweb 504 · w3s t/o · nftstorage t/o · pinata 429</td>
+        </tr>
+        <tr>
+          <th scope="row"><a href="/eip155:1/erc721:0x0a8eb54b0123778291a3cddd2074c9ce8b2cfae5/6636">Neko</a></th>
+          <td class="num">7,703</td>
+          <td class="why"><span class="dim">no provider</span></td>
+          <td><code title="ipfs://bafybeigazwup5uhsx5cdkubervvtyow2gykcdsl4ff2aig5txdmmxqxp5q/6636">ipfs://bafybeigazwup5uhsx5cdkubervvtyow2gykcdsl4f…</code></td>
+          <td class="dim gateways" title="ipfs.io: 504, dweb.link: 504, w3s.link: 504, nftstorage.link: 504, gateway.pinata.cloud: 404">ipfs 504 · dweb 504 · w3s 504 · nftstorage 504 · pinata 404</td>
+        </tr>
+        <tr>
+          <th scope="row"><a href="/eip155:1/erc721:0x9721f13dab961d84b0bc26799f6f402161379e3a/248">Crypto Pepoo Club</a></th>
+          <td class="num">7,512</td>
+          <td class="why"><span class="dim">no provider</span></td>
+          <td><code title="ipfs://bafybeia57mzfquqb2i6vhqx67oks432fc534knjjfd6xhatiubvlrsz3mi/248.json">ipfs://bafybeia57mzfquqb2i6vhqx67oks432fc534knjjf…</code></td>
+          <td class="dim gateways" title="ipfs.io: 504, dweb.link: 504, w3s.link: 504, nftstorage.link: 504, gateway.pinata.cloud: 429">ipfs 504 · dweb 504 · w3s 504 · nftstorage 504 · pinata 429</td>
+        </tr>
+        <tr>
+          <th scope="row"><a href="/eip155:1/erc721:0x4f9835dbb442b263bbd20ff2731162101d9c3a89/2618">Toad Punks</a></th>
+          <td class="num">6,969</td>
+          <td class="why"><span class="dim">no provider</span></td>
+          <td><code title="ipfs://bafybeidupqobpkpbokb7c3h6yp73gupfsgeuzjwjl7hvlofpnxmpfwbc54/2618.token.json">ipfs://bafybeidupqobpkpbokb7c3h6yp73gupfsgeuzjwjl…</code></td>
+          <td class="dim gateways" title="ipfs.io: timeout, dweb.link: 504, w3s.link: timeout, nftstorage.link: 504, gateway.pinata.cloud: 429">ipfs t/o · dweb 504 · w3s t/o · nftstorage 504 · pinata 429</td>
+        </tr>
+        <tr>
+          <th scope="row"><a href="/eip155:1/erc721:0x86913dbe6794c2f8279598b7f88fa7127c8cd7f9/6582">macabroids</a></th>
+          <td class="num">6,666</td>
+          <td class="why"><span class="dim">no provider</span></td>
+          <td><code title="https://ipfs.io/ipfs/QmcbVKpFZzd42n4iHYrbfVMFuSyaiAh2L2YjLoP3awcFvt/6582.json">https://ipfs.io/ipfs/QmcbVKpFZzd42n4iHYrbfVMFuSya…</code></td>
+          <td class="dim gateways" title="ipfs.io: 504, dweb.link: timeout, w3s.link: 504, nftstorage.link: timeout, gateway.pinata.cloud: 429">ipfs 504 · dweb t/o · w3s 504 · nftstorage t/o · pinata 429</td>
+        </tr>
+        <tr>
+          <th scope="row"><a href="/eip155:1/erc721:0x10a4f46c4b560c1a71ff68de28c339e6d3e52489/3548">The Millies Club</a></th>
+          <td class="num">6,116</td>
+          <td class="why"><span class="dim">no provider</span></td>
+          <td><code title="https://nftstorage.link/ipfs/bafybeiaatplvlpis4k22cnhh7elrpgiw5rsgj6g7pbx4s4pu34k3ydhxsu/3548.json">https://nftstorage.link/ipfs/bafybeiaatplvlpis4k2…</code></td>
+          <td class="dim gateways" title="ipfs.io: 504, dweb.link: timeout, w3s.link: 504, nftstorage.link: timeout, gateway.pinata.cloud: 429">ipfs 504 · dweb t/o · w3s 504 · nftstorage t/o · pinata 429</td>
+        </tr>
+        <tr>
+          <th scope="row"><a href="/eip155:1/erc721:0x01a6fa5769b13302e82f1385e18baef7e913d0a7/4629">Cool Ape Club</a></th>
+          <td class="num">5,555</td>
+          <td class="why"><span class="dim">no provider</span></td>
+          <td><code title="https://gateway.pinata.cloud/ipfs/QmQAJpj3X2Fc1ANZtknbVcATvr4D3Lvpu9P4UMYNFXqv2C/4629">https://gateway.pinata.cloud/ipfs/QmQAJpj3X2Fc1AN…</code></td>
+          <td class="dim gateways" title="ipfs.io: 504, dweb.link: 504, w3s.link: timeout, nftstorage.link: timeout, gateway.pinata.cloud: 404">ipfs 504 · dweb 504 · w3s t/o · nftstorage t/o · pinata 404</td>
+        </tr>
+        <tr>
+          <th scope="row"><a href="/eip155:1/erc721:0x7a1f56f9641d7bd8c57f0909959c894c97e39beb/2265">Notorious Alien Space Agents</a></th>
+          <td class="num">5,555</td>
+          <td class="why"><span class="dim">no provider</span></td>
+          <td><code title="ipfs://QmZjCpS2BVwaYKrfXgsVqRCkqGDnHimGcsmWgdqaBmb4t1/2270">ipfs://QmZjCpS2BVwaYKrfXgsVqRCkqGDnHimGcsmWgdqaBm…</code></td>
+          <td class="dim gateways" title="ipfs.io: 504, dweb.link: 504, w3s.link: timeout, nftstorage.link: timeout, gateway.pinata.cloud: 429">ipfs 504 · dweb 504 · w3s t/o · nftstorage t/o · pinata 429</td>
+        </tr>
+        <tr>
+          <th scope="row"><a href="/eip155:1/erc721:0xeceac5562eaf4b7c07e9e208cfad7147c2436db0/4825">MirrorMirror Pass</a></th>
+          <td class="num">5,555</td>
+          <td class="why"><span class="dim">no provider</span></td>
+          <td><code title="ipfs://QmPoKztaMCojvbjtR16t59bePu8xMCC3xpz96mi4BX1ZED/4825">ipfs://QmPoKztaMCojvbjtR16t59bePu8xMCC3xpz96mi4BX…</code></td>
+          <td class="dim gateways" title="ipfs.io: 504, dweb.link: timeout, w3s.link: 504, nftstorage.link: timeout, gateway.pinata.cloud: timeout">ipfs 504 · dweb t/o · w3s 504 · nftstorage t/o · pinata t/o</td>
+        </tr>
+        <tr>
+          <th scope="row"><a href="/eip155:1/erc721:0xc47485191aaaa5dc7d90cb181a6169f8a0f470ec/3264">ShitBirds Official</a></th>
+          <td class="num">5,555</td>
+          <td class="why"><span class="dim">no provider</span></td>
+          <td><code title="ipfs://bafybeibdozaftsl6jypfh45ypj2iy2zckjyxfxbrdd6yugycxav3myqou4/3264.json">ipfs://bafybeibdozaftsl6jypfh45ypj2iy2zckjyxfxbrd…</code></td>
+          <td class="dim gateways" title="ipfs.io: 504, dweb.link: 504, w3s.link: 504, nftstorage.link: 504, gateway.pinata.cloud: 429">ipfs 504 · dweb 504 · w3s 504 · nftstorage 504 · pinata 429</td>
+        </tr>
+        <tr>
+          <th scope="row"><a href="/eip155:1/erc721:0xb89c7292e42cf94afa6933c45979d0a5328a4ea2/3885">Toonies Social Club</a></th>
+          <td class="num">5,555</td>
+          <td class="why"><span class="dim">no provider</span></td>
+          <td><code title="ipfs://bafybeihwuordie6dzdjtcpzkaymy46p6w3on7yfc5fclq7q2ze6bby2mry/3885.json">ipfs://bafybeihwuordie6dzdjtcpzkaymy46p6w3on7yfc5…</code></td>
+          <td class="dim gateways" title="ipfs.io: 504, dweb.link: 504, w3s.link: 504, nftstorage.link: 504, gateway.pinata.cloud: 429">ipfs 504 · dweb 504 · w3s 504 · nftstorage 504 · pinata 429</td>
+        </tr>
+        <tr>
+          <th scope="row"><a href="/eip155:1/erc721:0x6e6650fd4949fddf0bacc45c06ae3437f61acb1b/5533">omgkirby x CT</a></th>
+          <td class="num">5,550</td>
+          <td class="why"><span class="dim">no provider</span></td>
+          <td><code title="ipfs://QmYkKqxtG9piFFW4VghzdKupg9TiCgocRV28KJ7ho81FaB/5533">ipfs://QmYkKqxtG9piFFW4VghzdKupg9TiCgocRV28KJ7ho8…</code></td>
+          <td class="dim gateways" title="ipfs.io: 504, dweb.link: 504, w3s.link: 504, nftstorage.link: 504, gateway.pinata.cloud: 429">ipfs 504 · dweb 504 · w3s 504 · nftstorage 504 · pinata 429</td>
+        </tr>
+        <tr>
+          <th scope="row"><a href="/eip155:1/erc721:0x9d46c1bfdb45b0e751d70c1baa777536392e215c/5481">Joey</a></th>
+          <td class="num">5,500</td>
+          <td class="why"><span class="dim">no provider</span></td>
+          <td><code title="https://ipfs.io/ipfs/bafybeibjta6xkht6zv76paopcreipaalym2acxc76fndohfumud7zpjk5i/5481">https://ipfs.io/ipfs/bafybeibjta6xkht6zv76paopcre…</code></td>
+          <td class="dim gateways" title="ipfs.io: 504, dweb.link: timeout, w3s.link: 504, nftstorage.link: timeout, gateway.pinata.cloud: 429">ipfs 504 · dweb t/o · w3s 504 · nftstorage t/o · pinata 429</td>
+        </tr>
+        <tr>
+          <th scope="row"><a href="/eip155:1/erc721:0x90384e76b6b3ddb47396ff85144819ded148900d/3713">CityDAO Parcel-0</a></th>
+          <td class="num">5,453</td>
+          <td class="why"><span class="dim">no provider</span></td>
+          <td><code title="ipfs://bafybeia3lejponr2skhobnhbcoauf4ldvwylpwcqmwgocqx2ustsqx6bby/3713">ipfs://bafybeia3lejponr2skhobnhbcoauf4ldvwylpwcqm…</code></td>
+          <td class="dim gateways" title="ipfs.io: 504, dweb.link: timeout, w3s.link: 504, nftstorage.link: timeout, gateway.pinata.cloud: 404">ipfs 504 · dweb t/o · w3s 504 · nftstorage t/o · pinata 404</td>
+        </tr>
+        <tr>
+          <th scope="row"><a href="/eip155:1/erc721:0x9721de7dfc53d3be40191ac9e932922885bdbd2d/4744">Lion Game</a></th>
+          <td class="num">5,285</td>
+          <td class="why"><span class="dim">no provider</span></td>
+          <td><code title="ipfs://QmSTtv3w1jqcv5AKRRYVR5NN7fkTuuL9sNrkxRNL9e3fUo/4744">ipfs://QmSTtv3w1jqcv5AKRRYVR5NN7fkTuuL9sNrkxRNL9e…</code></td>
+          <td class="dim gateways" title="ipfs.io: 504, dweb.link: 504, w3s.link: 504, nftstorage.link: 504, gateway.pinata.cloud: timeout">ipfs 504 · dweb 504 · w3s 504 · nftstorage 504 · pinata t/o</td>
+        </tr>
+        <tr>
+          <th scope="row"><a href="/eip155:1/erc721:0x0b03651b674c2092b513f1fd10fcda2a287174ea/3">New York City Rats</a></th>
+          <td class="num">5,000</td>
+          <td class="why"><span class="dim">no provider</span></td>
+          <td><code title="ipfs://QmUa8LnVu9J9fGqW9U42ZUCeVF1VyPpe4F8MneLz2H5PYx/3.json">ipfs://QmUa8LnVu9J9fGqW9U42ZUCeVF1VyPpe4F8MneLz2H…</code></td>
+          <td class="dim gateways" title="ipfs.io: 504, dweb.link: 504, w3s.link: 504, nftstorage.link: 504, gateway.pinata.cloud: timeout">ipfs 504 · dweb 504 · w3s 504 · nftstorage 504 · pinata t/o</td>
+        </tr>
+        <tr>
+          <th scope="row"><a href="/eip155:1/erc721:0x3903d4ffaaa700b62578a66e7a67ba4cb67787f9/1097">Quirkies</a></th>
+          <td class="num">5,000</td>
+          <td class="why"><span class="dim">no provider</span></td>
+          <td><code title="ipfs://bafybeiho447f7f4aipzqyprip6jipomlm46d3y3bwbfgqsy57me233zr2u/1097">ipfs://bafybeiho447f7f4aipzqyprip6jipomlm46d3y3bw…</code></td>
+          <td class="dim gateways" title="ipfs.io: 504, dweb.link: 504, w3s.link: 504, nftstorage.link: 504, gateway.pinata.cloud: 429">ipfs 504 · dweb 504 · w3s 504 · nftstorage 504 · pinata 429</td>
+        </tr>
+        <tr>
+          <th scope="row"><a href="/eip155:1/erc721:0xf0ef8bb0011e7ec14f4195645611d80cc551e4b8/3864">Cyber CryptoSkulls</a></th>
+          <td class="num">5,000</td>
+          <td class="why"><span class="dim">no provider</span></td>
+          <td><code title="ipfs://bafybeigss3ma34wkqkwp7fjyo3vhga22ub62gsnqc2punr5v64gizcvrxu/3864.json">ipfs://bafybeigss3ma34wkqkwp7fjyo3vhga22ub62gsnqc…</code></td>
+          <td class="dim gateways" title="ipfs.io: 504, dweb.link: 504, w3s.link: 504, nftstorage.link: 504, gateway.pinata.cloud: 429">ipfs 504 · dweb 504 · w3s 504 · nftstorage 504 · pinata 429</td>
+        </tr>
+        <tr>
+          <th scope="row"><a href="/eip155:1/erc721:0x72aebd5d3147439e794bb72ee25b7cd635831ac0/4480">Cat Civilization</a></th>
+          <td class="num">5,000</td>
+          <td class="why"><span class="dim">no provider</span></td>
+          <td><code title="ipfs://QmU5o4bzPK6A8J6FhyvBcWYAWhzJ8P8YtXc3J7aD3Li7eU/4480.json">ipfs://QmU5o4bzPK6A8J6FhyvBcWYAWhzJ8P8YtXc3J7aD3L…</code></td>
+          <td class="dim gateways" title="ipfs.io: 504, dweb.link: 504, w3s.link: 504, nftstorage.link: 504, gateway.pinata.cloud: 429">ipfs 504 · dweb 504 · w3s 504 · nftstorage 504 · pinata 429</td>
+        </tr>
+        <tr>
+          <th scope="row"><a href="/eip155:1/erc721:0x2bc26843dfac673e5936851a94b48f391d49c35b/47">FANG Jobs</a></th>
+          <td class="num">4,864</td>
+          <td class="why"><span class="dim">no provider</span></td>
+          <td><code title="ipfs://QmZqfxpFuwd1WouQbxzodHHnkuwLDHgXfVjnrtcUsqTEUJ/47.json">ipfs://QmZqfxpFuwd1WouQbxzodHHnkuwLDHgXfVjnrtcUsq…</code></td>
+          <td class="dim gateways" title="ipfs.io: 504, dweb.link: 504, w3s.link: timeout, nftstorage.link: timeout, gateway.pinata.cloud: 429">ipfs 504 · dweb 504 · w3s t/o · nftstorage t/o · pinata 429</td>
+        </tr>
+        <tr>
+          <th scope="row"><a href="/eip155:1/erc721:0x42032066619a0f42320fe2fcaba63a4271cdfcb6/465">krazykatswtf</a></th>
+          <td class="num">4,805</td>
+          <td class="why"><span class="dim">no provider</span></td>
+          <td><code title="ipfs://QmYQSimbbRhJn9M86B4KMMiGgX3QtrgsWpTXUqkfW3iiHw/465">ipfs://QmYQSimbbRhJn9M86B4KMMiGgX3QtrgsWpTXUqkfW3…</code></td>
+          <td class="dim gateways" title="ipfs.io: 504, dweb.link: timeout, w3s.link: 504, nftstorage.link: timeout, gateway.pinata.cloud: 429">ipfs 504 · dweb t/o · w3s 504 · nftstorage t/o · pinata 429</td>
+        </tr>
+        <tr>
+          <th scope="row"><a href="/eip155:1/erc721:0x9ba658650884fb36f3423d1ce2ee6d2a51361a99/1467">MoonPass</a></th>
+          <td class="num">4,161</td>
+          <td class="why"><span class="dim">no provider</span></td>
+          <td><code title="https://ipfs.io/ipfs/QmX5yN7YR2RBQRD6cbkk5v8Ut7fZ8ZZYXNgcf1Gb25jAAo?filename=MetaData.json1467">https://ipfs.io/ipfs/QmX5yN7YR2RBQRD6cbkk5v8Ut7fZ…</code></td>
+          <td class="dim gateways" title="ipfs.io: 504, dweb.link: 504, w3s.link: 504, nftstorage.link: 504, gateway.pinata.cloud: 404">ipfs 504 · dweb 504 · w3s 504 · nftstorage 504 · pinata 404</td>
+        </tr>
+        <tr>
+          <th scope="row"><a href="/eip155:1/erc721:0x5b97353bb450c2cc0d91c681bf6102166a7465c9/3413">MineNationsNFT</a></th>
+          <td class="num">3,888</td>
+          <td class="why"><span class="dim">no provider</span></td>
+          <td><code title="https://bafybeidgr3upi3virht7b6anlsturikowckwzcfvy5mobrotp4nji6ybau.ipfs.w3s.link/3413.json">https://bafybeidgr3upi3virht7b6anlsturikowckwzcfv…</code></td>
+          <td class="dim gateways" title="ipfs.io: 504, dweb.link: timeout, w3s.link: 504, nftstorage.link: timeout, gateway.pinata.cloud: 429">ipfs 504 · dweb t/o · w3s 504 · nftstorage t/o · pinata 429</td>
+        </tr>
+        <tr>
+          <th scope="row"><a href="/eip155:1/erc721:0x70559bc227b5daa0e395e636ed4c97c3d4a21361/868">Model Eros Village</a></th>
+          <td class="num">3,888</td>
+          <td class="why"><span class="dim">no provider</span></td>
+          <td><code title="ipfs://bafybeifcvuqu5n3rjdtzfhg5tnldy3bej36zwff7e623cuzewdfa55wydy/868.json">ipfs://bafybeifcvuqu5n3rjdtzfhg5tnldy3bej36zwff7e…</code></td>
+          <td class="dim gateways" title="ipfs.io: 504, dweb.link: 504, w3s.link: 504, nftstorage.link: 504, gateway.pinata.cloud: 429">ipfs 504 · dweb 504 · w3s 504 · nftstorage 504 · pinata 429</td>
+        </tr>
+        <tr>
+          <th scope="row"><a href="/eip155:1/erc721:0xf54fc50e1604012cf8bb8dd84e075d3f07f9bb16/2037">RUUMZ</a></th>
+          <td class="num">3,560</td>
+          <td class="why"><span class="dim">no provider</span></td>
+          <td><code title="https://ruumz.mypinata.cloud/ipfs/Qmcn3kCSHZ6ZByTT8JBjqKGfPWJzHzPeDgTjGnT6i97BmG/2037">https://ruumz.mypinata.cloud/ipfs/Qmcn3kCSHZ6ZByT…</code></td>
+          <td class="dim gateways" title="ipfs.io: 504, dweb.link: 504, w3s.link: 504, nftstorage.link: 504, gateway.pinata.cloud: timeout">ipfs 504 · dweb 504 · w3s 504 · nftstorage 504 · pinata t/o</td>
+        </tr>
+        <tr>
+          <th scope="row"><a href="/eip155:1/erc721:0xa462127735352b1f03da8ab92a87803d05cc6a7b/3319">AswangTribe</a></th>
+          <td class="num">3,352</td>
+          <td class="why"><span class="dim">no provider</span></td>
+          <td><code title="ipfs://QmYJUtZ7as3UXZZeWG1YYxXQw6JaLxjGgq2KYZznYrKpG8/5/3319">ipfs://QmYJUtZ7as3UXZZeWG1YYxXQw6JaLxjGgq2KYZznYr…</code></td>
+          <td class="dim gateways" title="ipfs.io: 404, dweb.link: 404, w3s.link: 404, nftstorage.link: 404, gateway.pinata.cloud: 429">ipfs 404 · dweb 404 · w3s 404 · nftstorage 404 · pinata 429</td>
+        </tr>
+        <tr>
+          <th scope="row"><a href="/eip155:1/erc721:0xd396706543979149f7510839e9eb0b0608e8bc23/886">Karmeleons</a></th>
+          <td class="num">3,333</td>
+          <td class="why"><span class="dim">no provider</span></td>
+          <td><code title="ipfs://QmevufuMSfPduR5YtP3cgh4hQpYTzsPb2FQofr7oADsYXM/886.json">ipfs://QmevufuMSfPduR5YtP3cgh4hQpYTzsPb2FQofr7oAD…</code></td>
+          <td class="dim gateways" title="ipfs.io: 504, dweb.link: 504, w3s.link: 504, nftstorage.link: 504, gateway.pinata.cloud: 429">ipfs 504 · dweb 504 · w3s 504 · nftstorage 504 · pinata 429</td>
+        </tr>
+        <tr>
+          <th scope="row"><a href="/eip155:1/erc721:0x01379a8c67466af8ce0cf1f99c3d8208b2a3af23/3086">Tribes Of Ogun</a></th>
+          <td class="num">3,178</td>
+          <td class="why"><span class="dim">no provider</span></td>
+          <td><code title="ipfs://bafybeibmkg7rnnr2okaphfxsmoa3zkysjfrxq2e2vglf3cbtmvpf3vum4e/3086">ipfs://bafybeibmkg7rnnr2okaphfxsmoa3zkysjfrxq2e2v…</code></td>
+          <td class="dim gateways" title="ipfs.io: 504, dweb.link: 504, w3s.link: 504, nftstorage.link: 504, gateway.pinata.cloud: 404">ipfs 504 · dweb 504 · w3s 504 · nftstorage 504 · pinata 404</td>
+        </tr>
+        <tr>
+          <th scope="row"><a href="/eip155:1/erc721:0x67e23ce9d03aaaa1a95b6784eca0942c3f7d85fe/69">Moon Vamps</a></th>
+          <td class="num">2,500</td>
+          <td class="why"><span class="dim">no provider</span></td>
+          <td><code title="ipfs://bafybeid7kvty2kncov7jc7z27mcg2hkukskrjxoni267yiotebznb64yqq/69">ipfs://bafybeid7kvty2kncov7jc7z27mcg2hkukskrjxoni…</code></td>
+          <td class="dim gateways" title="ipfs.io: 504, dweb.link: 504, w3s.link: 504, nftstorage.link: 504, gateway.pinata.cloud: 429">ipfs 504 · dweb 504 · w3s 504 · nftstorage 504 · pinata 429</td>
+        </tr>
+        <tr>
+          <th scope="row"><a href="/eip155:1/erc721:0xc782ab25dac76565d3fdede36fcf87227c9217da/1949">Rare Bears</a></th>
+          <td class="num">2,347</td>
+          <td class="why"><span class="dim">no provider</span></td>
+          <td><code title="ipfs://bafybeic7euhz6awhrg4ill6zvvvryg5cg6mjirqhjbhyvhznlv2uvrbq6a/1949.json">ipfs://bafybeic7euhz6awhrg4ill6zvvvryg5cg6mjirqhj…</code></td>
+          <td class="dim gateways" title="ipfs.io: 504, dweb.link: 504, w3s.link: timeout, nftstorage.link: timeout, gateway.pinata.cloud: 429">ipfs 504 · dweb 504 · w3s t/o · nftstorage t/o · pinata 429</td>
+        </tr>
+        <tr>
+          <th scope="row"><a href="/eip155:1/erc721:0x8d098e7edfdb00d2ec2cdd70b633e2c34d6f945d/851">A Little Simmon</a></th>
+          <td class="num">1,990</td>
+          <td class="why"><span class="dim">no provider</span></td>
+          <td><code title="ipfs://bafybeicctdqh2ciph5of3zzh32soknakyyfps53zputj2oyxehjrt5576a/851.json">ipfs://bafybeicctdqh2ciph5of3zzh32soknakyyfps53zp…</code></td>
+          <td class="dim gateways" title="ipfs.io: 504, dweb.link: 504, w3s.link: 504, nftstorage.link: 504, gateway.pinata.cloud: 429">ipfs 504 · dweb 504 · w3s 504 · nftstorage 504 · pinata 429</td>
+        </tr>
+        <tr>
+          <th scope="row"><a href="/eip155:1/erc721:0x8ab8c42bf87ef3deaa33d2efebdc1e6d675ae32f/167">Homie</a></th>
+          <td class="num">1,888</td>
+          <td class="why"><span class="dim">no provider</span></td>
+          <td><code title="ipfs://bafybeidgiwsrracuvuxinqm5j7uspnuof5jxjr6hpj3jk7ild6ohrnvf6i/metadata/167.json">ipfs://bafybeidgiwsrracuvuxinqm5j7uspnuof5jxjr6hp…</code></td>
+          <td class="dim gateways" title="ipfs.io: 504, dweb.link: 504, w3s.link: 504, nftstorage.link: 504, gateway.pinata.cloud: 429">ipfs 504 · dweb 504 · w3s 504 · nftstorage 504 · pinata 429</td>
+        </tr>
+        <tr>
+          <th scope="row"><a href="/eip155:1/erc721:0x832a784baf6010cce7271528a8613bb8016bb621/1806">NFYE</a></th>
+          <td class="num">1,860</td>
+          <td class="why"><span class="dim">no provider</span></td>
+          <td><code title="ipfs://QmQY6zKncT2AJNUPoGFYes9HuMndL1GtAjCXQJcGSJGWmL/1806">ipfs://QmQY6zKncT2AJNUPoGFYes9HuMndL1GtAjCXQJcGSJ…</code></td>
+          <td class="dim gateways" title="ipfs.io: 504, dweb.link: 504, w3s.link: 504, nftstorage.link: 504, gateway.pinata.cloud: 404">ipfs 504 · dweb 504 · w3s 504 · nftstorage 504 · pinata 404</td>
+        </tr>
+        <tr>
+          <th scope="row"><a href="/eip155:1/erc721:0xdca9e0c6d45eeee6cbbeaae37ba2f310230d27d1/536">Serpentz</a></th>
+          <td class="num">1,582</td>
+          <td class="why"><span class="dim">no provider</span></td>
+          <td><code title="ipfs://bafybeiakrc6ukrfcazhbselu4v33eeoti4ab5krhzsls6snub7kemqh5r4/536.json">ipfs://bafybeiakrc6ukrfcazhbselu4v33eeoti4ab5krhz…</code></td>
+          <td class="dim gateways" title="ipfs.io: 504, dweb.link: 504, w3s.link: 504, nftstorage.link: 504, gateway.pinata.cloud: 429">ipfs 504 · dweb 504 · w3s 504 · nftstorage 504 · pinata 429</td>
+        </tr>
+        <tr>
+          <th scope="row"><a href="/eip155:1/erc721:0xbb232a9c611233cfeaefd7127c1962bdbf0bbd70/1497">Eating Degens</a></th>
+          <td class="num">1,505</td>
+          <td class="why"><span class="dim">no provider</span></td>
+          <td><code title="ipfs://QmWqzSmQ7F9b2xeYK5GcGhHa2hSKUy94PTRasSPyoaaFdG/1497">ipfs://QmWqzSmQ7F9b2xeYK5GcGhHa2hSKUy94PTRasSPyoa…</code></td>
+          <td class="dim gateways" title="ipfs.io: 504, dweb.link: timeout, w3s.link: 504, nftstorage.link: timeout, gateway.pinata.cloud: 429">ipfs 504 · dweb t/o · w3s 504 · nftstorage t/o · pinata 429</td>
+        </tr>
+        <tr>
+          <th scope="row"><a href="/eip155:1/erc721:0x0edb29ef467c364f173bc0f6da8237386303b107/783">0xBLACK</a></th>
+          <td class="num">1,444</td>
+          <td class="why"><span class="dim">no provider</span></td>
+          <td><code title="https://gateway.pinata.cloud/ipfs/QmRZ99De91KowV5CMonkaX2bSvAYWHiZYq4uUdoBfsvb6N/783">https://gateway.pinata.cloud/ipfs/QmRZ99De91KowV5…</code></td>
+          <td class="dim gateways" title="ipfs.io: 504, dweb.link: 504, w3s.link: timeout, nftstorage.link: timeout, gateway.pinata.cloud: 404">ipfs 504 · dweb 504 · w3s t/o · nftstorage t/o · pinata 404</td>
+        </tr>
+        <tr>
+          <th scope="row"><a href="/eip155:1/erc721:0x79ace1b93fc20833bb330a00767f41adc6a11ac5/659">Xoomojis</a></th>
+          <td class="num">1,400</td>
+          <td class="why"><span class="dim">no provider</span></td>
+          <td><code title="ipfs://bafybeieeb4uy4v2gijv6bpimmuhbuhqn6epsvqf57breyph3clj23jdi2u/659.json">ipfs://bafybeieeb4uy4v2gijv6bpimmuhbuhqn6epsvqf57…</code></td>
+          <td class="dim gateways" title="ipfs.io: 504, dweb.link: 504, w3s.link: 504, nftstorage.link: 504, gateway.pinata.cloud: 429">ipfs 504 · dweb 504 · w3s 504 · nftstorage 504 · pinata 429</td>
+        </tr>
+        <tr>
+          <th scope="row"><a href="/eip155:1/erc721:0xe31e380cd0b6417ca72f82a15c17d6869c82739d/888">Beefy Blokes</a></th>
+          <td class="num">1,355</td>
+          <td class="why"><span class="dim">no provider</span></td>
+          <td><code title="ipfs://Qmf2fi6fuEQZUPu6ia9oSumBvhZCPzdnopeQ1FU9NeZ3rS/888">ipfs://Qmf2fi6fuEQZUPu6ia9oSumBvhZCPzdnopeQ1FU9Ne…</code></td>
+          <td class="dim gateways" title="ipfs.io: 504, dweb.link: 504, w3s.link: timeout, nftstorage.link: timeout, gateway.pinata.cloud: 429">ipfs 504 · dweb 504 · w3s t/o · nftstorage t/o · pinata 429</td>
+        </tr>
+        <tr>
+          <th scope="row"><a href="/eip155:1/erc721:0xdc124dff35e2e96572e7396f80cf49d1e4d1b4b0/300">PixelPudgyPenguins</a></th>
+          <td class="num">1,312</td>
+          <td class="why"><span class="dim">no provider</span></td>
+          <td><code title="ipfs://QmZz4Ffwcy5T2FyAC5ykmDZNgPbrHcCjZEki8gwxfjrPwx/300">ipfs://QmZz4Ffwcy5T2FyAC5ykmDZNgPbrHcCjZEki8gwxfj…</code></td>
+          <td class="dim gateways" title="ipfs.io: 504, dweb.link: 504, w3s.link: timeout, nftstorage.link: timeout, gateway.pinata.cloud: 429">ipfs 504 · dweb 504 · w3s t/o · nftstorage t/o · pinata 429</td>
+        </tr>
+        <tr>
+          <th scope="row"><a href="/eip155:1/erc721:0xcf62598d1bd2abd1fee1b380409af94365fe348d/989">Capeverse</a></th>
+          <td class="num">1,223</td>
+          <td class="why"><span class="dim">no provider</span></td>
+          <td><code title="https://gateway.pinata.cloud/ipfs/QmdyqdYgEuHNLyMzoQdREyvMJqhSAPWprH4q2FTNA3UCgN/989.json">https://gateway.pinata.cloud/ipfs/QmdyqdYgEuHNLyM…</code></td>
+          <td class="dim gateways" title="ipfs.io: 504, dweb.link: timeout, w3s.link: 504, nftstorage.link: timeout, gateway.pinata.cloud: 429">ipfs 504 · dweb t/o · w3s 504 · nftstorage t/o · pinata 429</td>
+        </tr>
+        <tr>
+          <th scope="row"><a href="/eip155:1/erc721:0x01be25a7a70a4fd35599bf70606e51eba74c23af/502">Pandora</a></th>
+          <td class="num">1,203</td>
+          <td class="why"><span class="dim">no provider</span></td>
+          <td><code title="https://nftstorage.link/ipfs/bafybeibhtnfythp5hj6hljgtjqubkdxtpknk4w5ncpkq4b4nzzctptyfg4">https://nftstorage.link/ipfs/bafybeibhtnfythp5hj6…</code></td>
+          <td class="dim gateways" title="ipfs.io: 504, dweb.link: 504, w3s.link: timeout, nftstorage.link: timeout, gateway.pinata.cloud: 429">ipfs 504 · dweb 504 · w3s t/o · nftstorage t/o · pinata 429</td>
+        </tr>
+        <tr>
+          <th scope="row"><a href="/eip155:1/erc721:0xf7553023863f6f43a8ba3ed87d19df2a90bbc8aa/64">BPSNFTVoucher</a></th>
+          <td class="num">1,097</td>
+          <td class="why"><span class="dim">no provider</span></td>
+          <td><code title="ipfs://bafybeia2nilko6vdilrxyrafirti3a4suq7gssgh7od5kryvxbg3yprxjm/64.json">ipfs://bafybeia2nilko6vdilrxyrafirti3a4suq7gssgh7…</code></td>
+          <td class="dim gateways" title="ipfs.io: 504, dweb.link: 504, w3s.link: 504, nftstorage.link: 504, gateway.pinata.cloud: 429">ipfs 504 · dweb 504 · w3s 504 · nftstorage 504 · pinata 429</td>
+        </tr>
+        <tr>
+          <th scope="row"><a href="/eip155:1/erc721:0x8b634b2ae70e338865bf9741b4ae935adf2b4c55/329">nothings</a></th>
+          <td class="num">1,001</td>
+          <td class="why"><span class="tag">blocked</span></td>
+          <td><code title="ipfs://QmQFoBHM5iWM9RXfYPT6JymxYnATUF5VrjuJZpRfk5qCAv/329">ipfs://QmQFoBHM5iWM9RXfYPT6JymxYnATUF5VrjuJZpRfk5…</code></td>
+          <td class="dim gateways" title="ipfs.io: 410, dweb.link: 410, w3s.link: 410, nftstorage.link: 410, gateway.pinata.cloud: 429">ipfs 410 · dweb 410 · w3s 410 · nftstorage 410 · pinata 429</td>
+        </tr>
+        <tr>
+          <th scope="row"><a href="/eip155:1/erc721:0xd497a414bb00803e846b53d07fcb742831b24906/889">Tigerbob</a></th>
+          <td class="num">1,000</td>
+          <td class="why"><span class="dim">no provider</span></td>
+          <td><code title="ipfs://bafybeidrzpxn3d2j7kfn6e4vksxrmdnemp47wq7mwcna34lwf6rusz7lae/metadata/889">ipfs://bafybeidrzpxn3d2j7kfn6e4vksxrmdnemp47wq7mw…</code></td>
+          <td class="dim gateways" title="ipfs.io: 504, dweb.link: 504, w3s.link: timeout, nftstorage.link: timeout, gateway.pinata.cloud: 429">ipfs 504 · dweb 504 · w3s t/o · nftstorage t/o · pinata 429</td>
+        </tr>
+        <tr>
+          <th scope="row"><a href="/eip155:1/erc721:0x860e2df55444af1ee8300d0d2353666102e4c7f7/14">NEOM</a></th>
+          <td class="num">1,000</td>
+          <td class="why"><span class="dim">no provider</span></td>
+          <td><code title="ipfs://bafybeif72efer5khdauzhy4emn3dduvnmgfsgpesk7x7c6px4w4sl2oimm/14.json">ipfs://bafybeif72efer5khdauzhy4emn3dduvnmgfsgpesk…</code></td>
+          <td class="dim gateways" title="ipfs.io: 504, dweb.link: 504, w3s.link: 504, nftstorage.link: 504, gateway.pinata.cloud: 429">ipfs 504 · dweb 504 · w3s 504 · nftstorage 504 · pinata 429</td>
+        </tr>
+        <tr>
+          <th scope="row"><a href="/eip155:1/erc721:0x287cfabeec6a21880bad1f7d0405c0ab702a4022/966">DBonez</a></th>
+          <td class="num">944</td>
+          <td class="why"><span class="dim">no provider</span></td>
+          <td><code title="ipfs://bafybeidojdk6pkurxuigfhwo76woow37dxcz5wf75i6xtirrmyar2gqkpe/966">ipfs://bafybeidojdk6pkurxuigfhwo76woow37dxcz5wf75…</code></td>
+          <td class="dim gateways" title="ipfs.io: 504, dweb.link: 504, w3s.link: 504, nftstorage.link: 504, gateway.pinata.cloud: 429">ipfs 504 · dweb 504 · w3s 504 · nftstorage 504 · pinata 429</td>
+        </tr>
+        <tr>
+          <th scope="row"><a href="/eip155:1/erc721:0x3bd1afa9a595a9a70e2122028a664fea001969a7/49">Beta Galaxy: Lost Sectors</a></th>
+          <td class="num">801</td>
+          <td class="why"><span class="dim">no provider</span></td>
+          <td><code title="ipfs://bafybeicaebhmjo7gerxrbhaj7whde36kn7oekkwbaanw2tyw5draagnm3q/49">ipfs://bafybeicaebhmjo7gerxrbhaj7whde36kn7oekkwba…</code></td>
+          <td class="dim gateways" title="ipfs.io: 504, dweb.link: timeout, w3s.link: 504, nftstorage.link: timeout, gateway.pinata.cloud: 429">ipfs 504 · dweb t/o · w3s 504 · nftstorage t/o · pinata 429</td>
+        </tr>
+        <tr>
+          <th scope="row"><a href="/eip155:1/erc721:0x01f61f3c7f27893b30e8abdafd4a84ca8bd24b96/356">RoboFrens</a></th>
+          <td class="num">777</td>
+          <td class="why"><span class="dim">no provider</span></td>
+          <td><code title="ipfs://QmZVTrLDEZSBEwBM1hTz8gDc5cLiJ4usMNDGYG3NHvrn9T/metadata/356.json">ipfs://QmZVTrLDEZSBEwBM1hTz8gDc5cLiJ4usMNDGYG3NHv…</code></td>
+          <td class="dim gateways" title="ipfs.io: 504, dweb.link: 504, w3s.link: 504, nftstorage.link: 504, gateway.pinata.cloud: timeout">ipfs 504 · dweb 504 · w3s 504 · nftstorage 504 · pinata t/o</td>
+        </tr>
+        <tr>
+          <th scope="row"><a href="/eip155:1/erc721:0x96dd2668e6bf33ead3f1ea87f02a2f4327983068/5770">Finn Cotton</a></th>
+          <td class="num">603</td>
+          <td class="why"><span class="dim">no provider</span></td>
+          <td><code title="ipfs://bafybeicie4rff2okpp7f7hglbg5mlfhwzsnrs3hsxg5uj4cqvirftg7cna/5770.json">ipfs://bafybeicie4rff2okpp7f7hglbg5mlfhwzsnrs3hsx…</code></td>
+          <td class="dim gateways" title="ipfs.io: 504, dweb.link: timeout, w3s.link: 504, nftstorage.link: timeout, gateway.pinata.cloud: 429">ipfs 504 · dweb t/o · w3s 504 · nftstorage t/o · pinata 429</td>
+        </tr>
+        <tr>
+          <th scope="row"><a href="/eip155:1/erc721:0x96223b35fcc80e7f05ec58f1f8d5a55f6afde74b/284">Horde of the Undead</a></th>
+          <td class="num">380</td>
+          <td class="why"><span class="dim">no provider</span></td>
+          <td><code title="ipfs://bafybeibkqzer3lriiktlxcabmdrgnwp5aqrqpukffy3bj3ca7pxhgbouqu/284.json">ipfs://bafybeibkqzer3lriiktlxcabmdrgnwp5aqrqpukff…</code></td>
+          <td class="dim gateways" title="ipfs.io: 504, dweb.link: timeout, w3s.link: 504, nftstorage.link: timeout, gateway.pinata.cloud: 429">ipfs 504 · dweb t/o · w3s 504 · nftstorage t/o · pinata 429</td>
+        </tr>
+        <tr>
+          <th scope="row"><a href="/eip155:1/erc721:0xc2c58160723eb857335d22d38c738e4ffcdac1e1/325">MekawaiiNFT</a></th>
+          <td class="num">333</td>
+          <td class="why"><span class="dim">no provider</span></td>
+          <td><code title="ipfs://bafybeihyvpeb5vqlzpstz3fmjyls2zvrbljj2vivkdy2lqeopcbzptpqg4/325">ipfs://bafybeihyvpeb5vqlzpstz3fmjyls2zvrbljj2vivk…</code></td>
+          <td class="dim gateways" title="ipfs.io: 504, dweb.link: 504, w3s.link: 504, nftstorage.link: 504, gateway.pinata.cloud: 429">ipfs 504 · dweb 504 · w3s 504 · nftstorage 504 · pinata 429</td>
+        </tr>
+        <tr>
+          <th scope="row"><a href="/eip155:1/erc721:0xf8e319164d03dd57dc137ad42c6bbc71d4ea7e4c/43">Yeah Tigers Eth</a></th>
+          <td class="num">245</td>
+          <td class="why"><span class="dim">no provider</span></td>
+          <td><code title="https://bafybeia737e3bpzusnxxn36alotv2fwviezjm44e5rx4fnuvmpfgcfh3ha.ipfs.nftstorage.link/43.json">https://bafybeia737e3bpzusnxxn36alotv2fwviezjm44e…</code></td>
+          <td class="dim gateways" title="ipfs.io: 504, dweb.link: 504, w3s.link: timeout, nftstorage.link: timeout, gateway.pinata.cloud: 429">ipfs 504 · dweb 504 · w3s t/o · nftstorage t/o · pinata 429</td>
+        </tr>
+        <tr>
+          <th scope="row"><a href="/eip155:1/erc721:0x5c21c8f0b9d9497f0e2f2618cda046959285a335/45">SanadaWarriors</a></th>
+          <td class="num">60</td>
+          <td class="why"><span class="dim">no provider</span></td>
+          <td><code title="ipfs://bafybeibbhvlql5zprzsdnn5kkobarzdp3abv4iccweb7y26qtikepbcpwe/45">ipfs://bafybeibbhvlql5zprzsdnn5kkobarzdp3abv4iccw…</code></td>
+          <td class="dim gateways" title="ipfs.io: 504, dweb.link: 504, w3s.link: 504, nftstorage.link: 504, gateway.pinata.cloud: 429">ipfs 504 · dweb 504 · w3s 504 · nftstorage 504 · pinata 429</td>
+        </tr>
+        <tr>
+          <th scope="row"><a href="/eip155:1/erc721:0xa8de7dc61850bcad4d52e18abfc50730c78ee056/16">Soma Kid Pet</a></th>
+          <td class="num">39</td>
+          <td class="why"><span class="dim">no provider</span></td>
+          <td><code title="https://bafybeib4z6acruandwczxb3ovxhiyn5kuxffayg5mzcu4d4sv4fv3e5xwi.ipfs.nftstorage.link/json_freedom_nfts/invitemetadata">https://bafybeib4z6acruandwczxb3ovxhiyn5kuxffayg5…</code></td>
+          <td class="dim gateways" title="ipfs.io: 504, dweb.link: 504, w3s.link: timeout, nftstorage.link: timeout, gateway.pinata.cloud: 429">ipfs 504 · dweb 504 · w3s t/o · nftstorage t/o · pinata 429</td>
+        </tr>
+        <tr>
+          <th scope="row"><a href="/eip155:1/erc721:0xb86c58b28214e0fc844ec6368a6a5cc4e09ae33b/5">Swamp Gators NFT</a></th>
+          <td class="num">27</td>
+          <td class="why"><span class="dim">no provider</span></td>
+          <td><code title="ipfs://QmV8ookdT7z935zD7QsWGGMu2dkGQLqQE9mPUGS9o4ikWN5.json">ipfs://QmV8ookdT7z935zD7QsWGGMu2dkGQLqQE9mPUGS9o4…</code></td>
+          <td class="dim gateways" title="ipfs.io: 500, dweb.link: 500, w3s.link: 500, nftstorage.link: 500, gateway.pinata.cloud: 429">ipfs 500 · dweb 500 · w3s 500 · nftstorage 500 · pinata 429</td>
+        </tr>
+        <tr>
+          <th scope="row"><a href="/eip155:1/erc721:0x41e29802c132d7335b62c24f4fde947c93891da1/2">CLASSOIDS</a></th>
+          <td class="num">20</td>
+          <td class="why"><span class="dim">no provider</span></td>
+          <td><code title="https://gateway.pinata.cloud/ipfs/QmNrqCkSJbo9TgCUPQqHFXYbqMS1nGvSMqN9HeWjN5MCAB/2">https://gateway.pinata.cloud/ipfs/QmNrqCkSJbo9TgC…</code></td>
+          <td class="dim gateways" title="ipfs.io: 504, dweb.link: timeout, w3s.link: 504, nftstorage.link: timeout, gateway.pinata.cloud: 429">ipfs 504 · dweb t/o · w3s 504 · nftstorage t/o · pinata 429</td>
+        </tr>
+        <tr>
+          <th scope="row"><a href="/eip155:1/erc721:0x0c6ff643eec7319d4bc01100cebe9fa76c42f33c/1047">Soulbound</a></th>
+          <td class="num">&mdash;</td>
+          <td class="why"><span class="dim">no provider</span></td>
+          <td><code title="https://ipfs.io/ipfs/bafybeifydjf7hftbfy2sy3id4ujaes4hx5g5hyz5yndnzzy52uavqdy4ee/1047">https://ipfs.io/ipfs/bafybeifydjf7hftbfy2sy3id4uj…</code></td>
+          <td class="dim gateways" title="ipfs.io: 504, dweb.link: 504, w3s.link: timeout, nftstorage.link: timeout, gateway.pinata.cloud: 429">ipfs 504 · dweb 504 · w3s t/o · nftstorage t/o · pinata 429</td>
+        </tr>
+        <tr>
+          <th scope="row"><a href="/eip155:1/erc721:0x89feec86abfa0e15baaae299f36527212b3e95b3/7183">Buttfaced mfers</a></th>
+          <td class="num">&mdash;</td>
+          <td class="why"><span class="dim">no provider</span></td>
+          <td><code title="ipfs://bafybeiebyhxgvfr6t36mc4yeyvx5vtnqe26y5z5sjvvwaihb7y6ouh5qpi/7183.json">ipfs://bafybeiebyhxgvfr6t36mc4yeyvx5vtnqe26y5z5sj…</code></td>
+          <td class="dim gateways" title="ipfs.io: 504, dweb.link: 504, w3s.link: 504, nftstorage.link: 504, gateway.pinata.cloud: 429">ipfs 504 · dweb 504 · w3s 504 · nftstorage 504 · pinata 429</td>
+        </tr>
+        <tr>
+          <th scope="row"><a href="/eip155:1/erc721:0xcf1d42d48d3ecc2ba2e2e5c7d14464c0f31597fa/11">Yee Dino</a></th>
+          <td class="num">&mdash;</td>
+          <td class="why"><span class="dim">no provider</span></td>
+          <td><code title="ipfs://bafybeif2descqcwi6sbymkao4xqwb5nqznvbsuor2aemh4hkyts3anltea/11.json">ipfs://bafybeif2descqcwi6sbymkao4xqwb5nqznvbsuor2…</code></td>
+          <td class="dim gateways" title="ipfs.io: 504, dweb.link: 504, w3s.link: 504, nftstorage.link: 504, gateway.pinata.cloud: timeout">ipfs 504 · dweb 504 · w3s 504 · nftstorage 504 · pinata t/o</td>
+        </tr>
+        <tr>
+          <th scope="row"><a href="/eip155:1/erc721:0x9185a69970a150ec9d0dea6f18e62f40db9e94d2/357">Re-Based Ghouls by XWAVE</a></th>
+          <td class="num">&mdash;</td>
+          <td class="why"><span class="dim">no provider</span></td>
+          <td><code title="ipfs://bafybeiallrouy6ifauigbltp6iugnex7vg7uh4mvxnw7f2vgsibjznioxi/357.json">ipfs://bafybeiallrouy6ifauigbltp6iugnex7vg7uh4mvx…</code></td>
+          <td class="dim gateways" title="ipfs.io: 504, dweb.link: 504, w3s.link: 504, nftstorage.link: 504, gateway.pinata.cloud: 429">ipfs 504 · dweb 504 · w3s 504 · nftstorage 504 · pinata 429</td>
+        </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <section aria-labelledby="repro-h">
+                <h2 id="repro-h">Run it yourself, or widen it</h2>
+                <p>
+                    The tool is in the repository and takes the sample window as arguments. The
+                    default is the 2021&ndash;2022 window used here; a wider or more recent range
+                    is a matter of changing two numbers.
+                </p>
+                <pre><code>git clone https://github.com/wighawag/embed-art
+cd embed-art &amp;&amp; pnpm install
+ETHEREUM_NODE=https://your-node node tools/survey-unpinned.mjs
+node tools/render-unpinned.mjs</code></pre>
+                <ul>
+                    <li><a href="/data/unpinned-survey.json">the raw dataset</a>, including every gateway answer and the collections that <em>did</em> resolve</li>
+                    <li><a href="https://github.com/wighawag/embed-art/blob/main/tools/survey-unpinned.mjs">the survey tool</a></li>
+                    <li><a href="https://github.com/wighawag/embed-art/blob/main/tools/render-unpinned.mjs">the page generator</a>, so this page cannot drift from the data</li>
+                </ul>
+                <div class="note">
+                    <strong>Known limits of this sample.</strong> Ethereum mainnet only. Contracts
+                    are sampled from blocks, so a collection with no transfers in those blocks is
+                    invisible here, and popular collections are over-represented among the
+                    survivors. Only the <em>metadata</em> address is tested: a collection whose
+                    metadata resolves may still point at an image nobody keeps, so this is a lower
+                    bound on the problem, not an upper one.
+                </div>
+            </section>
+
+            <section aria-labelledby="fix-h">
+                <h2 id="fix-h">If your collection is on this list</h2>
+                <p>
+                    Pin the CID again. Any IPFS node can provide it, it does not have to be the
+                    original one, and nothing onchain needs to change: the hash in your
+                    <code>tokenURI</code> will match the moment somebody serves those bytes.
+                    If you still have the files, that is a few minutes of work and the art is
+                    back for everyone at once.
+                </p>
+            </section>
+        </main>
+
+        <footer>
+            <span>Surveyed 2026-08-23 &middot; 1,586 RPC calls</span>
+            <span>
+                <a href="/">embed.art</a> &middot;
+                <a href="https://github.com/wighawag/embed-art">source</a> &middot; AGPL-3.0
+            </span>
+        </footer>
+    </div>
+</body>
+
+</html>
