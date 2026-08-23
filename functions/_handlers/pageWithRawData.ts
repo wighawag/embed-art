@@ -4,6 +4,13 @@ import {
   CorsStatus,
   Metadata,
 } from "../_utils/metadata";
+import {
+  courtesyEnabled,
+  dataURIPayload,
+  markupKind,
+  markupToDataURI,
+} from "../_utils/clientCourtesy";
+import { jsString } from "../_utils/strings";
 import { gatewayPath } from "../_utils/url";
 
 function escapeHtml(s: string): string {
@@ -13,19 +20,6 @@ function escapeHtml(s: string): string {
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#039;");
-}
-
-/**
- * A JS string literal for a value that comes from a contract. `tokenURI` is
- * whatever the token's author wrote, so it may contain a backtick, a `${`, or
- * the characters `</script>`: pasted raw into this page, any of the three ends
- * the script and starts running the token's text as our code.
- */
-function jsString(s: string): string {
-  return JSON.stringify(s)
-    .replace(/</g, "\\u003C")
-    .replace(/\u2028/g, "\\u2028")
-    .replace(/\u2029/g, "\\u2029");
 }
 
 /**
@@ -488,6 +482,7 @@ export async function pageWithRawData(
           <div id="nft-error" class="error" style="display:none;"></div>
           <div id="global-error" class="error" style="display:none;"></div>
           <div id="cors-notice" class="notice" style="display:none;"></div>
+          <div id="standard-notice" class="notice" style="display:none;"></div>
 
           ${details}
         </div>
@@ -540,6 +535,30 @@ export async function pageWithRawData(
           el.innerHTML = html;
           el.style.display = 'block';
           hidePlaceholder();
+        };
+
+        // What the token got wrong, and what we did about it. Shown after the
+        // art rather than instead of it: the owner is not the one who wrote
+        // the contract, and the breach is a fact about the document, not a
+        // verdict on the picture.
+        const showBreaches = () => {
+          if (!breaches.length) return;
+          const el = document.getElementById('standard-notice');
+          if (!el) return;
+          const list = breaches.map((b) => '<li>' + b + '</li>').join('');
+          const url = location.pathname + (COURTESY ? '?strict' : location.pathname);
+          el.innerHTML =
+            "<strong>This token's metadata does not follow the ERC-721 standard.</strong>" +
+            "<ul>" + list + "</ul>" +
+            (COURTESY
+              ? "<p>Embed.Art rendered it anyway, as a courtesy, so the token has a " +
+                "card to unfurl. A compliant client is under no obligation to: " +
+                "<a href=\\"" + esc(location.pathname) + "?strict\\">open this page with " +
+                "<code>?strict</code></a> to see what one gets.</p>"
+              : "<p>Rendered strictly, so this is what a compliant client sees. " +
+                "<a href=\\"" + esc(location.pathname) + "\\">Drop <code>?strict</code></a> " +
+                "for the courtesy version.</p>");
+          el.style.display = 'block';
         };
 
         // The artwork could not be loaded in the browser, but the preview we
@@ -660,6 +679,36 @@ export async function pageWithRawData(
         const __name = (fn) => fn;
         const gatewayPath = ${gatewayPath.toString()};
 
+        // Injected from functions/_utils/clientCourtesy.ts, same reasoning:
+        // one implementation, tested there, running here and in the page the
+        // preview is screenshotted from.
+        const courtesyEnabled = ${courtesyEnabled.toString()};
+        const dataURIPayload = ${dataURIPayload.toString()};
+        const markupKind = ${markupKind.toString()};
+        const markupToDataURI = ${markupToDataURI.toString()};
+
+        // Repairs are extended to tokens whose metadata breaks the standard,
+        // and withdrawn by ?strict, so anyone judging a token can see exactly
+        // what a compliant client sees.
+        const COURTESY = courtesyEnabled(location.search);
+        const breaches = [];
+        const noteBreach = (text) => {
+          if (breaches.indexOf(text) === -1) breaches.push(text);
+        };
+
+        // Whatever a media field should have been. A value that IS markup gets
+        // wrapped so it can load at all; anything else is left exactly as the
+        // token wrote it.
+        const mediaSource = (value, field) => {
+          const kind = markupKind(value);
+          if (!kind) return value;
+          noteBreach(
+            "<code>" + esc(field) + "</code> contains " + kind.toUpperCase() +
+            " markup rather than a URI pointing at it"
+          );
+          return COURTESY ? markupToDataURI(value, kind) : value;
+        };
+
         // A CID is the token's claim; the gateway in front of it is not, so a
         // hardcoded https gateway URL is treated exactly like ipfs:// and read
         // back through this origin. If OUR gateway choice cannot produce the
@@ -746,10 +795,34 @@ export async function pageWithRawData(
           try {
             metadata = await metadataResponse.json();
           } catch (err) {
-            showError("<h2>The token's metadata is not valid JSON.</h2><p>" +
-              esc(err.message || err) + "</p>");
-            showServerPreview();
-            return;
+            // The compliant read failed. For a data: URI that usually means
+            // the payload was never percent-encoded, so the browser stopped at
+            // its first '#' and handed us a truncated document. Reading the
+            // URI as a STRING recovers every byte the contract returned.
+            const payload = dataURIPayload(tokenURI);
+            let recovered;
+            if (payload) {
+              try { recovered = JSON.parse(payload); } catch (again) { /* genuinely not JSON */ }
+            }
+            if (!recovered) {
+              showError("<h2>The token's metadata is not valid JSON.</h2><p>" +
+                esc(err.message || err) + "</p>");
+              showServerPreview();
+              return;
+            }
+            noteBreach(
+              "the <code>data:</code> URI is not percent-encoded, so a browser " +
+              "stops reading it at the first <code>#</code> and sees " +
+              "a fraction of the document"
+            );
+            if (!COURTESY) {
+              showError("<h2>The token's metadata is not valid JSON.</h2><p>" +
+                esc(err.message || err) + "</p>");
+              showBreaches();
+              showServerPreview();
+              return;
+            }
+            metadata = recovered;
           }
 
           if (metadata.name) {
@@ -786,6 +859,7 @@ export async function pageWithRawData(
 
           if (iframeURL) {
             const iframe = document.getElementById('nft-iframe');
+            iframeURL = mediaSource(iframeURL, 'animation_url');
             const localIframe = gatewayPath(iframeURL);
             // Art we serve from our own origin is framed WITHOUT
             // allow-same-origin, so it runs but cannot act as embed.art. Art
@@ -797,18 +871,21 @@ export async function pageWithRawData(
             hidePlaceholder();
           } else if (metadata.image) {
             const img = document.getElementById('nft-image');
-            const localImage = gatewayPath(metadata.image);
-            const fallback = original(metadata.image);
+            const imageSource = mediaSource(metadata.image, 'image');
+            const localImage = gatewayPath(imageSource);
+            const fallback = original(imageSource);
             if (localImage && fallback) {
               img.onerror = function () { img.onerror = null; img.src = fallback; };
             }
             keepPixelsSharp(img);
-            img.src = localImage || metadata.image;
+            img.src = localImage || imageSource;
             img.style.display='block';
             hidePlaceholder();
           } else {
             hidePlaceholder();
           }
+
+          showBreaches();
 
           if (audioURL) {
             const audio = document.getElementById('nft-audio');

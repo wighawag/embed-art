@@ -1,5 +1,24 @@
 import { Base64 } from "./base64";
 
+/**
+ * A JS string literal for a value that comes from a contract.
+ *
+ * `tokenURI` is whatever the token's author wrote, so it may contain a
+ * backtick, a `${`, or the characters `</script>`: pasted raw into a page, any
+ * of the three ends the script and starts running the token's text as our
+ * code. It may also contain the two characters `\` and `n`, which a template
+ * literal turns into a newline, which is how a perfectly good JSON document
+ * arrives in the browser with a raw control character inside a string and
+ * refuses to parse. Both hazards have the same fix: let JSON.stringify write
+ * the literal.
+ */
+export function jsString(s: string): string {
+  return JSON.stringify(s)
+    .replace(/</g, "\\u003C")
+    .replace(/\u2028/g, "\\u2028")
+    .replace(/\u2029/g, "\\u2029");
+}
+
 // from https://gist.github.com/jonleighton/958841
 export function base64ArrayBuffer(
   arrayBuffer: ArrayBuffer,

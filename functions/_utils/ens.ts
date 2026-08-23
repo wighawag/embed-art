@@ -19,7 +19,7 @@
 import { Interface } from "@ethersproject/abi";
 import { namehash } from "@ethersproject/hash";
 import { TokenStandard } from "./metadata";
-import { ethCall, getEndpoint } from "./rpc";
+import { ethCall, getEndpoints } from "./rpc";
 
 export const ENS_REGISTRY = "0x00000000000C2E074eC69A0dFb2997BA6C7d2e1e";
 const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
@@ -120,7 +120,7 @@ function nodeOf(name: string): string {
 // owner() distinguishes "nobody has ever registered this" from "registered
 // but never configured", which are very different things to tell a visitor.
 async function lookupOwner(
-  endpoint: string,
+  endpoint: string[],
   node: string
 ): Promise<string | null> {
   try {
@@ -140,7 +140,7 @@ async function lookupOwner(
 }
 
 async function lookupResolver(
-  endpoint: string,
+  endpoint: string[],
   node: string
 ): Promise<string | null> {
   const resolverResult = await ethCall(
@@ -156,7 +156,7 @@ async function lookupResolver(
 }
 
 async function lookupAddress(
-  endpoint: string,
+  endpoint: string[],
   resolver: string,
   node: string
 ): Promise<string | null> {
@@ -180,7 +180,7 @@ async function resolveUncached(
   env: any,
   name: string
 ): Promise<EnsResolution> {
-  const endpoint = getEndpoint(env, "1");
+  const endpoint = getEndpoints(env, "1");
   const node = nodeOf(name);
 
   const owner = await lookupOwner(endpoint, node);
@@ -252,7 +252,7 @@ export async function resolveEnsAddress(
   env: any,
   name: string
 ): Promise<EnsAddress> {
-  const endpoint = getEndpoint(env, "1");
+  const endpoint = getEndpoints(env, "1");
   const node = nodeOf(name);
 
   const owner = await lookupOwner(endpoint, node);

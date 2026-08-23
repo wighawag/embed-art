@@ -2,7 +2,7 @@ import { Interface } from "@ethersproject/abi";
 import { BigNumber } from "@ethersproject/bignumber";
 import { Base64 } from "./base64";
 import { fetchFirstAvailable } from "./request";
-import { getEndpoint } from "./rpc";
+import { ethCall, getEndpoints } from "./rpc";
 import { candidateURIs, GATEWAYS, gatewayPath } from "./url";
 
 export type TokenStandard = "erc721" | "erc1155";
@@ -154,7 +154,10 @@ export async function fetchBlockchainData(
   tokenID: string,
   standard: TokenStandard = "erc721"
 ): Promise<BlockchainData> {
-  const endpoint = getEndpoint(env, chainId);
+  const endpoints = getEndpoints(env, chainId);
+  // Block reads are cheap and every node answers them; only the tokenURI call
+  // is worth trying across the list.
+  const endpoint = endpoints[0];
   // ERC-721 exposes tokenURI(uint256); ERC-1155 exposes uri(uint256).
   const uriMethod = standard === "erc1155" ? "uri" : "tokenURI";
 
@@ -286,40 +289,14 @@ export async function fetchBlockchainData(
     throw new Error(`failed to encode eth_call: ${err.message}\n${err.stack}`);
   }
 
-  let json;
-  try {
-    const response = await fetch(endpoint, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        id: 1,
-        jsonrpc: "2.0",
-        method: "eth_call",
-        params: [{ to: contract, data }, rawBlockNumber],
-      }),
-    });
-    json = await response.json();
-  } catch (err) {
-    throw new Error(
-      `failed to eth_call (${block.hash}): ${err.message}\n${err.stack}`
-    );
-  }
-
-  if (json.error || !json.result) {
-    throw new Error(
-      `eth_call failed (${block.hash}):  \n` +
-        (json.error
-          ? JSON.stringify(json.error, null, 2)
-          : `no result for ${contract}/}${tokenID}}`)
-    );
-  }
+  // Across every configured endpoint: a renderer that builds its document in
+  // memory can cost more gas than one node will spend on a read while another
+  // returns it, and that difference is a fact about the nodes, not the token.
+  const result = await ethCall(endpoints, contract, data, rawBlockNumber);
 
   let tokenURI;
   try {
-    tokenURI = tokenURIInterface.decodeFunctionResult(
-      uriMethod,
-      json.result
-    )[0];
+    tokenURI = tokenURIInterface.decodeFunctionResult(uriMethod, result)[0];
   } catch (err) {
     throw new Error(
       `failed to decode eth_call result for ${contract}/${tokenID}\n${err.message}\n${err.stack}`

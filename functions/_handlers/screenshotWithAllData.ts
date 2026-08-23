@@ -1,3 +1,10 @@
+import {
+  dataURIPayload,
+  markupKind,
+  markupToDataURI,
+} from "../_utils/clientCourtesy";
+import { jsString } from "../_utils/strings";
+
 export function screenshotHTML(
   tokenURI?: string,
   capture?: boolean
@@ -147,13 +154,35 @@ export function screenshotHTML(
           </script>`
       }
       <script>
+        // Written by JSON.stringify, never pasted between backticks: a token's
+        // own text is not our source code. A template literal would also read
+        // an escape sequence inside the document (a backslash before an n, as
+        // JSON writes a newline) as a real newline, which is enough to make
+        // valid JSON unparseable by the time it arrives here.
         const tokenURI = ${
-          tokenURI ? "`" + tokenURI + "`" : `atobUTF8(location.hash.slice(1))`
+          tokenURI ? jsString(tokenURI) : `atobUTF8(location.hash.slice(1))`
         };
         const regex = /\\//gm;
         const cssURLEscaped = (uri) => {
           return uri.replace(regex, "\\/");
         };
+        // The same courtesies the token page extends, because this page IS
+        // the preview: whatever renders here is what unfurls on a timeline.
+        // See functions/_utils/clientCourtesy.ts for why each one exists.
+        const __name = (fn) => fn;
+        const dataURIPayload = ${dataURIPayload.toString()};
+        const markupKind = ${markupKind.toString()};
+        const markupToDataURI = ${markupToDataURI.toString()};
+        const mediaSource = (value) => {
+          const kind = markupKind(value);
+          return kind ? markupToDataURI(value, kind) : value;
+        };
+
+        // #ready is the shutter: the renderer screenshots the moment it
+        // appears. So it must not appear until the art has actually painted.
+        // It used to be created 200ms after the SOURCE WAS ASSIGNED, which is
+        // a race the art loses as soon as it is big: a 13KB inline SVG or a
+        // 1MB html animation both photographed as a black rectangle.
         const signalReady = () => {
           let ready = document.getElementById('ready');
           if (!ready) {
@@ -167,13 +196,28 @@ export function screenshotHTML(
             }, 200);
           }
         }
+
+        // Whatever happens, produce a card. Waiting for a load event that
+        // never arrives would burn the renderer's whole 30s budget and return
+        // nothing at all, which is worse than an imperfect picture.
+        setTimeout(signalReady, 12000);
         async function fetchImage(tokenURI) {
           let metadataURLToFetch = tokenURI;
           if (metadataURLToFetch.startsWith('ipfs://')) {
             metadataURLToFetch = 'https://ipfs.io/ipfs/' + tokenURI.slice(7);
           }
-          const metadataResponse = await fetch(metadataURLToFetch);
-          const metadata = await metadataResponse.json();
+          let metadata;
+          try {
+            const metadataResponse = await fetch(metadataURLToFetch);
+            metadata = await metadataResponse.json();
+          } catch (err) {
+            // A data: URI that was never percent-encoded loses everything past
+            // its first '#' when fetched as a URL. Read it as a string instead
+            // rather than let the render die on a card nobody can fix.
+            const payload = dataURIPayload(tokenURI);
+            if (!payload) throw err;
+            metadata = JSON.parse(payload);
+          }
                 
           let iframeURL;
           if (
@@ -189,22 +233,34 @@ export function screenshotHTML(
             img.style.display = 'none';
 
             const iframe = document.getElementById('nft-iframe');
-            iframe.src=iframeURL;
+            // An html artwork is a program: loaded is not the same as drawn,
+            // so give it a moment to run before the shutter opens.
+            iframe.addEventListener('load', () => setTimeout(signalReady, 1500), { once: true });
+            iframe.addEventListener('error', signalReady, { once: true });
+            iframe.src = mediaSource(iframeURL);
             iframe.style.display='block';
-            signalReady();
           } else if (metadata.image) {
-            let cssImage = metadata.image;
-            if (cssImage.startsWith('ipfs://')) {
-              cssImage = 'https://ipfs.io/ipfs/'  + cssImage.slice(7);
-            } else if (cssImage.startsWith('data:')) {
-              cssImage = cssURLEscaped(cssImage);
+            let source = mediaSource(metadata.image);
+            if (source.startsWith('ipfs://')) {
+              source = 'https://ipfs.io/ipfs/'  + source.slice(7);
             }
             const elem = document.getElementById('img');
-            elem.style.backgroundImage = 'url("' + cssImage + '")';
+            // Decoded through an Image first: its load event is the only
+            // honest signal that a background-image has something to draw.
+            const probe = new Image();
+            probe.addEventListener('load', signalReady, { once: true });
+            probe.addEventListener('error', signalReady, { once: true });
+            probe.src = source;
+            elem.style.backgroundImage =
+              'url("' + (source.startsWith('data:') ? cssURLEscaped(source) : source) + '")';
+          } else {
             signalReady();
           }
         }
-        fetchImage(tokenURI);
+        // Without this the renderer waits the full 30s for a #ready that a
+        // thrown promise will never create, and a broken token costs half a
+        // minute to report as "preview generation failed".
+        fetchImage(tokenURI).catch(() => signalReady());
       </script>
       ${capture ? captureInjection : ""}
     </body>

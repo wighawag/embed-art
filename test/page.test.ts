@@ -6,6 +6,7 @@
  */
 import { errorPage } from "../functions/_handlers/errorPage";
 import { pageWithRawData } from "../functions/_handlers/pageWithRawData";
+import { screenshotHTML } from "../functions/_handlers/screenshotWithAllData";
 import { CorsStatus } from "../functions/_utils/metadata";
 import { eq, report, section } from "./assert";
 
@@ -70,7 +71,7 @@ async function main() {
     script.includes("https://ipfs.io/"),
     false
   );
-  eq("the image is mapped too", script.includes("gatewayPath(metadata.image)"), true);
+  eq("the image is mapped too", script.includes("gatewayPath(imageSource)"), true);
   eq(
     "html art we host is framed without our origin",
     script.includes("iframe.sandbox = 'allow-scripts'"),
@@ -103,13 +104,58 @@ async function main() {
   const end = script.indexOf("async function fetchImage");
   const injected = script.slice(start, end);
   eq("the bundler's keep-names helper is shimmed", start !== -1, true);
+  // The injected block reads location.search to decide whether the courtesy
+  // layer is on, so give it the one global it expects and nothing else.
+  const inScope = (expression: string, search = "") =>
+    new Function("location", "esc", injected + "; return " + expression + ";")(
+      { search, pathname: "/t" },
+      (s: string) => s
+    );
+
   eq(
     "the injected copy actually runs",
-    new Function(injected + "; return gatewayPath;")()("ipfs://QmAbc/1"),
+    inScope("gatewayPath")("ipfs://QmAbc/1"),
     "/ipfs/QmAbc/1"
   );
 
-  const injectedOriginal = new Function(injected + "; return original;")();
+  section("courtesies for metadata that breaks the standard");
+
+  // A data: URI that was never percent-encoded: a browser stops at the '#'.
+  const brokenURI = 'data:text/plain,{"image":"<svg fill=\'#eee\'></svg>"}';
+  eq(
+    "a malformed data: URI is read from the string, not fetched",
+    inScope("dataURIPayload")(brokenURI),
+    '{"image":"<svg fill=\'#eee\'></svg>"}'
+  );
+  eq("markup in an image field is recognised", inScope("markupKind")("<svg></svg>"), "svg");
+  eq("a URI is not markup", inScope("markupKind")("ipfs://QmAbc"), null);
+  eq(
+    "markup is wrapped so it can load",
+    inScope("mediaSource")("<svg/>", "image"),
+    "data:image/svg+xml;charset=utf-8,%3Csvg%2F%3E"
+  );
+  // ?strict withdraws every repair, which is the point of having one switch.
+  eq(
+    "strict mode leaves the breach exactly as written",
+    inScope("mediaSource", "?strict")("<svg/>", "image"),
+    "<svg/>"
+  );
+  eq("courtesy is the default", inScope("COURTESY"), true);
+  eq("?strict turns it off", inScope("COURTESY", "?strict"), false);
+  eq("?strict=1 too", inScope("COURTESY", "?strict=1"), false);
+  eq(
+    "a repair is recorded rather than performed silently",
+    inScope("(() => { mediaSource('<svg/>', 'image'); return breaches.length; })()"),
+    1
+  );
+  eq("the page explains it and offers the strict view", script.includes("?strict"), true);
+  eq(
+    "and names the standard it is measured against",
+    script.includes("does not follow the ERC-721 standard"),
+    true
+  );
+
+  const injectedOriginal = inScope("original");
   eq(
     "a hardcoded gateway is its own last-resort fallback",
     injectedOriginal("https://ipfs.io/ipfs/QmeSjSinHpPnmXmspMjwiXyN6zS4E9zccariGR3jxcaWtq"),
@@ -262,6 +308,47 @@ async function main() {
   eq("direct token page still gets a canonical", directHtml.includes(`<link rel="canonical" href="${CANON}">`), true);
   eq("direct page does not mention ENS", directHtml.includes("ENS avatar"), false);
   eq("direct token page is cacheable", direct.headers.get("cache-control"), null);
+
+  section("the screenshot page (which IS the preview)");
+
+  // Everything the token wrote arrives inside our script tag, so the script
+  // has to survive whatever it contains. This URI carries the three hazards:
+  // an escape sequence JSON needs kept, a backtick, and a closing script tag.
+  const nastyURI =
+    'data:text/plain,{"description":"line one\\nline two","image":"<svg/>`</script>"}';
+  const shot = screenshotHTML(nastyURI);
+  const shotScript = lastScript(shot);
+
+  let shotParses = true;
+  try {
+    // eslint-disable-next-line no-new-func
+    new Function(shotScript);
+  } catch {
+    shotParses = false;
+  }
+  eq("the screenshot script survives a hostile tokenURI", shotParses, true);
+  eq(
+    "the URI is a JSON string literal, not a template literal",
+    shotScript.includes('const tokenURI = "data:text/plain,'),
+    true
+  );
+  eq(
+    "an escape sequence survives the trip",
+    shotScript.includes("line one\\\\nline two"),
+    true
+  );
+  eq("a closing script tag cannot end our script", shot.includes("<\/script>\"}"), false);
+
+  // The shutter must not open before the art is drawn: #ready is what the
+  // renderer waits for, and a blank card is what an early one produces.
+  eq("an image is awaited", shotScript.includes("probe.addEventListener('load', signalReady"), true);
+  eq("an animation is awaited", shotScript.includes("iframe.addEventListener('load'"), true);
+  eq("with a cap so a card is always produced", shotScript.includes("setTimeout(signalReady, 12000)"), true);
+  eq(
+    "and the courtesy layer runs here too",
+    shotScript.includes("const markupToDataURI ="),
+    true
+  );
 
   section("error pages");
 

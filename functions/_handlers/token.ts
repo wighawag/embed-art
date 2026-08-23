@@ -220,7 +220,17 @@ export async function tokenPage(
   try {
     data = await getData(env, chainId, contract, tokenID, standard);
   } catch (err: any) {
-    return errorPage("blockchain", err, ctx);
+    // A node refusing for want of gas is not a token that cannot be read; it
+    // is a read this node will not pay for. Say which, because the two have
+    // completely different fixes.
+    return errorPage("blockchain", err, {
+      ...ctx,
+      message: err?.gasCapped
+        ? "This token builds its metadata onchain, and doing so costs more gas " +
+          "than the node we asked will spend on a read call. Nothing is wrong " +
+          "with the token: it needs an RPC endpoint with a higher gas cap."
+        : undefined,
+    });
   }
 
   // ------------------------------------------------------------------

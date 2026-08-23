@@ -218,6 +218,46 @@ is cleared the moment the headers arrive, so a large image still streams for as
 long as it needs. A CID nobody pins is now reported as gone in 25 seconds
 rather than eventually.
 
+### Metadata that does not follow the standard
+
+The page fetches and renders the way a browser does, deliberately, so what you
+see comes from the token rather than from a copy we made. Some tokens cannot
+survive that, not because the art is gone but because the document describing
+it breaks the rules it claims to follow. Two real cases:
+
+- **`the_coin` #36** returns `data:text/plain,` followed by JSON that was never
+  percent-encoded. RFC 2397 requires it, and the payload contains `fill='#eee'`,
+  so a browser treats everything from that `#` as a fragment and receives 791
+  of 14,137 bytes. Its `image` is also the SVG document itself rather than a
+  URI to one, which the ERC-721 schema defines as *"a URI pointing to a
+  resource with mime type image/\*"*.
+
+Neither is the owner's mistake to suffer, so the page repairs both as a
+**courtesy**: a `data:` URI that fails the compliant read is parsed from the
+string instead of fetched, and markup in a media field is wrapped into a data
+URI so it can load at all. The token then renders, and gets a card to unfurl.
+
+Every repair is named on the page, and **`?strict` withdraws all of them**, so
+anyone judging a token can see exactly what a compliant client sees. That is
+how both cases above were diagnosed.
+
+The repairs live in `functions/_utils/clientCourtesy.ts` and are injected into
+**both** page templates, because the preview is not rendered by the server: it
+is this page, screenshotted. A repair that lived server-side would produce a
+card the visitor's own browser could not reproduce.
+
+### When reading the token costs more gas than a node will spend
+
+`ETHEREUM_NODE` accepts a **comma-separated list**, tried in order. One node is
+enough until a token is expensive to read: nodes cap the gas an `eth_call` may
+burn, the caps differ, and a heavy onchain renderer lands on the wrong side of
+one. Non-Fungible Moons builds a 1.36MB document in memory, which exhausts a
+550,000,000 gas cap and returns fine from a node with a higher one.
+
+When every node refuses, the reason is reported rather than buried: a gas cap
+is recognised as such and the page says the token is fine and the *read* is
+what was refused, naming the host that refused it.
+
 ### When the metadata server blocks the browser
 
 The token page fetches the metadata **client-side**, deliberately, so what you
@@ -297,7 +337,8 @@ embed-art/
 │   │   └── screenshotWithAllData.ts # Screenshot page HTML generator
 │   └── _utils/
 │       ├── ens.ts             # namehash + registry/resolver reads, record parsing
-│       ├── rpc.ts             # eth_call helper + endpoint selection
+│       ├── clientCourtesy.ts  # repairs for non-standard metadata, injected into both pages
+│       ├── rpc.ts             # eth_call across endpoints + gas-cap detection
 │       ├── base64.ts, metadata.ts, strings.ts, url.ts, request.ts
 ├── public/                   # Static assets (served by Workers Static Assets)
 │   ├── index.html            # Landing page
@@ -330,8 +371,8 @@ The KV namespace ID and R2 bucket name are already filled in.
 
 | Variable | Purpose |
 |----------|---------|
-| `ETHEREUM_NODE` | Default Ethereum JSON-RPC endpoint (used for chainId 1) |
-| `ETHEREUM_NODE_<chainID>` | Per-chain RPC endpoint, e.g. `ETHEREUM_NODE_5` for Goerli |
+| `ETHEREUM_NODE` | Default Ethereum JSON-RPC endpoint (used for chainId 1). Accepts a comma-separated list, tried in order, which is how a token too expensive for one node's gas cap still renders |
+| `ETHEREUM_NODE_<chainID>` | Per-chain RPC endpoint, e.g. `ETHEREUM_NODE_5` for Goerli. Same list syntax |
 
 Set these in the Cloudflare dashboard (Settings → Environment variables) or
 locally via a `.dev.vars` file (gitignored).

@@ -5,6 +5,12 @@
  */
 import { outboundHeaders, upstreamsFor } from "../functions/_handlers/gateway";
 import { fetchFirstAvailable } from "../functions/_utils/request";
+import {
+  ethCall,
+  getEndpoints,
+  isGasCapError,
+  RpcError,
+} from "../functions/_utils/rpc";
 import { audioSource } from "../functions/_handlers/media";
 import { candidateURIs, gatewayPath, gatewayURI } from "../functions/_utils/url";
 import { isEnsName, normalizeEnsName, parseAvatarRecord } from "../functions/_utils/ens";
@@ -259,6 +265,90 @@ eq("backslash", upstreamsFor("ipfs", "Qm\\evil"), null);
 eq("query string", upstreamsFor("ipfs", "QmAbc?x=1"), null);
 eq("fragment", upstreamsFor("ipfs", "QmAbc#x"), null);
 eq("whitespace", upstreamsFor("ipfs", "Qm Abc"), null);
+
+section("getEndpoints / isGasCapError");
+eq("a single node", getEndpoints({ ETHEREUM_NODE: "https://a" }, "1"), ["https://a"]);
+eq(
+  "a comma-separated list, in order",
+  getEndpoints({ ETHEREUM_NODE: "https://a, https://b ,https://c" }, "1"),
+  ["https://a", "https://b", "https://c"]
+);
+eq(
+  "per-chain overrides the default",
+  getEndpoints({ ETHEREUM_NODE: "https://a", ETHEREUM_NODE_137: "https://p" }, "137"),
+  ["https://p"]
+);
+eq("trailing commas ignored", getEndpoints({ ETHEREUM_NODE: "https://a,," }, "1"), ["https://a"]);
+let threw = false;
+try { getEndpoints({}, "1"); } catch { threw = true; }
+eq("no node configured is an error", threw, true);
+
+// The Non-Fungible Moons case: a node capping the gas an eth_call may burn.
+eq(
+  "the wording geth uses",
+  isGasCapError("out of gas: gas exhausted during memory expansion: 550000000"),
+  true
+);
+eq("and the other common wording", isGasCapError("gas required exceeds allowance"), true);
+eq("a revert is not a gas cap", isGasCapError("execution reverted"), false);
+eq("nor is a dead node", isGasCapError("fetch failed"), false);
+
+section("ethCall across several nodes");
+
+async function rpcChecks() {
+  const realFetch = globalThis.fetch;
+  const plan: Record<string, any> = {};
+  const asked: string[] = [];
+  globalThis.fetch = (async (url: string) => {
+    asked.push(String(url));
+    const answer = plan[String(url)];
+    if (answer === "down") throw new Error("connection refused");
+    return { json: async () => answer } as any;
+  }) as any;
+
+  try {
+    plan["https://a"] = { result: "0xabc" };
+    plan["https://b"] = { result: "0xdef" };
+    eq("the first node that answers wins", await ethCall(["https://a", "https://b"], "0x1", "0x2"), "0xabc");
+    eq("and the rest are not asked", asked, ["https://a"]);
+
+    // The point of the list: one node's gas cap is not the token's problem.
+    asked.length = 0;
+    plan["https://a"] = {
+      error: { code: -32003, message: "out of gas: gas exhausted during memory expansion: 550000000" },
+    };
+    eq("a refusal moves to the next node", await ethCall(["https://a", "https://b"], "0x1", "0x2"), "0xdef");
+    eq("both were asked", asked, ["https://a", "https://b"]);
+
+    asked.length = 0;
+    plan["https://b"] = "down";
+    let error: any;
+    try {
+      await ethCall(["https://a", "https://b"], "0x1", "0x2");
+    } catch (err) {
+      error = err;
+    }
+    eq("every node refusing is an error", error instanceof RpcError, true);
+    eq("which knows it was about gas", error.gasCapped, true);
+    eq("and says what each node said", error.message.includes("out of gas"), true);
+    eq("including the one that was simply down", error.message.includes("connection refused"), true);
+    // Hosts, not URLs: an endpoint usually carries an API key.
+    eq("without leaking the endpoint", error.message.includes("https://a"), false);
+
+    plan["https://a"] = { error: { message: "execution reverted" } };
+    plan["https://b"] = { error: { message: "execution reverted" } };
+    try {
+      await ethCall(["https://a", "https://b"], "0x1", "0x2");
+    } catch (err: any) {
+      error = err;
+    }
+    eq("a revert everywhere is not blamed on gas", error.gasCapped, false);
+  } finally {
+    globalThis.fetch = realFetch;
+  }
+}
+
+await rpcChecks();
 
 section("fetchFirstAvailable (a CID that nobody pins any more)");
 
