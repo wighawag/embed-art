@@ -163,9 +163,19 @@ export async function pageWithRawData(
         .canonical a { color: #BE8F04; word-break: break-all; }
         .canonical .label { display: block; opacity: 0.75; }
 
+        /* A block-level iframe is not centred by the wrapper's text-align, so
+           it needs its own auto margins. The box is SQUARE and bounded by the
+           short side of the viewport: token art is overwhelmingly square, and
+           a frame of some other shape shows the artwork's own page background
+           in the leftover band (Checks paints its body #EFEFEF, which arrived
+           as a grey slab under the art on narrow screens). */
         #nft-iframe {
-          min-width: 80vw;
-          min-height: 80vh;
+          display: block;
+          margin: 0 auto;
+          width: min(90vw, 80vh);
+          height: min(90vw, 80vh);
+          border: 1px solid #2A2620;
+          background-color: #111111;
         }
 
       </style>
@@ -195,7 +205,7 @@ export async function pageWithRawData(
             <iframe class="main" style="display:none;" id="nft-iframe"></iframe>
           </p>
           <p>
-            <img class="main" style="display=none;" id="nft-image"/>
+            <img class="main" style="display:none;" id="nft-image"/>
           </p>
           <p><audio id="nft-audio" controls autoplay loop style="display:none;"></audio></p>
       </div>
