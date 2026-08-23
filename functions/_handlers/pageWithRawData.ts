@@ -11,6 +11,13 @@ import {
   markupToDataURI,
 } from "../_utils/clientCourtesy";
 import { jsString } from "../_utils/strings";
+import {
+  backdropStats,
+  backgroundColorOf,
+  hidesDarkStrokes,
+  requestedBackdrop,
+  sampleArt,
+} from "../_utils/artBackdrop";
 import { gatewayPath } from "../_utils/url";
 
 function escapeHtml(s: string): string {
@@ -428,6 +435,17 @@ export async function pageWithRawData(
         .error p { margin: 0 0 0.6rem; }
         .error code { word-break: break-all; }
 
+        /* A remark about how the art is being displayed, not about the token:
+           quieter than a notice, and directly under the frame it concerns. */
+        .art-hint {
+          max-width: 42rem;
+          margin: 0.8rem auto 0;
+          color: var(--muted);
+          font-size: 0.78rem;
+          line-height: 1.5;
+        }
+        .art-hint code { color: var(--accent); }
+
         .notice {
           max-width: 42rem;
           margin: 1.5rem auto 0;
@@ -505,6 +523,7 @@ export async function pageWithRawData(
           <div id="global-error" class="error" style="display:none;"></div>
           <div id="cors-notice" class="notice" style="display:none;"></div>
           <div id="standard-notice" class="notice" style="display:none;"></div>
+          <p id="art-hint" class="art-hint" style="display:none;"></p>
 
           ${details}
         </div>
@@ -594,6 +613,28 @@ export async function pageWithRawData(
             if (img.naturalWidth && img.naturalWidth <= 256) {
               img.classList.add('pixelated');
             }
+          }, { once: true });
+        };
+
+        // Applied to the frame the art sits in; the page around it stays the
+        // page. When the token says nothing and part of the art turns out to
+        // be invisible against the plate, the page says so rather than
+        // quietly choosing a different colour on the artist's behalf.
+        const applyBackdrop = (img, metadata) => {
+          const declared = backgroundColorOf(metadata);
+          const asked = requestedBackdrop(location.search);
+          if (asked || declared) img.style.backgroundColor = asked || declared;
+          img.addEventListener('load', function () {
+            if (asked || declared) return;
+            if (!hidesDarkStrokes(sampleArt(img))) return;
+            const hint = document.getElementById('art-hint');
+            if (!hint) return;
+            hint.innerHTML =
+              'Part of this art is drawn in near-black on a transparent background, ' +
+              'and the token declares no <code>background_color</code>, so those ' +
+              'strokes are invisible against this one. ' +
+              '<a href="?bg=F5DEB3">Try a light backdrop</a>.';
+            hint.style.display = 'block';
           }, { once: true });
         };
 
@@ -704,6 +745,17 @@ export async function pageWithRawData(
         // Injected from functions/_utils/clientCourtesy.ts, same reasoning:
         // one implementation, tested there, running here and in the page the
         // preview is screenshotted from.
+        // What goes behind art that does not bring its own background: the
+        // token's own background_color if it declares one, this site's plate
+        // otherwise, and whatever ?bg= asks for above both. Never a guess.
+        // Injected from functions/_utils/artBackdrop.ts and shared with the
+        // screenshot page, so the card and this page cannot disagree.
+        const backdropStats = ${backdropStats.toString()};
+        const backgroundColorOf = ${backgroundColorOf.toString()};
+        const hidesDarkStrokes = ${hidesDarkStrokes.toString()};
+        const sampleArt = ${sampleArt.toString()};
+        const requestedBackdrop = ${requestedBackdrop.toString()};
+
         const courtesyEnabled = ${courtesyEnabled.toString()};
         const dataURIPayload = ${dataURIPayload.toString()};
         const markupKind = ${markupKind.toString()};
@@ -900,6 +952,7 @@ export async function pageWithRawData(
               img.onerror = function () { img.onerror = null; img.src = fallback; };
             }
             keepPixelsSharp(img);
+            applyBackdrop(img, metadata);
             img.src = localImage || imageSource;
             img.style.display='block';
             hidePlaceholder();

@@ -3,6 +3,7 @@ import {
   markupKind,
   markupToDataURI,
 } from "../_utils/clientCourtesy";
+import { backgroundColorOf } from "../_utils/artBackdrop";
 import { jsString } from "../_utils/strings";
 
 export function screenshotHTML(
@@ -113,14 +114,20 @@ export function screenshotHTML(
         <meta name="viewport" content="width=device-width,initial-scale=1" />
     <style>
       html {overflow: auto;}
+      /* The site's plate, not black: this card is the page in miniature, and
+         black is also a colour art draws WITH. #img stays transparent so the
+         plate (or whatever the art needs behind it) shows through. */
+      html, body {
+        background-color: #111111;
+      }
       html, body, div, iframe {
-        background-color: black;
        margin: 0px; 
        padding: 0px; 
        height: 100%; 
        width: 100%;
        border: none;
       }
+      #img { background-color: transparent; }
       iframe {
         position: absolute;
         top: 5vh;
@@ -176,6 +183,16 @@ export function screenshotHTML(
         const mediaSource = (value) => {
           const kind = markupKind(value);
           return kind ? markupToDataURI(value, kind) : value;
+        };
+
+        // The card obeys the token: background_color if it declares one, the
+        // site's plate otherwise. No sampling, no taste. See artBackdrop.ts.
+        const backgroundColorOf = ${backgroundColorOf.toString()};
+        const PLATE = '#111111';
+        const paintBackdrop = (metadata) => {
+          const declared = backgroundColorOf(metadata) || PLATE;
+          document.documentElement.style.backgroundColor = declared;
+          document.body.style.backgroundColor = declared;
         };
 
         // #ready is the shutter: the renderer screenshots the moment it
@@ -247,6 +264,7 @@ export function screenshotHTML(
             const elem = document.getElementById('img');
             // Decoded through an Image first: its load event is the only
             // honest signal that a background-image has something to draw.
+            paintBackdrop(metadata);
             const probe = new Image();
             probe.addEventListener('load', signalReady, { once: true });
             probe.addEventListener('error', signalReady, { once: true });

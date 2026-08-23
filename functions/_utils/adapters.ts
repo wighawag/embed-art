@@ -36,6 +36,14 @@ export type Adapter = {
   contract: string;
   /** why this collection cannot be served the ordinary way */
   reason: string;
+  /**
+   * Bump when what this adapter produces changes.
+   *
+   * What an adapter returns is cached like any other token document, so
+   * without this an edit here is invisible for as long as the cache lives:
+   * the fix ships, the pages keep the old document, and nothing says why.
+   */
+  version: number;
   read(env: any, tokenID: string): Promise<AdapterResult>;
 };
 
@@ -108,6 +116,7 @@ const cryptopunks: Adapter = {
   collection: "CryptoPunks",
   chainId: "1",
   contract: "0xb47e3cd837ddf8e4c57f05d70ab865de6e193bbb",
+  version: 2,
   reason:
     "CryptoPunks predates ERC-721: the contract has no tokenURI to call, so " +
     "there is no metadata document to read.",
@@ -140,10 +149,18 @@ const cryptopunks: Adapter = {
           "official renderer; the contract itself stores no metadata.",
         image: reencodeSvgDataURI(image),
         attributes: punkAttributes(attributes),
+        // Deliberately no background_color. Larva Labs' site shows each punk
+        // on a colour of its own (#638596 for punk 0, #95554f for 3862), but
+        // that lives in their page's HTML, not onchain, and the canonical
+        // punks.png is transparent. Copying it here would put a central
+        // server's styling into a document we present as read from the chain,
+        // which is the one thing an adapter must not do.
       },
       note:
         "CryptoPunks has no tokenURI, so this document was assembled by " +
-        "Embed.Art from the collection's own onchain renderer.",
+        "Embed.Art from the collection's own onchain renderer. A punk is " +
+        "transparent and outlined in black; the renderer says nothing about " +
+        "what belongs behind it, so neither do we.",
       source: {
         address: CRYPTOPUNKS_RENDERER,
         method: "punkImageSvg(uint16) + punkAttributes(uint16)",

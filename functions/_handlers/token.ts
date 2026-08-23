@@ -34,10 +34,13 @@ export async function getData(
   // The standard is part of the key: the same address can answer both
   // tokenURI() and uri(), and they need not agree. So is strictness, because
   // for a collection with an adapter the two answers differ, and the strict
-  // one must never be served from a courtesy cache or the reverse.
+  // one must never be served from a courtesy cache or the reverse. And so is
+  // the adapter's version: an adapter's output is a document we wrote, so
+  // changing what it writes has to invalidate what was written before.
+  const adapter = strict ? null : findAdapter(chainId, contract);
   const cacheID =
-    `${standard}:${chainId}:${contract}:${tokenID}${
-      strict ? ":strict" : ""
+    `${standard}:${chainId}:${contract}:${tokenID}${strict ? ":strict" : ""}${
+      adapter ? `:v${adapter.version}` : ""
     }`.toLowerCase();
   let data: BlockchainData;
   try {
@@ -154,7 +157,10 @@ export async function generatePreviewImage(
       waitForSelector: { selector: "#ready", timeout: 30000 },
       screenshotOptions: {
         type: "jpeg",
-        omitBackground: true,
+        // The page paints its own plate now, and picks a lighter one when the
+        // art would otherwise lose its black strokes. Omitting the background
+        // would throw that away and flatten to black in the JPEG.
+        omitBackground: false,
       },
     });
   } catch (err) {

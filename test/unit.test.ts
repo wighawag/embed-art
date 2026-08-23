@@ -9,6 +9,12 @@ import {
   punkAttributes,
   reencodeSvgDataURI,
 } from "../functions/_utils/adapters";
+import {
+  backdropStats,
+  backgroundColorOf,
+  hidesDarkStrokes,
+  requestedBackdrop,
+} from "../functions/_utils/artBackdrop";
 import { outboundHeaders, upstreamsFor } from "../functions/_handlers/gateway";
 import { fetchFirstAvailable } from "../functions/_utils/request";
 import {
@@ -272,6 +278,148 @@ eq("query string", upstreamsFor("ipfs", "QmAbc?x=1"), null);
 eq("fragment", upstreamsFor("ipfs", "QmAbc#x"), null);
 eq("whitespace", upstreamsFor("ipfs", "Qm Abc"), null);
 
+section("what to put behind the art");
+
+// The token decides. Everything else is a fallback, never an override.
+eq("a declared background", backgroundColorOf({ background_color: "638596" }), "#638596");
+eq("with a hash, as some write it", backgroundColorOf({ background_color: "#638596" }), "#638596");
+eq("shorthand", backgroundColorOf({ background_color: "fff" }), "#fff");
+eq("with alpha", backgroundColorOf({ background_color: "11223344" }), "#11223344");
+eq("a colour name is not the convention", backgroundColorOf({ background_color: "wheat" }), null);
+eq("nor an injection attempt", backgroundColorOf({ background_color: "red;} body{display:none" }), null);
+eq("nothing declared", backgroundColorOf({ image: "x" }), null);
+eq("no metadata at all", backgroundColorOf(null), null);
+
+// A viewer may ask for a backdrop; the same validation applies.
+eq("?bg is honoured", requestedBackdrop("?bg=F5DEB3"), "#F5DEB3");
+eq("with a hash escaped", requestedBackdrop("?bg=%23112233"), "#112233");
+eq("among other params", requestedBackdrop("?strict&bg=fff"), "#fff");
+eq("garbage ignored", requestedBackdrop("?bg=url(javascript:alert(1))"), null);
+eq("absent", requestedBackdrop("?strict"), null);
+
+// A 4x4 sample, written as rows of [r,g,b,a], so each case is readable.
+function sample(rows: number[][][]): number[] {
+  const flat: number[] = [];
+  for (const row of rows) for (const px of row) flat.push(...px);
+  return flat;
+}
+const CLEAR = [0, 0, 0, 0];
+const BLACK = [0, 0, 0, 255];
+const WHITE = [255, 255, 255, 255];
+const SKIN = [174, 139, 97, 255];
+const row = (...px: number[][]) => px;
+
+// A CryptoPunk: transparent around it, skin in the middle, black outline.
+const punk = backdropStats(
+  sample([
+    row(CLEAR, CLEAR, CLEAR, CLEAR),
+    row(CLEAR, BLACK, SKIN, CLEAR),
+    row(CLEAR, SKIN, SKIN, CLEAR),
+    row(CLEAR, CLEAR, CLEAR, CLEAR),
+  ]),
+  4
+);
+eq("a punk floats", punk.edgeOpaqueRatio, 0);
+eq("and draws in black", punk.darkShare > 0.02, true);
+// Which is worth SAYING, and never worth acting on: art drawn in black on
+// transparency may well have been drawn for a dark backdrop.
+eq("so the page can point it out", hidesDarkStrokes(punk), true);
+
+// Art that brings its own background never sees a backdrop at all, so it
+// keeps the plate and the card still looks like the site.
+const framed = backdropStats(
+  sample([
+    row(BLACK, BLACK, BLACK, BLACK),
+    row(BLACK, WHITE, WHITE, BLACK),
+    row(BLACK, WHITE, WHITE, BLACK),
+    row(BLACK, BLACK, BLACK, BLACK),
+  ]),
+  4
+);
+eq("its edges are opaque", framed.edgeOpaqueRatio, 1);
+eq("so there is nothing to point out", hidesDarkStrokes(framed), false);
+
+// Floating art with no dark strokes is perfectly visible on the plate.
+const bright = backdropStats(
+  sample([
+    row(CLEAR, CLEAR, CLEAR, CLEAR),
+    row(CLEAR, WHITE, WHITE, CLEAR),
+    row(CLEAR, WHITE, SKIN, CLEAR),
+    row(CLEAR, CLEAR, CLEAR, CLEAR),
+  ]),
+  4
+);
+eq("nothing near-black", bright.darkShare, 0);
+eq("nothing to point out either", hidesDarkStrokes(bright), false);
+
+eq("an empty sample says nothing", hidesDarkStrokes(backdropStats(sample([
+  row(CLEAR, CLEAR, CLEAR, CLEAR),
+  row(CLEAR, CLEAR, CLEAR, CLEAR),
+  row(CLEAR, CLEAR, CLEAR, CLEAR),
+  row(CLEAR, CLEAR, CLEAR, CLEAR),
+]), 4)), false);
+eq("and neither does a missing one", hidesDarkStrokes(null), false);
+
+// CryptoPunks: transparent art, black outline, and NO declared backdrop. The
+// per-punk colours on larvalabs.com are that site's HTML, not chain data, and
+// the canonical punks.png is transparent, so an adapter presenting a document
+// as read from the chain must not smuggle them in.
+async function punkAdapterChecks() {
+  // An ABI-encoded string, the way the renderer answers.
+  const encoded = (text: string) => {
+    const bytes = Buffer.from(text, "utf8");
+    const padded = Math.ceil(bytes.length / 32) * 32;
+    return (
+      "0x" +
+      (32).toString(16).padStart(64, "0") +
+      bytes.length.toString(16).padStart(64, "0") +
+      bytes.toString("hex").padEnd(padded * 2, "0")
+    );
+  };
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = (async (_url: string, init: any) => {
+    const data = JSON.parse(init.body).params[0].data as string;
+    const answer = data.startsWith("0x74beb047")
+      ? encoded('data:image/svg+xml;utf8,<svg><rect fill="#000000ff"/></svg>')
+      : encoded("Male 1, Mohawk Dark, Small Shades");
+    return { json: async () => ({ result: answer }) } as any;
+  }) as any;
+
+  try {
+    const adapter = findAdapter("1", "0xb47e3cd837ddf8e4c57f05d70ab865de6e193bbb")!;
+    const result = await adapter.read({ ETHEREUM_NODE: "https://node" }, "3862");
+    eq("names the punk", result.metadata.name, "CryptoPunk #3862");
+    eq(
+      "re-encodes the renderer's hand-built data URI",
+      result.metadata.image,
+      "data:image/svg+xml;charset=utf-8,%3Csvg%3E%3Crect%20fill%3D%22%23000000ff%22%2F%3E%3C%2Fsvg%3E"
+    );
+    eq("reads the attributes", result.metadata.attributes?.length, 3);
+    eq("first is the type", result.metadata.attributes?.[0], {
+      trait_type: "Type",
+      value: "Male 1",
+    });
+    // The colours larvalabs.com puts behind each punk are that page's HTML,
+    // not chain data, and the canonical punks.png is transparent. A document
+    // presented as read from the chain must not smuggle them in.
+    eq("invents no backdrop", "background_color" in result.metadata, false);
+    eq("and says where the art came from", result.source.address, "0x16f5a35647d6f03d5d3da7b35409d65ba03af3b2");
+    eq("and that we assembled it", result.note.includes("assembled by"), true);
+
+    let rejected = false;
+    try {
+      await adapter.read({ ETHEREUM_NODE: "https://node" }, "10000");
+    } catch {
+      rejected = true;
+    }
+    eq("there is no punk 10000", rejected, true);
+  } finally {
+    globalThis.fetch = realFetch;
+  }
+}
+
+await punkAdapterChecks();
+
 section("adapters (the whole list of exceptions)");
 
 // Every entry is an exception, so every entry has to justify itself and say
@@ -282,6 +430,9 @@ for (const adapter of ADAPTERS) {
   eq(`${adapter.collection}: chain is numeric`, /^[0-9]+$/.test(adapter.chainId), true);
   eq(`${adapter.collection}: says why it exists`, adapter.reason.length > 30, true);
   eq(`${adapter.collection}: is a function`, typeof adapter.read, "function");
+  // What an adapter writes is cached, so changing what it writes has to
+  // invalidate what it wrote before.
+  eq(`${adapter.collection}: is versioned`, Number.isInteger(adapter.version), true);
 }
 
 const PUNKS = "0xb47e3cd837ddf8e4c57f05d70ab865de6e193bbb";

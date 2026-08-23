@@ -116,6 +116,13 @@ export type Metadata = {
   animation_url?: string;
   external_url?: string;
   attributes?: Attribute[];
+  /**
+   * Six hex digits, no `#`, as the convention has it. The token saying what
+   * belongs behind it, which is the only authority on the question: a piece
+   * drawn for a dark backdrop and one drawn for a light one look identical
+   * from the outside, so we never guess.
+   */
+  background_color?: string;
   // TODO more
 };
 

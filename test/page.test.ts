@@ -378,7 +378,18 @@ async function main() {
 
   // The shutter must not open before the art is drawn: #ready is what the
   // renderer waits for, and a blank card is what an early one produces.
-  eq("an image is awaited", shotScript.includes("probe.addEventListener('load', signalReady"), true);
+  eq("an image is awaited", shotScript.includes("probe.addEventListener('load'"), true);
+  // Black is a colour art draws with, so it cannot also be the card.
+  eq("the card is the site's plate, not black", shot.includes("background-color: #111111"), true);
+  // The token decides what is behind it, or the plate does. Never a guess
+  // from the pixels: art drawn in black on transparency may have been drawn
+  // that way on purpose, and Mandalas were.
+  eq(
+    "the backdrop comes from the token",
+    shotScript.includes("backgroundColorOf(metadata) || PLATE"),
+    true
+  );
+  eq("nothing samples the art to decide", shotScript.includes("getImageData"), false);
   eq("an animation is awaited", shotScript.includes("iframe.addEventListener('load'"), true);
   eq("with a cap so a card is always produced", shotScript.includes("setTimeout(signalReady, 12000)"), true);
   eq(
