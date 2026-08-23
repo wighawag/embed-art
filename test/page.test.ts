@@ -75,6 +75,15 @@ async function main() {
     script.includes("iframe.sandbox = 'allow-scripts'"),
     true
   );
+  // A token that hardcodes a gateway named a CID, not a courier, so it is
+  // fetched through ours; but if ours cannot produce the bytes, the URL the
+  // token wrote down is still where they were last known to be.
+  eq(
+    "the token's own gateway is kept as a fallback",
+    script.includes("const fallbackURL = original(tokenURI)"),
+    true
+  );
+  eq("the image falls back too", script.includes("img.onerror"), true);
   // A non-2xx is not an exception, so it used to fall through to an unhandled
   // JSON parse and a blank page.
   eq("a non-2xx answer is reported", script.includes("!metadataResponse.ok"), true);
@@ -85,14 +94,28 @@ async function main() {
   );
   // The injected copy has to work on its own: it is evaluated in a page that
   // has none of this module's scope.
-  const start = script.indexOf("const gatewayPath = ");
+  // Sliced from the shim, not from the function: the page evaluates both, and
+  // evaluating only the function would quietly supply a scope the browser does
+  // not have. Under keep-names (how wrangler bundles, and how the test runner
+  // bundles for that reason) the injected source calls __name.
+  const start = script.indexOf("const __name = ");
   const end = script.indexOf("async function fetchImage");
   const injected = script.slice(start, end);
+  eq("the bundler's keep-names helper is shimmed", start !== -1, true);
   eq(
     "the injected copy actually runs",
     new Function(injected + "; return gatewayPath;")()("ipfs://QmAbc/1"),
     "/ipfs/QmAbc/1"
   );
+
+  const injectedOriginal = new Function(injected + "; return original;")();
+  eq(
+    "a hardcoded gateway is its own last-resort fallback",
+    injectedOriginal("https://ipfs.io/ipfs/QmeSjSinHpPnmXmspMjwiXyN6zS4E9zccariGR3jxcaWtq"),
+    "https://ipfs.io/ipfs/QmeSjSinHpPnmXmspMjwiXyN6zS4E9zccariGR3jxcaWtq"
+  );
+  eq("an ipfs:// URI has no fallback to offer", injectedOriginal("ipfs://QmAbc"), null);
+  eq("a plain URL is not fetched through us at all", injectedOriginal("https://api.example/1"), null);
 
   const blocked = await render("blocked");
   eq(

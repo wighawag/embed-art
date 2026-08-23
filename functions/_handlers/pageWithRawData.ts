@@ -289,21 +289,56 @@ export async function pageWithRawData(
         // of "which URIs this origin serves", tested there and running here.
         // Bound to a name we choose rather than pasted as a declaration: the
         // bundler is free to rename the function it emits.
+        //
+        // The shim is not decoration. Wrangler bundles with esbuild's
+        // keep-names on, which wraps every inner function in a __name() call
+        // to preserve fn.name. Ship that source to a browser with no __name in
+        // scope and the function throws the first time it is called, in
+        // production only, where the test bundle (no keep-names) sees nothing.
+        const __name = (fn) => fn;
         const gatewayPath = ${gatewayPath.toString()};
+
+        // A CID is the token's claim; the gateway in front of it is not, so a
+        // hardcoded https gateway URL is treated exactly like ipfs:// and read
+        // back through this origin. If OUR gateway choice cannot produce the
+        // bytes, the URL the token actually wrote down is still worth trying:
+        // it is where the content was last known to be.
+        const original = (uri) => (gatewayPath(uri) && /^https?:/i.test(uri) ? uri : null);
 
         async function fetchImage(tokenURI) {
           // ipfs:// and friends are read back through THIS origin: which
           // gateway serves a CID is our business, not the token's claim, and
           // public gateways answer a browser (403 challenge, no CORS header)
-          // differently from a server (200). An https:// URL is NOT proxied:
-          // that one IS the project's claim about where its metadata lives,
-          // and if it refuses cross-origin reads you should see that.
+          // differently from a server (200). An https:// URL that is NOT a
+          // gateway URL is left alone: that one IS the project's claim about
+          // where its metadata lives, and if it refuses cross-origin reads you
+          // should see that.
           const localPath = gatewayPath(tokenURI);
-          const metadataURLToFetch = localPath || tokenURI;
+          const fallbackURL = original(tokenURI);
+          let metadataURLToFetch = localPath || tokenURI;
           let metadataResponse;
+          let failure;
           try {
             metadataResponse = await fetch(metadataURLToFetch);
-          } catch(err) {
+          } catch (err) {
+            failure = err;
+          }
+          // Our gateway choice could not produce it, so try the URL the token
+          // itself wrote down: a hardcoded gateway is not authoritative, but it
+          // is where the content was last known to be.
+          if (fallbackURL && metadataURLToFetch !== fallbackURL &&
+              (!metadataResponse || !metadataResponse.ok)) {
+            try {
+              metadataURLToFetch = fallbackURL;
+              metadataResponse = await fetch(fallbackURL);
+              failure = undefined;
+            } catch (err) {
+              failure = err;
+              metadataResponse = undefined;
+            }
+          }
+          if (!metadataResponse) {
+            const err = failure || new Error('the request failed');
             if (CORS === 'blocked') {
               // Not a guess: our server fetched this same URL and the response
               // carried no Access-Control-Allow-Origin header.
@@ -321,9 +356,9 @@ export async function pageWithRawData(
               showServerPreview();
             } else if (localPath) {
               showError("<h2>Could not fetch token's metadata.</h2><p>" +
-                "<code>" + metadataURLToFetch + "</code> is served by Embed.Art from a " +
-                "public gateway, so the content is most likely unpinned or the " +
-                "gateway is down.</p>");
+                "<code>" + metadataURLToFetch + "</code> is content-addressed, and " +
+                "no gateway we tried could produce it, so it is most likely " +
+                "unpinned rather than merely unreachable.</p>");
               showServerPreview();
             } else {
               // From JavaScript a CORS rejection and a dead network are the
@@ -397,7 +432,12 @@ export async function pageWithRawData(
             iframe.style.display='block';
           } else if (metadata.image) {
             const img = document.getElementById('nft-image');
-            img.src = gatewayPath(metadata.image) || metadata.image;
+            const localImage = gatewayPath(metadata.image);
+            const fallback = original(metadata.image);
+            if (localImage && fallback) {
+              img.onerror = function () { img.onerror = null; img.src = fallback; };
+            }
+            img.src = localImage || metadata.image;
             img.style.display='inline-block';
           }
 

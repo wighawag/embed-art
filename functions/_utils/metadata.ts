@@ -3,7 +3,7 @@ import { BigNumber } from "@ethersproject/bignumber";
 import { Base64 } from "./base64";
 import { fetchAsService } from "./request";
 import { getEndpoint } from "./rpc";
-import { gatewayPath, gatewayURI } from "./url";
+import { candidateURIs, GATEWAYS, gatewayPath } from "./url";
 
 export type TokenStandard = "erc721" | "erc1155";
 
@@ -439,10 +439,26 @@ export async function parseMetadataWithCors(
       // them anyway is how a page ended up claiming "allowed" while every
       // browser got a 403 challenge from ipfs.io.
       const contentAddressed = gatewayPath(tokenURI) !== null;
-      tokenURI = gatewayURI(tokenURI);
-      fetchedFrom = tokenURI;
+      // Our gateways first, the token's own courier last: same list the page
+      // works from, so both sides agree on where the bytes came from.
+      const candidates = candidateURIs(tokenURI);
       try {
-        const response = await fetchAsService(tokenURI);
+        let response: Response | undefined;
+        let transportError: any;
+        for (const candidate of candidates) {
+          try {
+            const attempt = await fetchAsService(candidate);
+            fetchedFrom = candidate;
+            response = attempt;
+            if (attempt.ok) break;
+          } catch (err) {
+            transportError = err;
+          }
+        }
+        if (!response) {
+          throw transportError || new Error(`no route to ${tokenURI}`);
+        }
+        tokenURI = fetchedFrom as string;
         cors = contentAddressed
           ? "not-applicable"
           : corsFromHeader(response.headers.get("access-control-allow-origin"));
@@ -454,11 +470,7 @@ export async function parseMetadataWithCors(
           throw new HttpStatusError(response.status, tokenURI);
         }
         metadata = await response.json();
-        metadata = recursiveReplace(
-          metadata,
-          "ipfs://",
-          `https://ipfs.io/ipfs/`
-        );
+        metadata = recursiveReplace(metadata, "ipfs://", GATEWAYS.ipfs[0]);
       } catch (err) {
         if (err instanceof HttpStatusError) throw err;
         throw new Error(

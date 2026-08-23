@@ -32,6 +32,12 @@ try {
       format: "esm",
       outfile: bundle,
       logLevel: "warning",
+      // Matches how wrangler bundles the worker. It matters: keep-names wraps
+      // inner functions in a __name() helper, and one of ours is injected into
+      // the token page as source. Without this the tests would exercise a
+      // shape the browser never receives, which is exactly how that bug got
+      // to production once already.
+      keepNames: true,
     });
     try {
       await import(pathToFileURL(bundle).href);

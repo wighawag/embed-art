@@ -25,14 +25,9 @@
  */
 
 import { fetchAsService } from "../_utils/request";
+import { GATEWAYS, GatewayKind } from "../_utils/url";
 
-export type GatewayKind = "ipfs" | "ipns" | "ar";
-
-const GATEWAYS: Record<GatewayKind, string> = {
-  ipfs: "https://ipfs.io/ipfs/",
-  ipns: "https://ipfs.io/ipns/",
-  ar: "https://arweave.net/",
-};
+export type { GatewayKind };
 
 /** A CID is immutable, so its bytes can be cached for as long as we like. */
 const IMMUTABLE = "public, max-age=29030400, immutable";
@@ -40,12 +35,12 @@ const IMMUTABLE = "public, max-age=29030400, immutable";
 const MUTABLE = "public, max-age=60";
 
 /**
- * The upstream URL for a request path, or null if the path is not one we are
- * willing to fetch. Everything after the prefix is opaque to us except for the
- * checks here: no scheme, no host, no traversal, so this cannot be talked into
- * fetching something other than gateway content.
+ * The upstream URLs to try for a request path, in order, or null if the path
+ * is not one we are willing to fetch. Everything after the prefix is opaque to
+ * us except for the checks here: no scheme, no host, no traversal, so this
+ * cannot be talked into fetching something other than gateway content.
  */
-export function upstreamFor(kind: GatewayKind, path: string): string | null {
+export function upstreamsFor(kind: GatewayKind, path: string): string[] | null {
   if (!path) return null;
   let cleaned = path.replace(/^\/+/, "");
   if (kind === "ipfs" && cleaned.indexOf("ipfs/") === 0) {
@@ -65,7 +60,7 @@ export function upstreamFor(kind: GatewayKind, path: string): string | null {
   if (/^[a-z][a-z0-9+.-]*:\/\//i.test(cleaned)) return null;
   // A CID/txid is alphanumeric; the rest of the path may be a file name.
   if (!/^[A-Za-z0-9][A-Za-z0-9._~%!$&'()*+,;=:@/-]*$/.test(cleaned)) return null;
-  return GATEWAYS[kind] + cleaned;
+  return GATEWAYS[kind].map((base) => base + cleaned);
 }
 
 /** Headers worth passing on: enough for range requests and revalidation. */
@@ -123,8 +118,8 @@ export async function gatewayRoute(
     });
   }
 
-  const upstream = upstreamFor(kind, path);
-  if (!upstream) {
+  const upstreams = upstreamsFor(kind, path);
+  if (!upstreams) {
     return new Response(`not a ${kind} path: ${path}`, { status: 400 });
   }
 
@@ -137,28 +132,42 @@ export async function gatewayRoute(
     if (value) headers.set(name, value);
   }
 
-  let response: Response;
-  try {
-    response = await fetchAsService(upstream, {
-      method: request.method,
-      headers,
-      // Content-addressed bytes never change, so let the edge keep them.
-      cf: { cacheEverything: true, cacheTtl: kind === "ipns" ? 60 : 86400 },
-    } as RequestInit);
-  } catch (err: any) {
-    return new Response(`gateway request failed: ${err.message}\n${upstream}`, {
-      status: 502,
-      headers: { "cache-control": "no-store" },
-    });
+  // Tried in order, because one gateway not holding a CID says nothing about
+  // whether the content exists: it is addressed by hash, and any gateway that
+  // can find a provider serves the identical bytes.
+  let response: Response | undefined;
+  let failure = "";
+  let lastStatus = 0;
+  for (const upstream of upstreams) {
+    try {
+      response = await fetchAsService(upstream, {
+        method: request.method,
+        headers,
+        // Content-addressed bytes never change, so let the edge keep them.
+        cf: { cacheEverything: true, cacheTtl: kind === "ipns" ? 60 : 86400 },
+      } as RequestInit);
+    } catch (err: any) {
+      failure = `${upstream} failed: ${err.message}`;
+      lastStatus = 0;
+      response = undefined;
+      continue;
+    }
+    if (response.ok || response.status === 304 || response.status === 206) break;
+    failure = `${upstream} answered ${response.status}`;
+    lastStatus = response.status;
+    response = undefined;
   }
 
-  if (!response.ok && response.status !== 304 && response.status !== 206) {
-    // Do not relay the gateway's error page: it may be a challenge document,
-    // which would be a confusing thing to render in place of a token.
-    return new Response(
-      `the gateway answered ${response.status} for ${kind}://${path}`,
-      { status: response.status, headers: { "cache-control": "no-store" } }
-    );
+  if (!response) {
+    // Do not relay a gateway's error page: it may be a challenge document,
+    // which would be a confusing thing to render in place of a token. The
+    // STATUS is worth relaying when the last gateway gave a definite "no such
+    // content"; anything else is our failure to fetch, not the token's.
+    const status = lastStatus >= 400 && lastStatus < 500 ? lastStatus : 502;
+    return new Response(`no gateway could serve ${kind}://${path}\n${failure}`, {
+      status,
+      headers: { "cache-control": "no-store" },
+    });
   }
 
   return new Response(response.body, {

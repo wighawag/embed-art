@@ -162,7 +162,27 @@ So `ipfs://`, `ipns://` and `ar://` are now read back through this origin, via
 `/ipfs/`, `/ipns/` and `/ar/`, which fetch upstream **without forwarding the
 visitor's headers** (passing the browser's User-Agent on would recreate the
 very challenge the route exists to dodge) and return the bytes with an
-immutable cache lifetime. `https://` URIs are deliberately left alone.
+immutable cache lifetime.
+
+**A hardcoded gateway URL counts as content-addressed too.** A token that says
+`https://ipfs.io/ipfs/<cid>`, or `https://gateway.pinata.cloud/ipfs/<cid>`, or
+`https://<cid>.ipfs.dweb.link/1.json`, or `https://arweave.net/<txid>/1`, has
+not chosen that gateway in any meaningful sense: it named a **CID** and wrote
+down whichever courier was in the tutorial. The CID is the claim, the courier
+is a detail, and picking the courier is the client's job. Those URLs are
+recognised and served from here as well, in every form seen in the wild:
+path (`<host>/ipfs/<cid>`), subdomain (`<cid>.ipfs.<host>`), and Arweave's
+sandboxed `<base32>.arweave.net/<txid>`, which is what CloneX writes onchain.
+
+The line is drawn at the CID itself: the thing in the gateway position has to
+parse as a content address (v0 base58, v1 base32/base36, or a 43-character
+Arweave txid), so `https://example.com/ipfs/readme.txt` is not mistaken for a
+gateway and `https://api.opensea.io/...` stays exactly what it is.
+
+We try our own gateways in order and, if the token named one itself, that one
+**last**: ours first because the courier is ours to pick, theirs last because a
+courier we cannot reach still beats no bytes at all. The page does the same,
+falling back to the token's own URL if our path cannot produce the content.
 
 ### When the metadata server blocks the browser
 
@@ -248,6 +268,15 @@ pnpm test        # offline: record parsing, path parsing, {id} encoding,
                  #          the URL builder's hex/ENS/known-collection rules
 pnpm test:live   # also reads mainnet (ENS resolution + an ERC-1155 token)
 ```
+
+One trap worth knowing, since it cost a production bug: the token page embeds
+`gatewayPath`'s **source** so there is a single implementation of "which URIs
+this origin serves". Wrangler bundles with esbuild's keep-names on, which wraps
+inner functions in a `__name()` helper, and that source shipped to a browser
+with no `__name` in scope threw on first call, in production only, while the
+test bundle (no keep-names) was perfectly happy. The page now defines the shim,
+and `test/run.mjs` bundles with `keepNames: true` so the tests exercise the
+shape the browser actually receives.
 
 The live suite is opt-in because it needs network and asserts on records other
 people control. It earns its keep: the offline tests all passed while

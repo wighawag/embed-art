@@ -12,7 +12,7 @@ import {
 } from "../_utils/metadata";
 import { fetchAsService } from "../_utils/request";
 import { sha256 } from "../_utils/strings";
-import { blobToDataURI, getImageUrl } from "../_utils/url";
+import { blobToDataURI, gatewayURI, getImageUrl } from "../_utils/url";
 import { errorPage } from "./errorPage";
 import { pageWithRawData } from "./pageWithRawData";
 import { screenshotHTML } from "./screenshotWithAllData";
@@ -53,7 +53,9 @@ export async function generateDataURIForScreenshot(
   tokenURI: string,
   metadata: Metadata
 ): Promise<string> {
-  let imageURLToUse = metadata.image;
+  // Through OUR gateway if it is content-addressed, whichever courier the
+  // metadata happened to name.
+  let imageURLToUse = metadata.image ? gatewayURI(metadata.image) : metadata.image;
 
   let tokenURIToUse = tokenURI;
   if (imageURLToUse && imageURLToUse.startsWith("http")) {

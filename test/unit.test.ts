@@ -3,9 +3,9 @@
  * bindings. These are the places where a wrong character silently produces a
  * page that says "unreadable" about a perfectly good token.
  */
-import { outboundHeaders, upstreamFor } from "../functions/_handlers/gateway";
+import { outboundHeaders, upstreamsFor } from "../functions/_handlers/gateway";
 import { audioSource } from "../functions/_handlers/media";
-import { gatewayPath, gatewayURI } from "../functions/_utils/url";
+import { candidateURIs, gatewayPath, gatewayURI } from "../functions/_utils/url";
 import { isEnsName, normalizeEnsName, parseAvatarRecord } from "../functions/_utils/ens";
 import { erc1155IdHex, isRenderable } from "../functions/_utils/metadata";
 import { parseTokenSegment } from "../functions/_utils/url";
@@ -122,56 +122,142 @@ eq("empty", normalizeEnsName(""), null);
 eq("null", normalizeEnsName(null), null);
 
 section("gatewayURI (what the SERVER fetches)");
-eq("ipfs", gatewayURI("ipfs://QmAbc"), "https://ipfs.io/ipfs/QmAbc");
-eq("ipfs with redundant prefix", gatewayURI("ipfs://ipfs/QmAbc"), "https://ipfs.io/ipfs/QmAbc");
+const SOME_CID = "QmeSjSinHpPnmXmspMjwiXyN6zS4E9zccariGR3jxcaWtq";
+const SOME_TX = "OVAmf1xgB6atP0uZg1U0fMd0Lw6DlsVqdvab-WTXZ1Q";
+eq("ipfs", gatewayURI(`ipfs://${SOME_CID}`), `https://ipfs.io/ipfs/${SOME_CID}`);
+eq("ipfs with redundant prefix", gatewayURI(`ipfs://ipfs/${SOME_CID}`), `https://ipfs.io/ipfs/${SOME_CID}`);
 eq("ipns", gatewayURI("ipns://example.eth"), "https://ipfs.io/ipns/example.eth");
-eq("arweave", gatewayURI("ar://xyz"), "https://arweave.net/xyz");
+eq("arweave", gatewayURI(`ar://${SOME_TX}`), `https://arweave.net/${SOME_TX}`);
+// The server substitutes our gateway for theirs too, so both sides of the
+// page agree on where the bytes come from.
+eq(
+  "somebody else's gateway becomes ours",
+  gatewayURI(`https://gateway.pinata.cloud/ipfs/${SOME_CID}/0`),
+  `https://ipfs.io/ipfs/${SOME_CID}/0`
+);
 eq("https untouched", gatewayURI("https://a/b.png"), "https://a/b.png");
 eq("data untouched", gatewayURI("data:image/png;base64,AA"), "data:image/png;base64,AA");
 
+section("candidateURIs (ours first, theirs last)");
+eq(
+  "an ipfs:// URI has only our gateways",
+  candidateURIs(`ipfs://${SOME_CID}`),
+  [
+    `https://ipfs.io/ipfs/${SOME_CID}`,
+    `https://dweb.link/ipfs/${SOME_CID}`,
+    `https://w3s.link/ipfs/${SOME_CID}`,
+  ]
+);
+// The courier the token named is not authoritative, but it is where the
+// content was last known to be, so it is tried last rather than discarded.
+eq(
+  "a hardcoded gateway is kept as a last resort",
+  candidateURIs(`https://gateway.pinata.cloud/ipfs/${SOME_CID}`).slice(-1)[0],
+  `https://gateway.pinata.cloud/ipfs/${SOME_CID}`
+);
+eq(
+  "but it is not tried first",
+  candidateURIs(`https://gateway.pinata.cloud/ipfs/${SOME_CID}`)[0],
+  `https://ipfs.io/ipfs/${SOME_CID}`
+);
+eq(
+  "no duplicate when they named the gateway we use",
+  candidateURIs(`https://ipfs.io/ipfs/${SOME_CID}`).length,
+  3
+);
+eq("a plain URL is its own only candidate", candidateURIs("https://api.example/1"), [
+  "https://api.example/1",
+]);
+
 section("gatewayPath (what the BROWSER is given)");
+// A real CID and a real Arweave txid, for the shape checks below.
+const CID = "QmeSjSinHpPnmXmspMjwiXyN6zS4E9zccariGR3jxcaWtq";
+const CIDv1 = "bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi";
+const TXID = "OVAmf1xgB6atP0uZg1U0fMd0Lw6DlsVqdvab-WTXZ1Q";
+
 // A CID is content: where it is fetched from is nobody's claim, so it comes
 // back through this origin, where no gateway can challenge the browser.
-eq("ipfs", gatewayPath("ipfs://QmAbc/0"), "/ipfs/QmAbc/0");
-eq("ipfs with redundant prefix", gatewayPath("ipfs://ipfs/QmAbc"), "/ipfs/QmAbc");
+eq("ipfs", gatewayPath(`ipfs://${CID}/0`), `/ipfs/${CID}/0`);
+eq("ipfs with redundant prefix", gatewayPath(`ipfs://ipfs/${CID}`), `/ipfs/${CID}`);
 eq("ipns", gatewayPath("ipns://example.eth"), "/ipns/example.eth");
-eq("arweave", gatewayPath("ar://xyz"), "/ar/xyz");
-// The opposite case, and the important one: an https URL IS the project's
-// claim about where its metadata lives. Proxying it would hide a CORS
+eq("arweave", gatewayPath(`ar://${TXID}`), `/ar/${TXID}`);
+eq("bare scheme", gatewayPath("ipfs://"), null);
+
+// A token that writes `https://ipfs.io/ipfs/<cid>` has not chosen ipfs.io in
+// any meaningful sense: it named a CID and copied down a courier. Which
+// courier is ours to pick, so these are the same case as ipfs://.
+eq("a hardcoded gateway is still a CID", gatewayPath(`https://ipfs.io/ipfs/${CID}/0`), `/ipfs/${CID}/0`);
+eq("pinata", gatewayPath(`https://gateway.pinata.cloud/ipfs/${CID}`), `/ipfs/${CID}`);
+eq("nftstorage", gatewayPath(`https://nftstorage.link/ipfs/${CID}/1.json`), `/ipfs/${CID}/1.json`);
+eq("a dead gateway host is fine, the CID is what matters", gatewayPath(`https://cloudflare-ipfs.com/ipfs/${CID}`), `/ipfs/${CID}`);
+eq("gateway decoration dropped", gatewayPath(`https://ipfs.io/ipfs/${CID}?filename=a.png`), `/ipfs/${CID}`);
+eq("fragment dropped", gatewayPath(`https://ipfs.io/ipfs/${CID}#x`), `/ipfs/${CID}`);
+eq("subdomain gateway", gatewayPath(`https://${CIDv1}.ipfs.dweb.link/1.json`), `/ipfs/${CIDv1}/1.json`);
+eq("subdomain gateway, no path", gatewayPath(`https://${CIDv1}.ipfs.w3s.link`), `/ipfs/${CIDv1}`);
+eq("ipns path gateway", gatewayPath("https://ipfs.io/ipns/en.wikipedia-on-ipfs.org"), "/ipns/en.wikipedia-on-ipfs.org");
+eq("arweave gateway", gatewayPath(`https://arweave.net/${TXID}/1`), `/ar/${TXID}/1`);
+eq("arweave mirror", gatewayPath(`https://g8way.io/${TXID}`), `/ar/${TXID}`);
+// CloneX writes the sandboxed subdomain form arweave.net redirects to, and
+// the txid is still right there in the path.
+eq(
+  "arweave sandbox subdomain (CloneX)",
+  gatewayPath(
+    "https://ohm647fhcdf3f6547mcreqj2pgfdzxba7q54ugunppzk3maqy2ma.arweave.net/NGdLvqHyCPyfGzcODgHhOjenXajH--m6mpkp1JLY8M0/1"
+  ),
+  "/ar/NGdLvqHyCPyfGzcODgHhOjenXajH--m6mpkp1JLY8M0/1"
+);
+eq(
+  "a lookalike host is not arweave",
+  gatewayPath(`https://arweave.net.evil.example/${TXID}`),
+  null
+);
+
+// The line is the CID itself. Without one, an https URL is the project's own
+// claim about where its metadata lives, and proxying it would hide a CORS
 // mistake that the token's owner should see and fix.
 eq("https is left alone", gatewayPath("https://api.opensea.io/x/1"), null);
 eq("http is left alone", gatewayPath("http://a/b"), null);
 eq("data is left alone", gatewayPath("data:application/json,{}"), null);
-eq("an ipfs gateway URL is left alone", gatewayPath("https://ipfs.io/ipfs/QmAbc"), null);
+eq("an /ipfs/ path with no CID is not a gateway URL", gatewayPath("https://example.com/ipfs/readme.txt"), null);
+eq("a truncated CID is not a CID", gatewayPath("https://ipfs.io/ipfs/QmAbc"), null);
+eq("arweave host without a txid", gatewayPath("https://arweave.net/graphql"), null);
+eq("a random host with a txid-shaped path", gatewayPath(`https://example.com/${TXID}`), null);
 eq("nonsense", gatewayPath("QmAbc"), null);
 eq("non-string", gatewayPath(undefined as any), null);
 // It is injected verbatim into the token page, so it must not close over
-// anything: called with no scope of its own it still has to work.
+// anything except what the page provides. The one thing the page provides is
+// a __name shim, because the bundler's keep-names wraps inner functions in it;
+// that is exactly the scope reproduced here, and nothing more.
 eq(
   "survives being reconstructed from its own source",
-  new Function("return " + gatewayPath.toString())()("ipfs://QmAbc"),
+  new Function("const __name = (fn) => fn; return " + gatewayPath.toString())()(
+    "ipfs://QmAbc"
+  ),
   "/ipfs/QmAbc"
 );
 
-section("upstreamFor (the gateway proxy's only decision)");
-eq("ipfs", upstreamFor("ipfs", "QmAbc/0"), "https://ipfs.io/ipfs/QmAbc/0");
-eq("ipfs with redundant prefix", upstreamFor("ipfs", "ipfs/QmAbc"), "https://ipfs.io/ipfs/QmAbc");
-eq("leading slashes trimmed", upstreamFor("ipfs", "//QmAbc"), "https://ipfs.io/ipfs/QmAbc");
-eq("ipns", upstreamFor("ipns", "example.eth"), "https://ipfs.io/ipns/example.eth");
-eq("arweave", upstreamFor("ar", "xyz-123"), "https://arweave.net/xyz-123");
-eq("empty", upstreamFor("ipfs", ""), null);
+section("upstreamsFor (the gateway proxy's only decision)");
+// One gateway failing says nothing about whether a CID exists, so the proxy
+// gets a list rather than a URL.
+eq("ipfs, in order", upstreamsFor("ipfs", "QmAbc/0")?.[0], "https://ipfs.io/ipfs/QmAbc/0");
+eq("a second gateway to try", upstreamsFor("ipfs", "QmAbc/0")?.[1], "https://dweb.link/ipfs/QmAbc/0");
+eq("ipfs with redundant prefix", upstreamsFor("ipfs", "ipfs/QmAbc")?.[0], "https://ipfs.io/ipfs/QmAbc");
+eq("leading slashes trimmed", upstreamsFor("ipfs", "//QmAbc")?.[0], "https://ipfs.io/ipfs/QmAbc");
+eq("ipns", upstreamsFor("ipns", "example.eth")?.[0], "https://ipfs.io/ipns/example.eth");
+eq("arweave", upstreamsFor("ar", "xyz-123")?.[0], "https://arweave.net/xyz-123");
+eq("empty", upstreamsFor("ipfs", ""), null);
 // The proxy fetches on the visitor's behalf, so it must not be talkable into
 // fetching something that is not gateway content.
-eq("traversal", upstreamFor("ipfs", "../etc/passwd"), null);
-eq("traversal mid-path", upstreamFor("ipfs", "QmAbc/../../x"), null);
-eq("percent-encoded traversal", upstreamFor("ipfs", "%2e%2e/%2e%2e/etc"), null);
-eq("undecodable percent escape", upstreamFor("ipfs", "Qm%zz"), null);
-eq("absolute URL", upstreamFor("ipfs", "https://evil.example/x"), null);
-eq("protocol-relative", upstreamFor("ipfs", "/evil.example/x"), "https://ipfs.io/ipfs/evil.example/x");
-eq("backslash", upstreamFor("ipfs", "Qm\\evil"), null);
-eq("query string", upstreamFor("ipfs", "QmAbc?x=1"), null);
-eq("fragment", upstreamFor("ipfs", "QmAbc#x"), null);
-eq("whitespace", upstreamFor("ipfs", "Qm Abc"), null);
+eq("traversal", upstreamsFor("ipfs", "../etc/passwd"), null);
+eq("traversal mid-path", upstreamsFor("ipfs", "QmAbc/../../x"), null);
+eq("percent-encoded traversal", upstreamsFor("ipfs", "%2e%2e/%2e%2e/etc"), null);
+eq("undecodable percent escape", upstreamsFor("ipfs", "Qm%zz"), null);
+eq("absolute URL", upstreamsFor("ipfs", "https://evil.example/x"), null);
+eq("protocol-relative", upstreamsFor("ipfs", "/evil.example/x")?.[0], "https://ipfs.io/ipfs/evil.example/x");
+eq("backslash", upstreamsFor("ipfs", "Qm\\evil"), null);
+eq("query string", upstreamsFor("ipfs", "QmAbc?x=1"), null);
+eq("fragment", upstreamsFor("ipfs", "QmAbc#x"), null);
+eq("whitespace", upstreamsFor("ipfs", "Qm Abc"), null);
 
 section("outboundHeaders (hosting other people's bytes on our own name)");
 const upstreamHeaders = new Headers({
