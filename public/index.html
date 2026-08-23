@@ -6,16 +6,19 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <meta name="title" content="Embed.Art">
-    <meta name="description" content="Embed Your Art Anywhere.">
+    <meta name="description"
+        content="Link previews for NFTs. A URL whose meta tags Twitter, Facebook and Discord can read, even when the art is an SVG, an animation, or on IPFS.">
     <meta property="og:type" content="website">
     <meta property="og:url" content="https://embed.art">
     <meta property="og:title" content="Embed.Art">
-    <meta property="og:description" content="Embed Your Art Anywhere.">
+    <meta property="og:description"
+        content="Link previews for NFTs. A URL whose meta tags Twitter, Facebook and Discord can read, even when the art is an SVG, an animation, or on IPFS.">
     <meta property="og:image" content="https://embed.art/static/preview.png">
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:url" content="https://embed.art">
     <meta name="twitter:title" content="Embed.Art">
-    <meta name="twitter:description" content="Embed Your Art Anywhere.">
+    <meta name="twitter:description"
+        content="Link previews for NFTs. A URL whose meta tags Twitter, Facebook and Discord can read, even when the art is an SVG, an animation, or on IPFS.">
     <meta name="twitter:image" content="https://embed.art/static/preview.png">
     <meta name="theme-color" content="#111111">
     <link rel="icon" href="/favicon.ico" sizes="32x32">
@@ -89,6 +92,18 @@
             color: var(--muted);
             font-size: clamp(0.95rem, 2.6vw, 1.1rem);
         }
+
+        /* The one paragraph that has to land: what this is for. Left-aligned
+           inside a centred header, because a centred four-line paragraph is
+           read as decoration and skipped. */
+        .pitch {
+            margin: 1.5rem auto 0;
+            max-width: 42rem;
+            text-align: left;
+            font-size: clamp(0.88rem, 2.4vw, 0.98rem);
+        }
+
+        .pitch code { color: var(--accent); }
 
         /* ---------------------------------------------------------- section */
         section { padding: clamp(2.75rem, 7vw, 4.5rem) 0 0; }
@@ -325,14 +340,23 @@
         <header>
             <h1><img src="/static/wordmark.svg" alt="Embed.Art" width="1142" height="196" /></h1>
             <p class="tagline">Embed Your Art Anywhere.</p>
+            <p class="pitch">
+                Post a link on Twitter, Facebook or Discord and nobody sees the link. They see
+                a card the platform builds from its <code>og:</code> and <code>twitter:</code>
+                meta tags, and those tags take one ordinary raster image, JPEG or PNG, at a
+                fixed address. Not an SVG, not an animation, not <code>ipfs://</code>. So the
+                art most worth sharing is the art that unfurls as nothing at all. Give the
+                token an Embed.Art URL and it arrives with tags they can read.
+            </p>
         </header>
 
         <main>
             <section aria-labelledby="use-h">
                 <h2 id="use-h">The URL is the whole interface</h2>
                 <p class="lede">
-                    Point any platform at a token and it unfurls as a card, even when the art
-                    is an SVG, an animation, or sitting on IPFS.
+                    Address a token and you have the link. Nothing to sign up for, no key, no
+                    generator to run: build it once, then post it wherever you were posting
+                    anyway.
                 </p>
 
                 <div class="pattern"><span class="dim">https://embed.art/</span><span class="lit">eip155:</span><span class="var">&lt;chainId&gt;</span><span class="lit">/erc721:</span><span class="var">&lt;contract&gt;</span><span class="lit">/</span><span class="var">&lt;tokenId&gt;</span></div>
@@ -396,6 +420,32 @@
                 </div>
             </section>
 
+            <section aria-labelledby="card-h">
+                <h2 id="card-h">What gets posted is the card</h2>
+                <p class="lede">
+                    The platform fetches that URL, reads the tags, and draws a preview from a
+                    plain JPEG the tags point at. Every thumbnail further down this page is
+                    that same image: same route, same bytes, rendered once and kept.
+                </p>
+                <div class="note">
+                    <p>
+                        The page behind the card is the extra, not the point. Click through and the
+                        SVG is live, an <code>animation_url</code> iframe replaces the still, onchain
+                        audio gets a player, and the token's permanent address is spelled out. That
+                        is what one visitor sees after the card has already done its work in front
+                        of everybody else.
+                    </p>
+                    <p>
+                        If you have somewhere of your own to put a picture, take the picture on its
+                        own: <code>embed.art/image/&lt;token path&gt;</code> is a stable address for
+                        the preview, usable as your own <code>og:image</code> or as a thumbnail, with
+                        no page to scrape. It is how the examples below are rendered, and when the
+                        art cannot be fetched it answers with a branded card rather than a broken
+                        image.
+                    </p>
+                </div>
+            </section>
+
             <section aria-labelledby="ens-h">
                 <h2 id="ens-h">If you have an ENS avatar, you already have a link</h2>
                 <div class="note">
@@ -418,6 +468,7 @@
             <section aria-labelledby="ex-h">
                 <h2 id="ex-h">Examples</h2>
                 <p class="lede">
+                    Each thumbnail below is the card a platform would draw for that link.
                     Where a token keeps its metadata decides whether it is still here, and
                     how it wrote that down decides how long it stays reachable.
                 </p>
