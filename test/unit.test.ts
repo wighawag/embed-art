@@ -3,6 +3,12 @@
  * bindings. These are the places where a wrong character silently produces a
  * page that says "unreadable" about a perfectly good token.
  */
+import {
+  ADAPTERS,
+  findAdapter,
+  punkAttributes,
+  reencodeSvgDataURI,
+} from "../functions/_utils/adapters";
 import { outboundHeaders, upstreamsFor } from "../functions/_handlers/gateway";
 import { fetchFirstAvailable } from "../functions/_utils/request";
 import {
@@ -265,6 +271,52 @@ eq("backslash", upstreamsFor("ipfs", "Qm\\evil"), null);
 eq("query string", upstreamsFor("ipfs", "QmAbc?x=1"), null);
 eq("fragment", upstreamsFor("ipfs", "QmAbc#x"), null);
 eq("whitespace", upstreamsFor("ipfs", "Qm Abc"), null);
+
+section("adapters (the whole list of exceptions)");
+
+// Every entry is an exception, so every entry has to justify itself and say
+// where its data comes from. A future adapter that forgets is caught here.
+for (const adapter of ADAPTERS) {
+  eq(`${adapter.collection}: address is lowercase`, adapter.contract, adapter.contract.toLowerCase());
+  eq(`${adapter.collection}: address is well formed`, /^0x[0-9a-f]{40}$/.test(adapter.contract), true);
+  eq(`${adapter.collection}: chain is numeric`, /^[0-9]+$/.test(adapter.chainId), true);
+  eq(`${adapter.collection}: says why it exists`, adapter.reason.length > 30, true);
+  eq(`${adapter.collection}: is a function`, typeof adapter.read, "function");
+}
+
+const PUNKS = "0xb47e3cd837ddf8e4c57f05d70ab865de6e193bbb";
+eq("cryptopunks is covered", findAdapter("1", PUNKS)?.collection, "CryptoPunks");
+eq("matching ignores case", findAdapter("1", PUNKS.toUpperCase())?.collection, "CryptoPunks");
+eq("the same address on another chain is not", findAdapter("137", PUNKS), null);
+eq("an ordinary collection is untouched", findAdapter("1", "0xbc4ca0eda7647a8ab7c2061c2e118a18a936f13d"), null);
+
+// The renderer answers with a data: URI it built by hand: a media type
+// parameter RFC 2397 does not define, and markup that is not percent-encoded,
+// so the first '#' in a fill colour would end the URL.
+eq(
+  "the renderer's hand-built data URI is re-encoded",
+  reencodeSvgDataURI('data:image/svg+xml;utf8,<svg fill="#abc"/>'),
+  "data:image/svg+xml;charset=utf-8,%3Csvg%20fill%3D%22%23abc%22%2F%3E"
+);
+eq(
+  "bare markup is wrapped just the same",
+  reencodeSvgDataURI('<svg fill="#abc"/>'),
+  "data:image/svg+xml;charset=utf-8,%3Csvg%20fill%3D%22%23abc%22%2F%3E"
+);
+eq("nothing is lost in the round trip", decodeURIComponent(reencodeSvgDataURI('data:image/svg+xml;utf8,<svg/>').split(",")[1]), "<svg/>");
+
+// punkAttributes answers with one string: the type, then accessories.
+eq("a punk with accessories", punkAttributes("Male 1, Smile, Mohawk"), [
+  { trait_type: "Type", value: "Male 1" },
+  { trait_type: "Accessory", value: "Smile" },
+  { trait_type: "Accessory", value: "Mohawk" },
+]);
+eq("an alien with one", punkAttributes("Alien, Headband"), [
+  { trait_type: "Type", value: "Alien" },
+  { trait_type: "Accessory", value: "Headband" },
+]);
+eq("a bare punk", punkAttributes("Female 3"), [{ trait_type: "Type", value: "Female 3" }]);
+eq("nothing at all", punkAttributes(""), []);
 
 section("getEndpoints / isGasCapError");
 eq("a single node", getEndpoints({ ETHEREUM_NODE: "https://a" }, "1"), ["https://a"]);

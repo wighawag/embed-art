@@ -309,6 +309,43 @@ async function main() {
   eq("direct page does not mention ENS", directHtml.includes("ENS avatar"), false);
   eq("direct token page is cacheable", direct.headers.get("cache-control"), null);
 
+  section("a document we assembled says so");
+
+  // The rule for adapters: whatever they produce is disclosed. A viewer should
+  // never have to work out that the picture did not come from the token.
+  const assembled = await build({
+    via: {
+      collection: "CryptoPunks",
+      note: "assembled from the collection's onchain renderer",
+      reason: "CryptoPunks predates ERC-721: the contract has no tokenURI.",
+      source: {
+        address: "0x16f5a35647d6f03d5d3da7b35409d65ba03af3b2",
+        method: "punkImageSvg(uint16)",
+      },
+    },
+  });
+  const assembledHtml = await assembled.text();
+  eq(
+    "the page says who assembled the document",
+    assembledHtml.includes("assembled by Embed.Art"),
+    true
+  );
+  eq(
+    "names the contract the art was read from",
+    assembledHtml.includes("0x16f5a35647d6f03d5d3da7b35409d65ba03af3b2"),
+    true
+  );
+  eq("and the function", assembledHtml.includes("punkImageSvg(uint16)"), true);
+  eq("and why there was no tokenURI", assembledHtml.includes("predates ERC-721"), true);
+  eq("and offers the strict view", assembledHtml.includes('href="?strict"'), true);
+
+  const ordinary = await build();
+  eq(
+    "an ordinary token claims nothing of the sort",
+    (await ordinary.text()).includes("assembled by Embed.Art"),
+    false
+  );
+
   section("the screenshot page (which IS the preview)");
 
   // Everything the token wrote arrives inside our script tag, so the script

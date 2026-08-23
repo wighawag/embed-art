@@ -2,6 +2,7 @@ import { Interface } from "@ethersproject/abi";
 import { BigNumber } from "@ethersproject/bignumber";
 import { Base64 } from "./base64";
 import { fetchFirstAvailable } from "./request";
+import { findAdapter } from "./adapters";
 import { ethCall, getEndpoints } from "./rpc";
 import { candidateURIs, GATEWAYS, gatewayPath } from "./url";
 
@@ -145,6 +146,17 @@ export type BlockchainData = {
   tokenURIBase64Encoded: string;
   contractMetadata: ContractMetadata;
   block: { number: number; hash: string };
+  /**
+   * Set when the tokenURI was NOT used as returned, which for now means it
+   * was never returned at all and an adapter read the art elsewhere. The page
+   * shows this: a viewer should never have to guess where a picture came from.
+   */
+  via?: {
+    collection: string;
+    note: string;
+    reason: string;
+    source: { address: string; method: string };
+  };
 };
 
 export async function fetchBlockchainData(
@@ -152,7 +164,9 @@ export async function fetchBlockchainData(
   chainId: string,
   contract: string,
   tokenID: string,
-  standard: TokenStandard = "erc721"
+  standard: TokenStandard = "erc721",
+  /** `?strict` asks for the standard and nothing else, adapters included */
+  strict = false
 ): Promise<BlockchainData> {
   const endpoints = getEndpoints(env, chainId);
   // Block reads are cheap and every node answers them; only the tokenURI call
@@ -287,6 +301,29 @@ export async function fetchBlockchainData(
     data = tokenURIInterface.encodeFunctionData(uriMethod, [tokenID]);
   } catch (err) {
     throw new Error(`failed to encode eth_call: ${err.message}\n${err.stack}`);
+  }
+
+  // A collection with no tokenURI at all is somebody else's problem to fix
+  // and ours to be useful about: see _utils/adapters.ts for the whole list of
+  // exceptions and the rules they live under. Never under ?strict.
+  const adapter = strict ? null : findAdapter(chainId, contract);
+  if (adapter) {
+    const { metadata, note, source } = await adapter.read(env, tokenID);
+    const synthesised = `data:application/json;base64,${Base64.encode(
+      JSON.stringify(metadata)
+    )}`;
+    return {
+      tokenURI: synthesised,
+      tokenURIBase64Encoded: Base64.encode(synthesised),
+      contractMetadata: { name, symbol },
+      block,
+      via: {
+        collection: adapter.collection,
+        note,
+        reason: adapter.reason,
+        source,
+      },
+    };
   }
 
   // Across every configured endpoint: a renderer that builds its document in

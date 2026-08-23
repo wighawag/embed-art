@@ -16,7 +16,7 @@ The idea behind Embed.Art is to allow you to have an easy way to share your toke
 
 | URL | What it does |
 |-----|--------------|
-| `/eip155:<chainID>/erc721:<contract>/<tokenID>` | an ERC-721 token |
+| `/eip155:<chainID>/erc721:<contract>/<tokenID>` | an ERC-721 token (add `?strict` for the standard and nothing else) |
 | `/eip155:<chainID>/erc1155:<contract>/<tokenID>` | an ERC-1155 token |
 | `/<name>.eth` | resolves the name's ENS avatar record and renders it |
 | `/image/<token path>` | 302 to the generated preview JPEG |
@@ -246,6 +246,34 @@ The repairs live in `functions/_utils/clientCourtesy.ts` and are injected into
 is this page, screenshotted. A repair that lived server-side would produce a
 card the visitor's own browser could not reproduce.
 
+### Collections that have no tokenURI at all
+
+CryptoPunks predates ERC-721. Its contract has no `tokenURI` to call, so there
+is no metadata document anywhere: the art is drawn by a separate onchain
+renderer. `functions/_utils/adapters.ts` holds the whole list of collections
+like that, and the rules that keep it from becoming a pile of special cases:
+
+1. An adapter runs **only where the standard has nothing to offer**, and
+   **never under `?strict`**. A token with a working `tokenURI` is never
+   touched. Asked strictly, CryptoPunks reports what a compliant client finds,
+   which is nothing, and says the courtesy exists.
+2. Whatever an adapter produces is **disclosed on the page**: that the document
+   was assembled here rather than returned by the token, why, and which
+   contract and function the art was read from. A viewer should never have to
+   work out where a picture came from.
+
+Adding a collection is appending one entry to `ADAPTERS`; removing it is
+deleting that entry. Nothing else in the service knows any collection by name,
+and a test walks the list to check each entry justifies itself and declares its
+source.
+
+The CryptoPunks entry reads `punkImageSvg(uint16)` and `punkAttributes(uint16)`
+from `0x16f5a356…`, the collection's own renderer. That renderer answers with
+`data:image/svg+xml;utf8,<svg …>`, whose media type parameter is not one
+RFC 2397 defines and whose markup is not percent-encoded, so the first `#` in a
+fill colour would end the URL: the bytes are right and the envelope is not, so
+the adapter rewrites the envelope.
+
 ### When reading the token costs more gas than a node will spend
 
 `ETHEREUM_NODE` accepts a **comma-separated list**, tried in order. One node is
@@ -337,6 +365,7 @@ embed-art/
 │   │   └── screenshotWithAllData.ts # Screenshot page HTML generator
 │   └── _utils/
 │       ├── ens.ts             # namehash + registry/resolver reads, record parsing
+│       ├── adapters.ts        # the whole list of collections with no tokenURI
 │       ├── clientCourtesy.ts  # repairs for non-standard metadata, injected into both pages
 │       ├── rpc.ts             # eth_call across endpoints + gas-cap detection
 │       ├── base64.ts, metadata.ts, strings.ts, url.ts, request.ts

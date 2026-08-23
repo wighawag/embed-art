@@ -78,6 +78,13 @@ export async function pageWithRawData(
     showCanonical?: boolean;
     /** set when the visitor arrived via an ENS name's avatar record */
     ensName?: string;
+    /** set when the tokenURI was not used as returned: see _utils/adapters.ts */
+    via?: {
+      collection: string;
+      note: string;
+      reason: string;
+      source: { address: string; method: string };
+    };
     /** ENS-derived pages must not be cached: the record can change */
     noStore?: boolean;
   },
@@ -134,7 +141,22 @@ export async function pageWithRawData(
       }<a href="${escCanonical}">${escCanonical}</a></p>`,
     );
   }
-  if (source) {
+  if (extra.via) {
+    // The document did not come from the token, so say so before anything
+    // else: where a picture came from is not a detail a viewer should have to
+    // work out, and "assembled by us" is the least obvious provenance there is.
+    rows.push(
+      `<p class="row"><span class="label">Metadata: <strong>assembled by Embed.Art</strong>, not returned by the token</span></p>` +
+        `<p class="row"><span class="label">${escapeHtml(
+          extra.via.reason,
+        )}</span></p>` +
+        `<p class="row"><span class="label">Art read from <code>${escapeHtml(
+          extra.via.source.address,
+        )}</code> via <code>${escapeHtml(
+          extra.via.source.method,
+        )}</code>. <a href="?strict">Ask for the standard only</a> to see what a compliant client gets.</span></p>`,
+    );
+  } else if (source) {
     rows.push(
       `<p class="row"><span class="label">Metadata: <strong>${escapeHtml(
         source,

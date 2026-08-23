@@ -10,6 +10,7 @@ import {
   parseMetadataWithCors,
   TokenStandard,
 } from "../_utils/metadata";
+import { findAdapter } from "../_utils/adapters";
 import { fetchFirstAvailable } from "../_utils/request";
 import { sha256 } from "../_utils/strings";
 import {
@@ -27,12 +28,17 @@ export async function getData(
   chainId: string,
   contract: string,
   tokenID: string,
-  standard: TokenStandard = "erc721"
+  standard: TokenStandard = "erc721",
+  strict = false
 ): Promise<BlockchainData> {
   // The standard is part of the key: the same address can answer both
-  // tokenURI() and uri(), and they need not agree.
+  // tokenURI() and uri(), and they need not agree. So is strictness, because
+  // for a collection with an adapter the two answers differ, and the strict
+  // one must never be served from a courtesy cache or the reverse.
   const cacheID =
-    `${standard}:${chainId}:${contract}:${tokenID}`.toLowerCase();
+    `${standard}:${chainId}:${contract}:${tokenID}${
+      strict ? ":strict" : ""
+    }`.toLowerCase();
   let data: BlockchainData;
   try {
     data = await env.DATA_CACHE.get(cacheID, { type: "json" });
@@ -42,7 +48,14 @@ export async function getData(
     );
   }
   if (!data) {
-    data = await fetchBlockchainData(env, chainId, contract, tokenID, standard);
+    data = await fetchBlockchainData(
+      env,
+      chainId,
+      contract,
+      tokenID,
+      standard,
+      strict
+    );
     try {
       await env.DATA_CACHE.put(cacheID, JSON.stringify(data));
     } catch (err) {
@@ -205,6 +218,10 @@ export async function tokenPage(
 ): Promise<Response> {
   const origin = new URL(request.url).origin;
   const ctx = { chainId, contract, tokenID, origin, standard };
+  // ?strict asks for the standard and nothing but: no adapter for a collection
+  // that has no tokenURI, and no client-side repairs for one whose metadata
+  // breaks the rules. What is left is what a compliant client sees.
+  const strict = new URL(request.url).searchParams.has("strict");
   // The permanent address of this token, regardless of which alias was
   // followed to get here: an ENS name, a legacy /erc721/ path, or eip721:.
   const canonical = `${origin}/eip155:${chainId}/${standard}:${contract}/${tokenID}`;
@@ -218,18 +235,23 @@ export async function tokenPage(
   // ------------------------------------------------------------------
   let data: BlockchainData;
   try {
-    data = await getData(env, chainId, contract, tokenID, standard);
+    data = await getData(env, chainId, contract, tokenID, standard, strict);
   } catch (err: any) {
     // A node refusing for want of gas is not a token that cannot be read; it
     // is a read this node will not pay for. Say which, because the two have
     // completely different fixes.
+    const adapter = findAdapter(chainId, contract);
     return errorPage("blockchain", err, {
       ...ctx,
       message: err?.gasCapped
         ? "This token builds its metadata onchain, and doing so costs more gas " +
           "than the node we asked will spend on a read call. Nothing is wrong " +
           "with the token: it needs an RPC endpoint with a higher gas cap."
-        : undefined,
+        : strict && adapter
+          ? `${adapter.reason} You asked for the standard and nothing else, ` +
+            `which is exactly what that leaves. Drop ?strict and Embed.Art ` +
+            `will read the art from the collection's onchain renderer instead.`
+          : undefined,
     });
   }
 
@@ -341,6 +363,7 @@ export async function tokenPage(
       showCanonical: !arrivedCanonically,
       ensName: via?.ensName,
       noStore: via?.noStore,
+      via: data.via,
     },
     metadata
   );
