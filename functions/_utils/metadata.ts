@@ -97,12 +97,24 @@ export function isRenderable(metadata: Metadata): boolean {
   return !!(metadata && (metadata.image || metadata.animation_url));
 }
 
+/**
+ * One row of the trait table every marketplace shows next to a token. The
+ * value is deliberately loose: the field is a convention, not a standard, and
+ * collections put strings, numbers and booleans in it.
+ */
+export type Attribute = {
+  trait_type?: string;
+  value?: string | number | boolean | null;
+  display_type?: string;
+};
+
 export type Metadata = {
   name?: string;
   description?: string;
   image?: string;
   animation_url?: string;
   external_url?: string;
+  attributes?: Attribute[];
   // TODO more
 };
 

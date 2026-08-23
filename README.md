@@ -123,6 +123,16 @@ When you navigate to `https://embed.art/eip155:<chainID>/erc721:<contractAddress
 - That preview is then saved to R2
 - It finally return html page that display the NFT, its title, description, image but also audio (if present). If an iframe is present, it replaces the image.
 
+### The token page is a gallery wall, not a debug view
+
+The art gets the top of the fold and as much of the viewport's short side as it can take (`72vh`), because that is the only thing on the page anyone came for. Everything else is a label under it: the collection, the title, the description, the traits, and last a provenance block saying where the token permanently lives and where its document is kept (`onchain (data: URI)`, `content-addressed`, or the host that answers). HTML art is framed square, since token art overwhelmingly is and any other shape shows the artwork's own page background in the leftover band. An image is scaled to that frame instead of being left at its natural size, and a source small enough to be pixel art (≤256px) is drawn with `image-rendering: pixelated` so deliberate pixels do not turn to mush on the way up.
+
+The page carries the site's letterhead, linking home, in the corner and again in the footer. For most people who ever see it, a shared token link *is* the front door, and a page with no way back is a dead end.
+
+Audio does not loop. A piece of audio art has an end, and repeating it forever turns a composition into hold music with no way to stop it short of leaving.
+
+Everything a contract writes, including its own `tokenURI`, is escaped on the way into the page: as markup in the document, and as a JS string literal in the injected script, where a stray backtick, `${` or `</script>` would otherwise let a token author run code on our origin.
+
 ### When a token does not exist
 
 A metadata host may answer a missing token with `404` and a body that is still

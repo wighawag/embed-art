@@ -143,6 +143,96 @@ async function main() {
   );
   eq("preview URL is available to the script", blocked.includes("const PREVIEW ="), true);
 
+  section("presentation");
+
+  const shown = await build({ canonical: CANON });
+  const shownHtml = await shown.text();
+
+  // A visitor who lands here from a shared link has no way back to the site
+  // otherwise: the token page IS the front door for most people who see it.
+  eq(
+    "the wordmark links home",
+    shownHtml.includes('<a class="brand" href="/"><img src="/static/wordmark.svg"'),
+    true
+  );
+  eq("and so does the footer", shownHtml.includes('Rendered by <a href="/">Embed.Art</a>'), true);
+
+  // Audio art is a piece with an end. Looping it turns a composition into
+  // hold music, and there is no way to stop it short of leaving the page.
+  const audioTag = shownHtml.match(/<audio[^>]*>/);
+  eq("the audio element exists", !!audioTag, true);
+  eq("audio does not loop", audioTag && audioTag[0].includes("loop"), false);
+
+  // Rendered server-side as well as client-side, so the traits survive a
+  // metadata host that refuses the browser but answered us.
+  const withAttrs = await (
+    await pageWithRawData(
+      { contract: "0xabc", id: "1" },
+      "https://example.com/meta/1",
+      { name: "Loot", symbol: "LOOT" },
+      { url: "https://embed.art/x", previewURL: "p.jpg" } as any,
+      {
+        name: "Bag #1",
+        attributes: [
+          { trait_type: "Head", value: "Divine Hood" },
+          { trait_type: "Empty", value: null },
+          { trait_type: "Nested", value: { a: 1 } as any },
+          { trait_type: "Count", value: 0 },
+        ],
+      }
+    )
+  ).text();
+  eq(
+    "traits are rendered server-side",
+    withAttrs.includes('<li class="attr"><span class="k">Head</span><span class="v">Divine Hood</span></li>'),
+    true
+  );
+  eq("a null trait is dropped", withAttrs.includes(">Empty<"), false);
+  eq("an object trait is dropped", withAttrs.includes(">Nested<"), false);
+  eq("a zero trait is kept", withAttrs.includes('<span class="v">0</span>'), true);
+  eq("the collection labels the token", withAttrs.includes("Loot (LOOT)"), true);
+
+  section("nothing a contract writes becomes markup");
+
+  // Every string below is chosen by whoever deployed the contract, or by
+  // whoever answers its tokenURI. None of it may end up as code.
+  const hostileURI =
+    "https://evil.example/`+alert(1)+`${alert(2)}</script><script>alert(3)</script>";
+  const hostile = await (
+    await pageWithRawData(
+      { contract: "0xabc", id: "1" },
+      hostileURI,
+      { name: '</title><script>alert(4)</script>', symbol: "X" },
+      { url: "https://embed.art/x", previewURL: 'p.jpg" onload="alert(5)' } as any,
+      {
+        name: '<img src=x onerror=alert(6)>',
+        description: '"><script>alert(7)</script>',
+        attributes: [{ trait_type: "<b>k</b>", value: "<b>v</b>" }],
+      }
+    )
+  ).text();
+
+  eq("no raw script tag from the token URI", hostile.includes("<script>alert(3)"), false);
+  eq("no raw script tag from the metadata", hostile.includes("<script>alert(7)"), false);
+  eq("the token's name cannot open a tag", hostile.includes("<img src=x onerror"), false);
+  eq("a trait cannot open a tag", hostile.includes("<b>k</b>"), false);
+  eq("the escaped name is what is shown", hostile.includes("&lt;img src=x onerror=alert(6)&gt;"), true);
+  // The URI is injected into a JS string. A backtick or a ${ in it used to end
+  // the literal, which is a contract writing our page's code.
+  let hostileParses = true;
+  try {
+    new Function(lastScript(hostile));
+  } catch {
+    hostileParses = false;
+  }
+  eq("the page's script still parses", hostileParses, true);
+  const uriLiteral = lastScript(hostile).match(/const tokenURI = (.*);/)[1];
+  eq(
+    "and it reads the URI back unchanged",
+    new Function("return " + uriLiteral)(),
+    hostileURI
+  );
+
   section("canonical URL and ENS caching");
 
   const viaEns = await build({
