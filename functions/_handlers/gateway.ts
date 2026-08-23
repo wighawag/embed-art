@@ -24,7 +24,7 @@
  * exists to avoid.
  */
 
-import { fetchAsService } from "../_utils/request";
+import { fetchFirstAvailable } from "../_utils/request";
 import { GATEWAYS, GatewayKind } from "../_utils/url";
 
 export type { GatewayKind };
@@ -134,40 +134,27 @@ export async function gatewayRoute(
 
   // Tried in order, because one gateway not holding a CID says nothing about
   // whether the content exists: it is addressed by hash, and any gateway that
-  // can find a provider serves the identical bytes.
-  let response: Response | undefined;
-  let failure = "";
-  let lastStatus = 0;
-  for (const upstream of upstreams) {
-    try {
-      response = await fetchAsService(upstream, {
-        method: request.method,
-        headers,
-        // Content-addressed bytes never change, so let the edge keep them.
-        cf: { cacheEverything: true, cacheTtl: kind === "ipns" ? 60 : 86400 },
-      } as RequestInit);
-    } catch (err: any) {
-      failure = `${upstream} failed: ${err.message}`;
-      lastStatus = 0;
-      response = undefined;
-      continue;
-    }
-    if (response.ok || response.status === 304 || response.status === 206) break;
-    failure = `${upstream} answered ${response.status}`;
-    lastStatus = response.status;
-    response = undefined;
-  }
+  // can find a provider serves the identical bytes. Under a time budget,
+  // because content nobody pins any more would otherwise take each gateway's
+  // own timeout to establish, one after another.
+  const { response, last, attempts } = await fetchFirstAvailable(upstreams, {
+    method: request.method,
+    headers,
+    // Content-addressed bytes never change, so let the edge keep them.
+    cf: { cacheEverything: true, cacheTtl: kind === "ipns" ? 60 : 86400 },
+  } as RequestInit);
 
   if (!response) {
     // Do not relay a gateway's error page: it may be a challenge document,
     // which would be a confusing thing to render in place of a token. The
-    // STATUS is worth relaying when the last gateway gave a definite "no such
-    // content"; anything else is our failure to fetch, not the token's.
-    const status = lastStatus >= 400 && lastStatus < 500 ? lastStatus : 502;
-    return new Response(`no gateway could serve ${kind}://${path}\n${failure}`, {
-      status,
-      headers: { "cache-control": "no-store" },
-    });
+    // STATUS is worth relaying when a gateway gave a definite "no such
+    // content"; a timeout is only our failure to find a provider.
+    const status = last && last.status >= 400 && last.status < 500 ? last.status : 504;
+    return new Response(
+      `no gateway could serve ${kind}://${path}\n` +
+        attempts.map((a) => `  ${a.url} -> ${a.outcome}`).join("\n"),
+      { status, headers: { "cache-control": "no-store" } }
+    );
   }
 
   return new Response(response.body, {

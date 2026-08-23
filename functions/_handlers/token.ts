@@ -10,9 +10,14 @@ import {
   parseMetadataWithCors,
   TokenStandard,
 } from "../_utils/metadata";
-import { fetchAsService } from "../_utils/request";
+import { fetchFirstAvailable } from "../_utils/request";
 import { sha256 } from "../_utils/strings";
-import { blobToDataURI, gatewayURI, getImageUrl } from "../_utils/url";
+import {
+  blobToDataURI,
+  candidateURIs,
+  gatewayPath,
+  getImageUrl,
+} from "../_utils/url";
 import { errorPage } from "./errorPage";
 import { pageWithRawData } from "./pageWithRawData";
 import { screenshotHTML } from "./screenshotWithAllData";
@@ -53,16 +58,22 @@ export async function generateDataURIForScreenshot(
   tokenURI: string,
   metadata: Metadata
 ): Promise<string> {
-  // Through OUR gateway if it is content-addressed, whichever courier the
-  // metadata happened to name.
-  let imageURLToUse = metadata.image ? gatewayURI(metadata.image) : metadata.image;
+  // Through OUR gateways if it is content-addressed, whichever courier the
+  // metadata happened to name, and bounded in time so an image nobody pins
+  // fails as a failure rather than as a very long wait.
+  const sources = metadata.image ? candidateURIs(metadata.image) : [];
+  let imageURLToUse = sources[0];
 
   let tokenURIToUse = tokenURI;
   if (imageURLToUse && imageURLToUse.startsWith("http")) {
     try {
-      imageURLToUse = await fetchAsService(imageURLToUse)
-        .then((v) => v.blob())
-        .then((b) => blobToDataURI(b));
+      const { response, attempts } = await fetchFirstAvailable(sources);
+      if (!response) {
+        throw new Error(
+          attempts.map((a) => `${a.url} -> ${a.outcome}`).join("\n")
+        );
+      }
+      imageURLToUse = await response.blob().then((b) => blobToDataURI(b));
     } catch (err) {
       throw new Error(`failed to get the image : ${err.message}\n${err.stack}`);
     }
@@ -231,7 +242,22 @@ export async function tokenPage(
       err instanceof HttpStatusError && err.status === 404
         ? "notfound"
         : "metadata";
-    return errorPage(type, err, { ...ctx, tokenURI: data.tokenURI });
+    // "The metadata server may be down" is the wrong story for a CID: there is
+    // no server to be down. What happened is that every gateway looked for
+    // somebody providing those bytes and nobody was.
+    const unpinned =
+      type === "metadata" &&
+      gatewayPath(data.tokenURI) !== null &&
+      !(err instanceof HttpStatusError);
+    return errorPage(type, err, {
+      ...ctx,
+      tokenURI: data.tokenURI,
+      message: unpinned
+        ? "This token's metadata is content-addressed, and no gateway could find " +
+          "anyone still providing it. A hash names which bytes the token means; " +
+          "it does not oblige anyone to keep them."
+        : undefined,
+    });
   }
 
   // Bail before the browser: with no image and no animation there is nothing

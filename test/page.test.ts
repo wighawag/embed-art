@@ -4,6 +4,7 @@
  * once and nothing else would catch it, so render the page and syntax-check
  * the script it emits.
  */
+import { errorPage } from "../functions/_handlers/errorPage";
 import { pageWithRawData } from "../functions/_handlers/pageWithRawData";
 import { CorsStatus } from "../functions/_utils/metadata";
 import { eq, report, section } from "./assert";
@@ -171,6 +172,44 @@ async function main() {
   eq("direct token page still gets a canonical", directHtml.includes(`<link rel="canonical" href="${CANON}">`), true);
   eq("direct page does not mention ENS", directHtml.includes("ENS avatar"), false);
   eq("direct token page is cacheable", direct.headers.get("cache-control"), null);
+
+  section("error pages");
+
+  const generic = await errorPage("metadata", new Error("boom"), {
+    origin: "https://embed.art",
+    tokenURI: "https://api.example/1",
+  }).text();
+  eq(
+    "a metadata host that died gets the generic story",
+    generic.includes("The metadata server may be down"),
+    true
+  );
+
+  // For a CID there is no server to be down, and saying so is the difference
+  // between blaming a host and describing what happened.
+  const unpinned = await errorPage("metadata", new Error("no source answered"), {
+    origin: "https://embed.art",
+    tokenURI: "ipfs://bafybeia3lejponr2skhobnhbcoauf4ldvwylpwcqmwgocqx2ustsqx6bby/1",
+    message:
+      "This token's metadata is content-addressed, and no gateway could find " +
+      "anyone still providing it. A hash names which bytes the token means; " +
+      "it does not oblige anyone to keep them.",
+  }).text();
+  eq(
+    "unpinned content is described, not blamed on a server",
+    unpinned.includes("no gateway could find anyone still providing it"),
+    true
+  );
+  eq(
+    "and the generic line is replaced, not appended",
+    unpinned.includes("The metadata server may be down"),
+    false
+  );
+  eq(
+    "the override reaches the unfurl description too",
+    unpinned.includes('property="og:description" content="This token&#039;s metadata is content-addressed'),
+    true
+  );
 
   report();
 }

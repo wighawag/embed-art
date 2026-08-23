@@ -10,9 +10,9 @@
  * else's og:image, nor as a thumbnail on our own home page.
  */
 import { Metadata, parseMetadata, TokenStandard } from "../_utils/metadata";
-import { fetchAsService } from "../_utils/request";
+import { fetchFirstAvailable } from "../_utils/request";
 import { sha256 } from "../_utils/strings";
-import { gatewayURI } from "../_utils/url";
+import { candidateURIs } from "../_utils/url";
 import { generatePreviewImage, getData } from "./token";
 
 /**
@@ -146,12 +146,14 @@ export async function audioRoute(
     });
   }
 
-  const upstream = gatewayURI(source);
-  const response = await fetchAsService(upstream);
-  if (!response.ok) {
-    return new Response(`audio source returned ${response.status}`, {
-      status: 502,
-    });
+  const sources = candidateURIs(source);
+  const upstream = sources[0];
+  const { response, last } = await fetchFirstAvailable(sources);
+  if (!response) {
+    return new Response(
+      `audio source returned ${last ? last.status : "no answer"}`,
+      { status: 502 }
+    );
   }
   const guessed =
     AUDIO_TYPES.find(([re]) => re.test(upstream))?.[1] || "application/octet-stream";

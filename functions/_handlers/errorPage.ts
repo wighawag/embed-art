@@ -98,11 +98,13 @@ export function errorPage(
     standard?: string;
     ensName?: string;
     avatarRecord?: string;
+    /** replaces the generic copy when the caller knows something sharper */
+    message?: string;
   }
 ): Response {
   const info = ERROR_INFO[type];
   const escTitle = escapeHtml(info.title);
-  const escMessage = escapeHtml(info.message);
+  const escMessage = escapeHtml(context.message || info.message);
   const imageUrl = context.origin
     ? `${context.origin}/static/error-${type}.png`
     : undefined;

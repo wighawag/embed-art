@@ -4,6 +4,7 @@
  * page that says "unreadable" about a perfectly good token.
  */
 import { outboundHeaders, upstreamsFor } from "../functions/_handlers/gateway";
+import { fetchFirstAvailable } from "../functions/_utils/request";
 import { audioSource } from "../functions/_handlers/media";
 import { candidateURIs, gatewayPath, gatewayURI } from "../functions/_utils/url";
 import { isEnsName, normalizeEnsName, parseAvatarRecord } from "../functions/_utils/ens";
@@ -258,6 +259,71 @@ eq("backslash", upstreamsFor("ipfs", "Qm\\evil"), null);
 eq("query string", upstreamsFor("ipfs", "QmAbc?x=1"), null);
 eq("fragment", upstreamsFor("ipfs", "QmAbc#x"), null);
 eq("whitespace", upstreamsFor("ipfs", "Qm Abc"), null);
+
+section("fetchFirstAvailable (a CID that nobody pins any more)");
+
+// A fake network: each URL maps to a status, or to "hang" for a gateway that
+// holds the connection open while it looks for a provider that is not there.
+function fakeNetwork(plan: Record<string, number | "hang">, clock: { t: number }) {
+  const tried: string[] = [];
+  const fetcher = async (url: string, _init: any, timeoutMs: number) => {
+    tried.push(url);
+    const outcome = plan[url];
+    if (outcome === "hang") {
+      clock.t += timeoutMs; // burned the whole allowance and got nothing
+      throw new Error("aborted");
+    }
+    clock.t += 50;
+    return { ok: outcome === 200, status: outcome } as Response;
+  };
+  return { tried, fetcher };
+}
+
+async function budgetChecks() {
+  const now = () => clock.t;
+  let clock = { t: 0 };
+
+  // The happy case: the first gateway answers and the rest are never asked.
+  let net = fakeNetwork({ a: 200, b: 200 }, clock);
+  let result = await fetchFirstAvailable(["a", "b"], {}, { now }, net.fetcher);
+  eq("stops at the first answer", net.tried, ["a"]);
+  eq("returns it", result.response?.status, 200);
+
+  // A gateway that does not have it should not end the search.
+  clock = { t: 0 };
+  net = fakeNetwork({ a: 504, b: 200 }, clock);
+  result = await fetchFirstAvailable(["a", "b"], {}, { now }, net.fetcher);
+  eq("a refusal moves on", net.tried, ["a", "b"]);
+  eq("and the next answer wins", result.response?.status, 200);
+
+  // The CityDAO case: every gateway hangs. Each burns its per-attempt
+  // allowance, and the total budget stops us before the list is exhausted, so
+  // "gone" is a conclusion reached in seconds rather than minutes.
+  clock = { t: 0 };
+  net = fakeNetwork({ a: "hang", b: "hang", c: "hang" }, clock);
+  result = await fetchFirstAvailable(
+    ["a", "b", "c"],
+    {},
+    { perAttemptMs: 12000, totalMs: 25000, now },
+    net.fetcher
+  );
+  eq("unpinned content gives no response", result.response, undefined);
+  eq("two attempts fit the budget", net.tried, ["a", "b"]);
+  eq("the third is skipped, not waited on", result.attempts[2].outcome, "skipped: out of time");
+  eq("and it took the budget, not the network's patience", clock.t <= 25000, true);
+
+  // A definite "no such content" is kept, because it means something a
+  // timeout does not: the source answered.
+  clock = { t: 0 };
+  net = fakeNetwork({ a: "hang", b: 404 }, clock);
+  result = await fetchFirstAvailable(["a", "b"], {}, { now }, net.fetcher);
+  eq("no successful response", result.response, undefined);
+  eq("but the refusal is reported", result.last?.status, 404);
+
+  eq("every attempt is accounted for", result.attempts.map((a) => a.url), ["a", "b"]);
+}
+
+await budgetChecks();
 
 section("outboundHeaders (hosting other people's bytes on our own name)");
 const upstreamHeaders = new Headers({

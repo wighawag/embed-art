@@ -1,7 +1,7 @@
 import { Interface } from "@ethersproject/abi";
 import { BigNumber } from "@ethersproject/bignumber";
 import { Base64 } from "./base64";
-import { fetchAsService } from "./request";
+import { fetchFirstAvailable } from "./request";
 import { getEndpoint } from "./rpc";
 import { candidateURIs, GATEWAYS, gatewayPath } from "./url";
 
@@ -443,33 +443,31 @@ export async function parseMetadataWithCors(
       // works from, so both sides agree on where the bytes came from.
       const candidates = candidateURIs(tokenURI);
       try {
-        let response: Response | undefined;
-        let transportError: any;
-        for (const candidate of candidates) {
-          try {
-            const attempt = await fetchAsService(candidate);
-            fetchedFrom = candidate;
-            response = attempt;
-            if (attempt.ok) break;
-          } catch (err) {
-            transportError = err;
-          }
+        const { response, last, attempts } = await fetchFirstAvailable(
+          candidates
+        );
+        const answered = response || last;
+        if (!answered) {
+          // Nobody answered at all, which for a CID means nobody is providing
+          // those bytes any more: report it as gone rather than as slow.
+          throw new Error(
+            `no source answered for ${tokenURI}\n` +
+              attempts.map((a) => `  ${a.url} -> ${a.outcome}`).join("\n")
+          );
         }
-        if (!response) {
-          throw transportError || new Error(`no route to ${tokenURI}`);
-        }
-        tokenURI = fetchedFrom as string;
+        fetchedFrom = attempts[attempts.length - 1].url;
+        tokenURI = fetchedFrom;
         cors = contentAddressed
           ? "not-applicable"
-          : corsFromHeader(response.headers.get("access-control-allow-origin"));
-        if (!response.ok) {
+          : corsFromHeader(answered.headers.get("access-control-allow-origin"));
+        if (!answered.ok) {
           // A 404 body is often still valid JSON (OpenSea answers with
           // {"errors":[...]}), and parsing it as metadata yields a document
           // with no image, which then burns 30s in the headless browser
           // waiting for something that will never render.
-          throw new HttpStatusError(response.status, tokenURI);
+          throw new HttpStatusError(answered.status, tokenURI);
         }
-        metadata = await response.json();
+        metadata = await answered.json();
         metadata = recursiveReplace(metadata, "ipfs://", GATEWAYS.ipfs[0]);
       } catch (err) {
         if (err instanceof HttpStatusError) throw err;
