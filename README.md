@@ -96,12 +96,15 @@ in the URL bar. The conversion is done digit by digit, not through `Number`,
 because token ids run well past 2^53.
 
 **A known-collection list** fills chain, standard, contract and a sample id in
-one pick. Two rules decide what is on it: the ids have to be small counting
-numbers, and the entry has to have been checked **through this service**, its
-sample id rendering a page rather than an error. That is why Mandalas is absent
-despite being the front page's own example of onchain art: its ids are 40-digit
-numbers derived from an address, and they do not exist until minted, so there
-is nothing you could type.
+one pick. Two rules decide what is on it: you have to be able to **type an id
+and get a token**, and the entry has to have been checked **through this
+service**, its sample id rendering a page rather than an error. That is why
+Mandalas is absent despite being the front page's own example of onchain art:
+its ids are 40-digit numbers derived from an address, and they do not exist
+until minted, so there is nothing you could type. Brotchain passes the same
+rule by a different route: `30057` is not a counting number but a series and an
+index, and every id renders something, so the sample is a starting point rather
+than the only one that works.
 
 Checking through the service rather than from a laptop is what found the next
 bug: CrypToadz rendered here and 403'd there, because arweave.net refuses a
@@ -331,6 +334,38 @@ RFC 2397 defines and whose markup is not percent-encoded, so the first `#` in a
 fill colour would end the URL: the bytes are right and the envelope is not, so
 the adapter rewrites the envelope.
 
+The **Autoglyphs** entry reads `draw(uint256)` and `symbolScheme(uint256)` from
+the collection itself. `draw` returns a 64 by 64 grid of `. O + X | - \ /` and
+`#` as `text/plain`, which is the whole artwork and not a document: there is no
+`image` field anywhere, so there is nothing to fetch and nothing to fix.
+
+The **CryptoKitties** entry is the one that earns rule 3. It reads
+`getKitty(uint256)`, which is genuinely onchain and genuinely the token: a
+256-bit gene string, a generation, a birth time and two parent ids. What is
+*not* onchain is the cat. The drawing is rendered from those genes by
+CryptoKitties itself and served from their image host, so the page says exactly
+that, in those words, next to the picture. The URL is not one we invented
+either: the project's own API returns that same string as the token's
+`image_url`. Two things are deliberately left out. The "cattributes" everyone
+knows kitties by (Mauveover, Ragdoll) are computed from the genes by their
+off-chain gene science, so listing them would present somebody's interpretation
+as the token's data. And the note says plainly that this art, unlike everything
+else in this group, disappears if that host does.
+
+Drawing an Autoglyph raises the one question an adapter has to get right, which
+is what it is allowed to decide. Setting those characters in a monospace font is the
+obvious move and the wrong one: it renders a *transcription* of the piece,
+because a font's side bearings leave a gap at every cell edge and the diagonals
+never join. Larva Labs publish an SVG per glyph, and in it every symbol is a
+vector primitive on a 10-unit cell: a slash is the cell's diagonal, `X` is both
+of them, `|` and `-` are its centre lines, `O` is the inscribed circle, `#` is
+the filled cell, and `.` is nothing at all. That mapping was **read back off
+those files**, and the result matches their renderer pixel for pixel (zero
+differing pixels on glyphs 1 and 14; glyph 2 differs only in the antialiasing
+of its diagonals). White paper is the one thing we chose rather than found: the
+ink is black, the contract says nothing about colour, and black on this site's
+plate is an invisible token. The page says so.
+
 ### When reading the token costs more gas than a node will spend
 
 `ETHEREUM_NODE` accepts a **comma-separated list**, tried in order. One node is
@@ -512,11 +547,15 @@ usage is minimal.
 
 ## Future plan
 
-- support hot reload so you can watch dyanmic NFT in the page
+- support hot reload so you can watch dyanmic NFT in the page, and let a token
+  whose document is written at read time (the Moon, say) be refreshed rather
+  than served from the cache it was first read into
 - try the gateways concurrently rather than one after another, so a cold CID is
   found as fast as the quickest gateway rather than as slow as the first one
 - test with more assets
-- support old contracts (cryptopunks, autoglyphs, etc...)
+- support more old contracts (cryptopunks and autoglyphs are done; Autoglyphs'
+  symbol schemes are covered in full, so the next one is a different collection
+  rather than a missing symbol)
 - ENS: CCIP-read for offchain names, and optional ownership verification
 - check the home page's examples at request time instead of describing their
   health in hardcoded copy, since which ones are alive keeps changing

@@ -5,6 +5,11 @@
  */
 import {
   ADAPTERS,
+  autoglyphSVG,
+  autoglyphSymbol,
+  autoglyphText,
+  cryptokittyAttributes,
+  cryptokittyImage,
   findAdapter,
   punkAttributes,
   reencodeSvgDataURI,
@@ -439,7 +444,12 @@ async function punkAdapterChecks() {
     // presented as read from the chain must not smuggle them in.
     eq("invents no backdrop", "background_color" in result.metadata, false);
     eq("and says where the art came from", result.source.address, "0x16f5a35647d6f03d5d3da7b35409d65ba03af3b2");
-    eq("and that we assembled it", result.note.includes("assembled by"), true);
+    // The note is printed beside the "assembled by Embed.Art" row and the
+    // source row, so repeating either is noise. What it owes the visitor is
+    // the part they cannot deduce: here, that the art is transparent by
+    // design and the backdrop is nobody's to choose.
+    eq("and the note adds what those cannot", result.note.includes("transparent"), true);
+    eq("without repeating the row above it", result.note.includes("assembled by"), false);
 
     let rejected = false;
     try {
@@ -503,6 +513,98 @@ eq("an alien with one", punkAttributes("Alien, Headband"), [
 ]);
 eq("a bare punk", punkAttributes("Female 3"), [{ trait_type: "Type", value: "Female 3" }]);
 eq("nothing at all", punkAttributes(""), []);
+
+const AUTOGLYPHS = "0xd4e4078ca3495de5b1d4db434bebc5a986197782";
+eq("autoglyphs is covered", findAdapter("1", AUTOGLYPHS)?.collection, "Autoglyphs");
+
+// The mapping is not ours to invent: every symbol below was read off Larva
+// Labs' own published SVGs (larvalabs.com/public/images/autoglyphs/glyph<N>.svg),
+// where each character is a vector primitive on a 10-unit cell and never a
+// letter. Rendering these as monospace TEXT instead produces a transcription
+// of the artwork rather than the artwork: the strokes stop at the font's side
+// bearings and the diagonals never join up.
+eq("a backslash is the cell's leading diagonal", autoglyphSymbol("\\", 0, 0).stroke, "M0 0l10 10");
+eq("a slash is the other one", autoglyphSymbol("/", 0, 0).stroke, "M10 0l-10 10");
+eq("an X is both", autoglyphSymbol("X", 0, 0).stroke, "M0 0l10 10M10 0l-10 10");
+eq("a bar is the vertical centre line", autoglyphSymbol("|", 0, 0).stroke, "M5 0v10");
+eq("a dash is the horizontal one", autoglyphSymbol("-", 0, 0).stroke, "M0 5h10");
+eq("a plus is both", autoglyphSymbol("+", 0, 0).stroke, "M5 0v10M0 5h10");
+eq("an O is the inscribed circle", autoglyphSymbol("O", 0, 0).circle, true);
+eq("a hash is the filled cell", autoglyphSymbol("#", 0, 0).fill, "M0 0h10v10h-10z");
+// The empty cell is the commonest character in the collection, and drawing a
+// dot for it would put ink on the paper the artist left blank.
+eq("a dot draws nothing", autoglyphSymbol(".", 0, 0), { stroke: "", fill: "", circle: false });
+// A symbol scheme we have never seen must not be guessed at either.
+eq("an unknown symbol draws nothing", autoglyphSymbol("@", 0, 0).stroke, "");
+// Cells are placed by index, so the second column starts one cell along.
+eq("cells are placed on the grid", autoglyphSymbol("|", 20, 30).stroke, "M25 30v10");
+
+// 2x2 grid: 20 units of art, 20 of margin each side.
+const tinyGlyph = autoglyphSVG("X.\n.O\n");
+eq("the canvas is the grid plus its margin", tinyGlyph.includes('viewBox="0 0 60 60"'), true);
+eq("the paper is white, since the ink is black", tinyGlyph.includes('fill="#fff"'), true);
+eq("line work is one path, not hundreds of elements", (tinyGlyph.match(/<path/g) || []).length, 1);
+eq("and the circle is placed in its own cell", tinyGlyph.includes('<circle cx="35" cy="35" r="5"/>'), true);
+eq("a trailing newline is not a row of nothing", autoglyphSVG("X\n").includes('viewBox="0 0 50 50"'), true);
+
+// draw() answers with the art wrapped in a data: URI, newlines percent-encoded.
+eq(
+  "the text is read out of the data: URI",
+  autoglyphText("data:text/plain;charset=utf-8,.X.%0AO-O"),
+  ".X.\nO-O"
+);
+eq("and a bare grid is taken as it is", autoglyphText("X\nO"), "X\nO");
+
+const KITTIES = "0x06012c8cf97bead5deae237070f9587f8e7a266d";
+eq("cryptokitties is covered", findAdapter("1", KITTIES)?.collection, "CryptoKitties");
+// The one adapter whose art is NOT onchain, so the one that has to be most
+// careful about where it says the picture comes from. This exact string is
+// what api.cryptokitties.co returns as the token's own `image_url`: the
+// project publishing where its art is kept, rather than a URL we guessed.
+eq(
+  "the image is the project's own published address",
+  cryptokittyImage("1001"),
+  "https://img.cryptokitties.co/0x06012c8cf97bead5deae237070f9587f8e7a266d/1001.svg"
+);
+
+// getKitty returns ten static words; only four of them are facts worth showing.
+const kittyReturn = (
+  birthTime: number,
+  matron: number,
+  sire: number,
+  generation: number
+) =>
+  "0x" +
+  [0, 0, 0, 0, 0, birthTime, matron, sire, generation, 0]
+    .map((word) => BigInt(word).toString(16).padStart(64, "0"))
+    .join("");
+
+eq(
+  "a gen 0 kitty has no parents to name",
+  cryptokittyAttributes(kittyReturn(1511428737, 0, 0, 0)),
+  [
+    { trait_type: "Generation", value: "0" },
+    { trait_type: "Born", value: "2017-11-23" },
+  ]
+);
+eq(
+  "a bred kitty names both",
+  cryptokittyAttributes(kittyReturn(1671235200, 2019596, 2019836, 7)),
+  [
+    { trait_type: "Generation", value: "7" },
+    { trait_type: "Born", value: "2022-12-17" },
+    { trait_type: "Matron", value: "2019596" },
+    { trait_type: "Sire", value: "2019836" },
+  ]
+);
+// The cattributes everyone knows kitties by (Mauveover, Ragdoll) are computed
+// from the genes off-chain, so they are somebody's interpretation rather than
+// the token's data, and this adapter does not pass them off as either.
+eq(
+  "nothing is invented from the genes",
+  JSON.stringify(cryptokittyAttributes(kittyReturn(1, 0, 0, 0))).includes("gene"),
+  false
+);
 
 section("getEndpoints / isGasCapError");
 eq("a single node", getEndpoints({ ETHEREUM_NODE: "https://a" }, "1"), ["https://a"]);

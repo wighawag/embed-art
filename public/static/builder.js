@@ -96,6 +96,60 @@
       token: "1",
     },
     {
+      // No metadata document at all: the tokenURI returns the art as text,
+      // and Embed.Art draws it (see _utils/adapters.ts). Offered here because
+      // the ids are 1 to 512 and every one of them renders.
+      group: "metadata onchain",
+      name: "Autoglyphs",
+      note: "the tokenURI IS the art, as text",
+      chain: "1",
+      standard: "erc721",
+      contract: "0xd4e4078ca3495DE5B1d4dB434BEbc5a986197782",
+      token: "2",
+    },
+    {
+      group: "metadata onchain",
+      name: "ArcadeGlyphs",
+      note: "a played game, as an animated SVG",
+      chain: "1",
+      standard: "erc721",
+      contract: "0x7EEFee2d0B0e23b7Ce6B56a9cE9B62A599e6E9Da",
+      token: "420",
+    },
+    {
+      group: "metadata onchain",
+      name: "Brotchain",
+      note: "fractals computed in the EVM, as BMP",
+      chain: "1",
+      standard: "erc721",
+      contract: "0xd31fC221D2b0E0321C43E9F6824b26ebfFf01D7D",
+      // Not a counting number: the id encodes the series, and 30057 is
+      // Multibrot #57. Every id renders something, so a sample is all this
+      // field can honestly offer.
+      token: "30057",
+    },
+    {
+      group: "metadata onchain",
+      name: "[sol]Seedlings: Genesis",
+      note: "SVG grids generated in Solidity",
+      chain: "1",
+      standard: "erc721",
+      contract: "0x5D4683bA64Ee6283bB7FDB8A91252F6aAB32A110",
+      token: "460",
+    },
+    {
+      // The list's only ERC-1155, which is worth having: the standard is not
+      // an afterthought here, and the field defaults to erc721 so the one
+      // entry that needs the other is the one that proves it is wired.
+      group: "metadata onchain",
+      name: "Moon",
+      note: "ERC-1155, redrawn to tonight's lunar phase",
+      chain: "1",
+      standard: "erc1155",
+      contract: "0x52202190e82597b6842c2622d51D213b3b8972c9",
+      token: "1",
+    },
+    {
       group: "metadata elsewhere",
       name: "Bored Ape Yacht Club",
       note: "metadata and art on IPFS",

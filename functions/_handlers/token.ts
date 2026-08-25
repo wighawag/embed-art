@@ -287,6 +287,12 @@ export async function tokenPage(
       type === "metadata" &&
       gatewayPath(data.tokenURI) !== null &&
       !(err instanceof HttpStatusError);
+    // A collection whose tokenURI answers with something that is not a
+    // metadata document fails HERE rather than at the RPC call, so the same
+    // courtesy note has to be offered from this branch too. Autoglyphs is the
+    // case: asked strictly, the honest answer is "that is not a document",
+    // and the useful one is that we can draw it anyway.
+    const adapter = strict ? findAdapter(chainId, contract) : null;
     return errorPage(type, err, {
       ...ctx,
       tokenURI: data.tokenURI,
@@ -294,7 +300,11 @@ export async function tokenPage(
         ? "This token's metadata is content-addressed, and no gateway could find " +
           "anyone still providing it. A hash names which bytes the token means; " +
           "it does not oblige anyone to keep them."
-        : undefined,
+        : adapter
+          ? `${adapter.reason} You asked for the standard and nothing else, ` +
+            `which is exactly what that leaves. Drop ?strict and Embed.Art ` +
+            `will draw the art from what the token does return.`
+          : undefined,
     });
   }
 

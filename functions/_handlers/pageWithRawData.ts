@@ -158,7 +158,17 @@ export async function pageWithRawData(
         `<p class="row"><span class="label">${escapeHtml(
           extra.via.reason,
         )}</span></p>` +
-        `<p class="row"><span class="label">Art read from <code>${escapeHtml(
+        // The adapter's own words about what it did to THIS token, which is
+        // the part a viewer cannot work out from the contract address: that a
+        // punk is transparent, that a kitty's picture is not onchain at all.
+        // It was written for the visitor and passed to this page from the
+        // start; it just was not being printed.
+        `<p class="row"><span class="label">${escapeHtml(
+          extra.via.note,
+        )}</span></p>` +
+        // "Read from", not "Art read from": for CryptoKitties this names where
+        // the FACTS came from, and the picture is somewhere else entirely.
+        `<p class="row"><span class="label">Read from <code>${escapeHtml(
           extra.via.source.address,
         )}</code> via <code>${escapeHtml(
           extra.via.source.method,

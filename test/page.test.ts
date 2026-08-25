@@ -460,6 +460,22 @@ async function main() {
   );
   eq("and the function", assembledHtml.includes("punkImageSvg(uint16)"), true);
   eq("and why there was no tokenURI", assembledHtml.includes("predates ERC-721"), true);
+  // The adapter's own words about this token. They were written for the
+  // visitor and handed to the page from the first version, and never printed:
+  // for CryptoKitties this row is the only place the page admits the picture
+  // is not onchain, so it is not decoration.
+  eq(
+    "and what the adapter actually did",
+    assembledHtml.includes("onchain renderer"),
+    true
+  );
+  // Escaped on the way in like everything else the page prints, even though
+  // this string is ours: the rule is about the channel, not about who wrote it.
+  eq(
+    "with the note escaped like anything else",
+    assembledHtml.includes("collection&#039;s onchain renderer"),
+    true
+  );
   eq("and offers the strict view", assembledHtml.includes('href="?strict"'), true);
 
   const ordinary = await build();

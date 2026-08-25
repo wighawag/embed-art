@@ -297,6 +297,11 @@
         .card-name { display: block; margin-bottom: 0.15rem; }
         .card-note { display: block; font-size: 0.78rem; color: var(--muted); }
 
+        /* The asterisk on a card, and the one on the footnote that answers it.
+           Coloured rather than superscripted: it has to be findable from the
+           card without making the name jump on the baseline. */
+        .star { color: var(--accent); font-weight: 700; }
+
         .card.dead { border-style: dashed; }
         .card.dead .card-name { color: var(--muted); text-decoration: line-through; }
 
@@ -499,6 +504,146 @@
                                 src="/audio/eip155:1/erc721:0x9d27527Ada2CF29fBDAB2973cfa243845a08Bd3F/1">
                             </audio>
                         </div>
+                        <a class="card"
+                            href="/eip155:1/erc721:0xd31fc221d2b0e0321c43e9f6824b26ebfff01d7d/30057">
+                            <img class="card-shot" loading="lazy" alt="Preview of a Multibrot"
+                                src="/image/eip155:1/erc721:0xd31fc221d2b0e0321c43e9f6824b26ebfff01d7d/30057">
+                            <span class="card-body">
+                                <span class="card-name">Brotchain</span>
+                                <span class="card-note">a fractal computed in the EVM, returned as a BMP</span>
+                            </span>
+                        </a>
+                        <a class="card"
+                            href="/eip155:1/erc721:0x7eefee2d0b0e23b7ce6b56a9ce9b62a599e6e9da/420">
+                            <img class="card-shot" loading="lazy" alt="Preview of an ArcadeGlyph"
+                                src="/image/eip155:1/erc721:0x7eefee2d0b0e23b7ce6b56a9ce9b62a599e6e9da/420">
+                            <span class="card-body">
+                                <span class="card-name">ArcadeGlyphs</span>
+                                <span class="card-note">a played game, kept as an animated SVG</span>
+                            </span>
+                        </a>
+                        <a class="card"
+                            href="/eip155:1/erc721:0x9C8fF314C9Bc7F6e59A9d9225Fb22946427eDC03/1">
+                            <img class="card-shot" loading="lazy" alt="Preview of a Noun"
+                                src="/image/eip155:1/erc721:0x9C8fF314C9Bc7F6e59A9d9225Fb22946427eDC03/1">
+                            <span class="card-body">
+                                <span class="card-name">Nouns</span>
+                                <span class="card-note">one SVG noun a day, assembled from onchain parts</span>
+                            </span>
+                        </a>
+                        <a class="card"
+                            href="/eip155:1/erc1155:0x52202190e82597b6842c2622d51d213b3b8972c9/1">
+                            <img class="card-shot" loading="lazy" alt="Preview of the Moon, at its current phase"
+                                src="/image/eip155:1/erc1155:0x52202190e82597b6842c2622d51d213b3b8972c9/1">
+                            <span class="card-body">
+                                <span class="card-name">Moon</span>
+                                <span class="card-note">ERC-1155; the document is written at read time</span>
+                            </span>
+                        </a>
+                    </div>
+                    <div class="note">
+                        <p>
+                            <strong>Half of these do not follow the standard, and that is ordinary
+                            rather than unlucky.</strong> This page reads a token the way a browser
+                            does, in two passes: fetch the <code>tokenURI</code>, then hand
+                            <code>image</code> to an <code>&lt;img&gt;</code>, which fetches that
+                            as a URL too. Mandalas, Bleeps and Nouns come through both passes
+                            untouched, and no repair is made for them: Nouns base64-encodes, and
+                            Bleeps writes <code>%2520</code> precisely so that two decodes land on
+                            the space it meant.
+                        </p>
+                        <p>
+                            Brotchain, ArcadeGlyphs and the Moon do not encode their documents at
+                            all, and each contains a <code>#</code> (a fill colour, always). A
+                            browser reads that as the start of a fragment, so the very first pass
+                            returns a fragment of the JSON and never reaches the artwork.
+                            ArcadeGlyphs and the Moon also put the SVG itself in
+                            <code>image</code>, where the schema asks for a URI pointing at one.
+                        </p>
+                        <p>
+                            Those three render above anyway, because the page repairs the envelope
+                            and then says so: the repair is named on that token's own page, and
+                            <code>?strict</code> withdraws it and shows what a compliant client
+                            gets instead. None of it is the artwork's fault, and none of it is the
+                            owner's to suffer.
+                        </p>
+                        <p>
+                            The Moon is unusual for a different reason: nothing about it was
+                            decided at mint. Its contract reads the current block, works out the
+                            lunar phase and returns the document to match, with no external
+                            resource involved at any point. The caveat there is ours rather than
+                            the token's, so it belongs here: Embed.Art caches a document the first
+                            time it is asked for, which makes that card the phase at that moment
+                            rather than tonight's. A token that rewrites itself is the case a
+                            cache does not fit.
+                        </p>
+                    </div>
+                </div>
+
+                <div class="group">
+                    <p>Older than the standard, with no metadata document to read:</p>
+                    <div class="cards">
+                        <a class="card"
+                            href="/eip155:1/erc721:0xd4e4078ca3495DE5B1d4dB434BEbc5a986197782/2">
+                            <img class="card-shot" loading="lazy" alt="Preview of Autoglyph #2"
+                                src="/image/eip155:1/erc721:0xd4e4078ca3495DE5B1d4dB434BEbc5a986197782/2">
+                            <span class="card-body">
+                                <span class="card-name">Autoglyphs</span>
+                                <span class="card-note">the tokenURI is the artwork, as 64 lines of text</span>
+                            </span>
+                        </a>
+                        <a class="card"
+                            href="/eip155:1/erc721:0xb47e3cd837ddf8e4c57f05d70ab865de6e193bbb/3862">
+                            <img class="card-shot" loading="lazy" alt="Preview of CryptoPunk #3862"
+                                src="/image/eip155:1/erc721:0xb47e3cd837ddf8e4c57f05d70ab865de6e193bbb/3862">
+                            <span class="card-body">
+                                <span class="card-name">CryptoPunks</span>
+                                <span class="card-note">no tokenURI at all; drawn by an onchain renderer</span>
+                            </span>
+                        </a>
+                        <a class="card"
+                            href="/eip155:1/erc721:0x06012c8cf97BEaD5deAe237070F9587f8E7A266d/1001">
+                            <img class="card-shot" loading="lazy" alt="Preview of CryptoKitty #1001"
+                                src="/image/eip155:1/erc721:0x06012c8cf97BEaD5deAe237070F9587f8E7A266d/1001">
+                            <span class="card-body">
+                                <span class="card-name">CryptoKitties<span class="star">*</span></span>
+                                <span class="card-note">genes onchain, drawing from a company's server</span>
+                            </span>
+                        </a>
+                    </div>
+                    <div class="note">
+                        <p>
+                            Autoglyphs are from 2019, and their <code>tokenURI</code> does not point
+                            at a metadata document: it returns the piece itself, a 64 by 64 grid of
+                            <code>. O + X | - \ /</code> and <code>#</code> as
+                            <code>text/plain</code>. There is no <code>image</code> field anywhere
+                            to fetch, because there is no document.
+                        </p>
+                        <p>
+                            So Embed.Art draws it, and says on the page that it did. The characters
+                            are not set in a typeface: each one is the vector primitive the
+                            collection's own renderer uses, a slash being the cell's diagonal and
+                            <code>O</code> its inscribed circle, which is what makes the strokes
+                            join into continuous lines instead of a transcription. Asked with
+                            <a href="/eip155:1/erc721:0xd4e4078ca3495DE5B1d4dB434BEbc5a986197782/2?strict"><code>?strict</code></a>
+                            it reports what a compliant client finds, which is a text file.
+                            CryptoPunks gets the same treatment for the same reason, having no
+                            <code>tokenURI</code> at all: its art comes from the collection's own
+                            onchain renderer, and a punk arrives transparent, so what is behind it
+                            is nobody's to invent.
+                        </p>
+                        <p>
+                            <strong><span class="star">*</span> CryptoKitties is in this group on a
+                            technicality, and the asterisk is the honest part.</strong> It has no
+                            <code>tokenURI</code> either, so there is no document, and what the
+                            contract holds is real: a 256-bit gene string, a generation, a birth
+                            date, two parents. But the cat itself is <em>not onchain</em>. It is
+                            drawn from those genes by CryptoKitties and served from their image
+                            host, so unlike everything else in this group, that picture goes away
+                            if the company does. Embed.Art names that host on the token's page
+                            rather than passing the drawing off as chain data, and the address it
+                            uses is the one the project's own API publishes for the token.
+                        </p>
                     </div>
                 </div>
 
