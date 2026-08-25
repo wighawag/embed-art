@@ -16,6 +16,21 @@ export function eq(label: string, got: unknown, want: unknown): void {
   }
 }
 
+/**
+ * Refusing is a result too. Some inputs must NOT be quietly given a best
+ * effort: a data: URI holding an image is not a metadata document, and
+ * reporting "invalid JSON" about it would send the reader after the wrong bug.
+ */
+export function throws(label: string, fn: () => unknown): void {
+  try {
+    fn();
+  } catch (err) {
+    passed++;
+    return;
+  }
+  failures.push(`${label}\n    got  no error\n    want it to throw`);
+}
+
 export function section(name: string): void {
   console.log(`\n  ${name}`);
 }

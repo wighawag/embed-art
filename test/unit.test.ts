@@ -24,11 +24,22 @@ import {
   RpcError,
 } from "../functions/_utils/rpc";
 import { audioSource } from "../functions/_handlers/media";
-import { candidateURIs, gatewayPath, gatewayURI } from "../functions/_utils/url";
+import {
+  candidateURIs,
+  gatewayPath,
+  gatewayURI,
+  imageAttempts,
+} from "../functions/_utils/url";
 import { isEnsName, normalizeEnsName, parseAvatarRecord } from "../functions/_utils/ens";
-import { erc1155IdHex, isRenderable } from "../functions/_utils/metadata";
+import {
+  dataURIDocument,
+  erc1155IdHex,
+  isRenderable,
+  parseMetadata,
+} from "../functions/_utils/metadata";
+import { encodedDataURI } from "../functions/_utils/clientCourtesy";
 import { parseTokenSegment } from "../functions/_utils/url";
-import { eq, report, section } from "./assert";
+import { eq, report, section, throws } from "./assert";
 
 section("parseAvatarRecord (ENSIP-12 / CAIP-22 / CAIP-29)");
 
@@ -253,6 +264,30 @@ eq(
     "ipfs://QmAbc"
   ),
   "/ipfs/QmAbc"
+);
+
+section("imageAttempts (what the BROWSER can try, in order)");
+// Content-addressed: this origin first, because the courier is ours to pick.
+eq("an ipfs URI is read back through us", imageAttempts("ipfs://QmAbc/1.png"), ["/ipfs/QmAbc/1.png"]);
+// A hardcoded gateway is a CID wearing a hat: ours first, theirs as a
+// last resort, since it is where the bytes were last known to be.
+eq("a hardcoded gateway keeps itself as a fallback", imageAttempts("https://ipfs.io/ipfs/QmeSjSinHpPnmXmspMjwiXyN6zS4E9zccariGR3jxcaWtq"), [
+  "/ipfs/QmeSjSinHpPnmXmspMjwiXyN6zS4E9zccariGR3jxcaWtq",
+  "https://ipfs.io/ipfs/QmeSjSinHpPnmXmspMjwiXyN6zS4E9zccariGR3jxcaWtq",
+]);
+// Not content-addressed: that URL IS the project's claim about where its art
+// lives, so there is nothing for us to substitute and one thing to try.
+eq("a project's own host is left alone", imageAttempts("https://img.cryptokitties.co/0xabc/1.svg"), [
+  "https://img.cryptokitties.co/0xabc/1.svg",
+]);
+eq("and so is an inline image", imageAttempts("data:image/svg+xml,%3Csvg%2F%3E"), [
+  "data:image/svg+xml,%3Csvg%2F%3E",
+]);
+// Whatever it returns, the caller shows it in order and never twice.
+eq(
+  "never the same source twice",
+  new Set(imageAttempts("https://ipfs.io/ipfs/QmeSjSinHpPnmXmspMjwiXyN6zS4E9zccariGR3jxcaWtq")).size,
+  imageAttempts("https://ipfs.io/ipfs/QmeSjSinHpPnmXmspMjwiXyN6zS4E9zccariGR3jxcaWtq").length
 );
 
 section("upstreamsFor (the gateway proxy's only decision)");
@@ -653,6 +688,104 @@ eq("html animation is not audio", audioSource({ animation_url: "https://x/y.html
 eq("inline html is not audio", audioSource({ animation_url: "data:text/html,<b>" }), null);
 eq("no animation_url", audioSource({ image: "https://x/y.png" }), null);
 eq("empty metadata", audioSource({}), null);
+
+section("dataURIDocument (the header is a structure, not a prefix)");
+// The forms the standard describes.
+eq(
+  "the plain one",
+  dataURIDocument('data:application/json,{"name":"a"}'),
+  '{"name":"a"}'
+);
+eq(
+  "charset stated",
+  dataURIDocument('data:text/plain;charset=utf-8,{"name":"a"}'),
+  '{"name":"a"}'
+);
+eq("base64", dataURIDocument("data:application/json;base64,eyJhIjoxfQ=="), '{"a":1}');
+// atob would return one character per byte and mangle this; Base64.decode
+// reads it as the UTF-8 it is.
+eq(
+  "base64 holding UTF-8",
+  dataURIDocument("data:application/json;base64," + Buffer.from('{"n":"caf\u00e9"}').toString("base64")),
+  '{"n":"caf\u00e9"}'
+);
+// RFC 2397: no media type means text/plain.
+eq("no media type at all", dataURIDocument('data:,{"name":"a"}'), '{"name":"a"}');
+// The parameter onchain renderers invent. [sol]Seedlings writes exactly this,
+// and matching whole prefixes sent it to the error page over a token that was
+// perfectly readable.
+eq(
+  "the ;utf8 parameter nothing defines",
+  dataURIDocument('data:application/json;utf8,{"name":"Genesis.sol #460"}'),
+  '{"name":"Genesis.sol #460"}'
+);
+eq(
+  "an unencoded # is kept, because the string is read and never fetched",
+  dataURIDocument("data:text/plain,{\"image\":\"<svg fill='#eee'/>\"}"),
+  "{\"image\":\"<svg fill='#eee'/>\"}"
+);
+// Art is not a metadata document: say unsupported rather than "invalid JSON"
+// about something that never claimed to be JSON.
+throws("an image is not a document", () => dataURIDocument("data:image/svg+xml,<svg/>"));
+throws("no comma, no document", () => dataURIDocument("data:application/json"));
+
+// End to end, on the shape the chain actually returns.
+const seedlings =
+  "data:application/json;utf8," +
+  '{"name":"Genesis.sol #460","image":"data:image/svg+xml;utf8,' +
+  "<svg xmlns='http://www.w3.org/2000/svg'><rect fill='#000'/></svg>\"}";
+const seedlingsMetadata = await parseMetadata(seedlings);
+eq("a ;utf8 document parses", seedlingsMetadata.name, "Genesis.sol #460");
+
+section("encodedDataURI (the artwork's own envelope)");
+// Same breach as the document's, one level down: intact as a string, cut at
+// the '#' the moment an <img> or a CSS url() parses it as a URL.
+const repaired = encodedDataURI(seedlingsMetadata.image!)!;
+eq(
+  "the media type survives, the payload is encoded",
+  repaired.slice(0, 34),
+  "data:image/svg+xml;charset=utf-8,%"
+);
+eq(
+  "and every byte survives a URL parser",
+  decodeURIComponent(repaired.slice(repaired.indexOf(",") + 1)),
+  "<svg xmlns='http://www.w3.org/2000/svg'><rect fill='#000'/></svg>"
+);
+eq(
+  "a URL parser now keeps the whole document",
+  new URL(repaired).href.length,
+  repaired.length
+);
+// A URI we rewrite for no reason is a URI we broke for no reason.
+eq("nothing to repair, nothing repaired", encodedDataURI("data:image/svg+xml,%3Csvg%2F%3E"), null);
+eq("base64 has no '#' to lose", encodedDataURI("data:image/png;base64,iVBOR#"), null);
+eq("an http URL is not ours to touch", encodedDataURI("https://x/y.svg#a"), null);
+eq("markup is not a URI", encodedDataURI("<svg fill='#eee'/>"), null);
+// Partially encoded and still carrying a bare '#': decode first, or the
+// escapes it already has get encoded twice.
+eq(
+  "already-encoded escapes are not doubled",
+  encodedDataURI("data:image/svg+xml,%3Csvg%3E#eee"),
+  "data:image/svg+xml;charset=utf-8,%3Csvg%3E%23eee"
+);
+// A media URI inside a data: document is read as a URL TWICE: once when the
+// page fetches the document, once when the <img> fetches the artwork. Bleeps
+// writes `%2520` for exactly that reason, so two decodes land on the space it
+// meant, and a repair that decoded once and re-encoded once would eat a pass
+// and deliver `%20` into the SVG. The round trip has to be exact.
+const doubleEncoded = "data:image/svg+xml,%253Csvg%2520fill='#eee'%253E";
+eq(
+  "a payload encoded for two passes survives the repair",
+  encodedDataURI(doubleEncoded),
+  "data:image/svg+xml;charset=utf-8,%253Csvg%2520fill%3D'%23eee'%253E"
+);
+eq(
+  "which is to say the second pass still sees what it did before",
+  decodeURIComponent(
+    decodeURIComponent(encodedDataURI(doubleEncoded)!.split(",").slice(1).join(","))
+  ),
+  "<svg fill='#eee'>"
+);
 
 section("isRenderable (is there anything to screenshot?)");
 eq("image only", isRenderable({ image: "https://x/a.png" }), true);

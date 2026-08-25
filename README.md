@@ -148,6 +148,22 @@ generated from `assets/brand/spec.py`, so a link that unfurls to an error still
 unfurls as Embed.Art instead of borrowing the front page's card and implying
 everything worked.
 
+### When the browser cannot fetch art that we could
+
+A token page exists at all because the server fetched the image: if that fails,
+the request ends at `error-image`. So an image that fails **in the browser and
+nowhere else** is not a missing artwork, it is a fact about that browser's
+route to that host, and the page now says so instead of leaving a broken image
+icon. It walks `imageAttempts` (this origin first for content-addressed URIs,
+the token's own courier after), and when nothing is left it shows the preview
+the server rendered, names the URL that failed, and points out that the
+unfurled card is unaffected. It is the treatment the CORS case already got.
+
+This was found the dull way: a home router answering `NXDOMAIN` for the whole
+of `cryptokitties.co` while `8.8.8.8` and `1.1.1.1` resolved every name in it.
+A DNS filter, a blocklist and an extension all produce exactly this, and none
+of them is the token's fault.
+
 ### Content-addressed content is served from here, http(s) is not
 
 The token page fetches metadata in the **browser**, which is the point: what
@@ -223,7 +239,7 @@ rather than eventually.
 The page fetches and renders the way a browser does, deliberately, so what you
 see comes from the token rather than from a copy we made. Some tokens cannot
 survive that, not because the art is gone but because the document describing
-it breaks the rules it claims to follow. Two real cases:
+it breaks the rules it claims to follow. Three real cases:
 
 - **`the_coin` #36** returns `data:text/plain,` followed by JSON that was never
   percent-encoded. RFC 2397 requires it, and the payload contains `fill='#eee'`,
@@ -231,41 +247,82 @@ it breaks the rules it claims to follow. Two real cases:
   of 14,137 bytes. Its `image` is also the SVG document itself rather than a
   URI to one, which the ERC-721 schema defines as *"a URI pointing to a
   resource with mime type image/\*"*.
+- **`[sol]Seedlings` Genesis #460** breaks the same rule twice over, once in
+  the document and once in the artwork: `data:application/json;utf8,` wrapping
+  a document whose `image` is `data:image/svg+xml;utf8,<svg …>`, neither
+  encoded. Reading the document as a string recovers it, and then the picture
+  breaks on its own account, because the `<img>` stops at the first `stroke='#000'`.
+  `;utf8` is not a parameter RFC 2397 defines either, which is a smaller sin
+  and used to be a fatal one here: the server matched whole prefixes
+  (`data:application/json,`, `;base64,`) and sent an entirely readable token to
+  the error page over a parameter it did not expect. The media type and its
+  parameters are now parsed as the structure they are.
 
-Neither is the owner's mistake to suffer, so the page repairs both as a
+Neither is the owner's mistake to suffer, so the page repairs them as a
 **courtesy**: a `data:` URI that fails the compliant read is parsed from the
-string instead of fetched, and markup in a media field is wrapped into a data
-URI so it can load at all. The token then renders, and gets a card to unfurl.
+string instead of fetched, a `data:` URI in a media field is re-enveloped with
+its payload properly encoded, markup in a media field is wrapped into a data
+URI so it can load at all, and a WAV whose RIFF and `data` chunk sizes are
+written as `0` gets a header a strict demuxer will believe (Chrome plays those
+bytes anyway; Firefox honours the declared zero and plays silence). The token
+then renders, and gets a card to unfurl.
 
 Every repair is named on the page, and **`?strict` withdraws all of them**, so
 anyone judging a token can see exactly what a compliant client sees. That is
-how both cases above were diagnosed.
+how every case above was diagnosed.
 
 The repairs live in `functions/_utils/clientCourtesy.ts` and are injected into
 **both** page templates, because the preview is not rendered by the server: it
 is this page, screenshotted. A repair that lived server-side would produce a
-card the visitor's own browser could not reproduce.
+card the visitor's own browser could not reproduce. The WAV one is the
+exception that proves the rule: it lives in the token page alone, because a
+card has no sound to get wrong.
 
-### Collections that have no tokenURI at all
+What `?strict` does **not** withdraw is the server's own reading. The backend
+parses a `data:` document from the string as well, which is how the card, the
+`og:` tags and the server-rendered trait table exist at all, and it is why a
+strict page can still show you a title and traits while telling you a browser
+cannot read that document. The strict page's job is to name what is broken,
+not to blank itself.
+
+### Collections that have no metadata document at all
 
 CryptoPunks predates ERC-721. Its contract has no `tokenURI` to call, so there
 is no metadata document anywhere: the art is drawn by a separate onchain
-renderer. `functions/_utils/adapters.ts` holds the whole list of collections
-like that, and the rules that keep it from becoming a pile of special cases:
+renderer. Autoglyphs is the other shape of the same problem: it *has* a
+`tokenURI`, and what that returns is the artwork rather than a document
+describing one. CryptoKitties is the third, and the awkward one: no `tokenURI`
+either, but its art was never onchain to begin with. `functions/_utils/adapters.ts`
+holds the whole list of collections like that, and the rules that keep it from
+becoming a pile of special cases:
 
 1. An adapter runs **only where the standard has nothing to offer**, and
-   **never under `?strict`**. A token with a working `tokenURI` is never
-   touched. Asked strictly, CryptoPunks reports what a compliant client finds,
-   which is nothing, and says the courtesy exists.
+   **never under `?strict`**. A token whose `tokenURI` answers with a metadata
+   **document** is never touched, which is the actual test: having a working
+   `tokenURI` is not enough, or Autoglyphs would qualify. Asked strictly, both
+   report what a compliant client finds (nothing, and a text file), and say the
+   courtesy exists.
 2. Whatever an adapter produces is **disclosed on the page**: that the document
    was assembled here rather than returned by the token, why, and which
    contract and function the art was read from. A viewer should never have to
    work out where a picture came from.
+3. An adapter may only name **a source it can justify**, and has to say what
+   kind it is. Onchain where there is one; where there is not, the project's
+   own published location, described as such, and never a URL we guessed. An
+   adapter that quietly sourced art from a third party would be laundering it
+   through our name.
 
 Adding a collection is appending one entry to `ADAPTERS`; removing it is
 deleting that entry. Nothing else in the service knows any collection by name,
 and a test walks the list to check each entry justifies itself and declares its
 source.
+
+Each entry also carries a **`note`**, which is the adapter's own words about
+what it did to *this* token, printed on the page beside the reason and the
+source. It is the row that says a punk is transparent, or that a kitty's
+picture is not onchain. It had been passed to the page since the first adapter
+and never printed, so the disclosure rule was running on two rows out of three
+until CryptoKitties made the missing one impossible to ignore.
 
 The CryptoPunks entry reads `punkImageSvg(uint16)` and `punkAttributes(uint16)`
 from `0x16f5a356…`, the collection's own renderer. That renderer answers with

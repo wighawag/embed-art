@@ -1,5 +1,6 @@
 import {
   dataURIPayload,
+  encodedDataURI,
   markupKind,
   markupToDataURI,
 } from "../_utils/clientCourtesy";
@@ -180,9 +181,14 @@ export function screenshotHTML(
         const dataURIPayload = ${dataURIPayload.toString()};
         const markupKind = ${markupKind.toString()};
         const markupToDataURI = ${markupToDataURI.toString()};
+        const encodedDataURI = ${encodedDataURI.toString()};
         const mediaSource = (value) => {
           const kind = markupKind(value);
-          return kind ? markupToDataURI(value, kind) : value;
+          if (kind) return markupToDataURI(value, kind);
+          // An unencoded data: URI is cut at its first '#' by an <img> and by
+          // a CSS url() alike, which is how a whole onchain SVG becomes a
+          // blank card.
+          return encodedDataURI(value) || value;
         };
 
         // The card obeys the token: background_color if it declares one, the

@@ -71,7 +71,10 @@ async function main() {
     script.includes("https://ipfs.io/"),
     false
   );
-  eq("the image is mapped too", script.includes("gatewayPath(imageSource)"), true);
+  // The image goes through imageAttempts, which calls gatewayPath for it and
+  // adds the token's own courier as a fallback, so the mapping is still the
+  // one implementation from url.ts.
+  eq("the image is mapped too", script.includes("imageAttempts(imageSource)"), true);
   eq(
     "html art we host is framed without our origin",
     script.includes("iframe.sandbox = 'allow-scripts'"),
@@ -148,10 +151,130 @@ async function main() {
     inScope("(() => { mediaSource('<svg/>', 'image'); return breaches.length; })()"),
     1
   );
+
+  // The document survives being read as a string; the artwork inside it does
+  // not survive being loaded as a URL. [sol]Seedlings #460 writes its whole
+  // SVG as an unencoded data: URI, so an <img> stops at the first fill colour.
+  const unencodedArt = "data:image/svg+xml;utf8,<svg fill='#eee'></svg>";
+  eq(
+    "an unencoded data: artwork is re-enveloped so it can load",
+    inScope("mediaSource")(unencodedArt, "image"),
+    "data:image/svg+xml;charset=utf-8,%3Csvg%20fill%3D'%23eee'%3E%3C%2Fsvg%3E"
+  );
+  eq(
+    "and ?strict shows the truncation instead",
+    inScope("mediaSource", "?strict")(unencodedArt, "image"),
+    unencodedArt
+  );
+  eq(
+    "that repair is named too",
+    inScope(
+      "(() => { mediaSource(\"" + unencodedArt + "\", 'image'); return breaches[0]; })()"
+    ).includes("not percent-encoded"),
+    true
+  );
+  eq(
+    "a well-formed artwork URI is left exactly as written",
+    inScope("mediaSource")("ipfs://QmAbc/1.svg", "image"),
+    "ipfs://QmAbc/1.svg"
+  );
+
+  // A WAV whose chunk sizes are written as 0 plays in Chrome and is silence in
+  // Firefox. Patching the header is a repair like any other, so it has to be
+  // named and it has to be withdrawable: "?strict withdraws all of them" is
+  // either true of every repair or it is not a promise.
+  const zeroSizeWav = (() => {
+    const bytes = new Uint8Array(48);
+    const write = (offset: number, text: string) => {
+      for (let i = 0; i < text.length; i++) bytes[offset + i] = text.charCodeAt(i);
+    };
+    write(0, "RIFF"); // riff size at 4 left as 0: the breach
+    write(8, "WAVEfmt ");
+    bytes[16] = 16; // fmt chunk size
+    write(36, "data"); // data size at 40 left as 0: the breach
+    return "data:audio/wav;base64," + Buffer.from(bytes).toString("base64");
+  })();
+  // Declared above the injected block, so it is sliced out on its own.
+  const wavSource = script.slice(
+    script.indexOf("function fixMalformedWav"),
+    script.indexOf("// Injected from functions/_utils/url.ts")
+  );
+  const fixWav = new Function(
+    "URL",
+    "Blob",
+    "atob",
+    wavSource + "; return fixMalformedWav;"
+  )(
+    { createObjectURL: () => "blob:fixed", revokeObjectURL: () => {} },
+    class {
+      constructor(_parts: unknown, _options: unknown) {}
+    },
+    (b64: string) => Buffer.from(b64, "base64").toString("binary")
+  );
+  eq("a WAV declaring a chunk size of zero is rewritten", fixWav(zeroSizeWav), "blob:fixed");
+  // Unchanged means "nothing was wrong", which is what the page reads as "no
+  // breach to report": the two must not drift apart.
+  const wellFormed = (() => {
+    const bytes = new Uint8Array(48);
+    const write = (offset: number, text: string) => {
+      for (let i = 0; i < text.length; i++) bytes[offset + i] = text.charCodeAt(i);
+    };
+    write(0, "RIFF");
+    new DataView(bytes.buffer).setUint32(4, 40, true);
+    write(8, "WAVEfmt ");
+    bytes[16] = 16;
+    write(36, "data");
+    new DataView(bytes.buffer).setUint32(40, 4, true);
+    return "data:audio/wav;base64," + Buffer.from(bytes).toString("base64");
+  })();
+  eq("a well-formed WAV is not touched", fixWav(wellFormed), wellFormed);
+  eq("and neither is audio that is not a data: WAV", fixWav("https://x/y.wav"), "https://x/y.wav");
+  // The gate itself: the page decides with COURTESY, so the source it assigns
+  // must be the untouched one under ?strict.
+  eq(
+    "the audio source is gated on the courtesy switch",
+    script.includes("audio.src = COURTESY ? playable : audioSource;"),
+    true
+  );
+  eq(
+    "and the repair is named rather than made silently",
+    script.includes("declares a chunk size "),
+    true
+  );
+  eq(
+    "breaches are shown after the audio, or the last one would never appear",
+    script.indexOf("audio.src = COURTESY") < script.lastIndexOf("showBreaches();"),
+    true
+  );
   eq("the page explains it and offers the strict view", script.includes("?strict"), true);
   eq(
     "and names the standard it is measured against",
     script.includes("does not follow the ERC-721 standard"),
+    true
+  );
+
+  // The browser's fallback chain, injected from url.ts so there is one
+  // implementation of "what can be tried for this image".
+  const injectedAttempts = inScope("imageAttempts");
+  eq(
+    "the injected fallback chain runs",
+    injectedAttempts("https://ipfs.io/ipfs/QmeSjSinHpPnmXmspMjwiXyN6zS4E9zccariGR3jxcaWtq"),
+    ["/ipfs/QmeSjSinHpPnmXmspMjwiXyN6zS4E9zccariGR3jxcaWtq", "https://ipfs.io/ipfs/QmeSjSinHpPnmXmspMjwiXyN6zS4E9zccariGR3jxcaWtq"]
+  );
+  // A third-party host that this browser cannot reach must not end as a broken
+  // image: the page only exists because the SERVER fetched that image to make
+  // the preview, so there is always something true to show and something true
+  // to say. Found via a router that NXDOMAINs an art host.
+  eq(
+    "an image the browser cannot load falls back to the server preview",
+    script.includes("showServerPreview();") &&
+      script.includes("Your browser could not load"),
+    true
+  );
+  eq(
+    "and the fallback is exhausted before that claim is made",
+    script.indexOf("if (attempt < attempts.length)") <
+      script.indexOf("Your browser could not load"),
     true
   );
 
@@ -395,6 +518,13 @@ async function main() {
   eq(
     "and the courtesy layer runs here too",
     shotScript.includes("const markupToDataURI ="),
+    true
+  );
+  // The card IS this page, so a repair the token page makes and this one does
+  // not is a card the visitor's own browser cannot reproduce.
+  eq(
+    "including the artwork's envelope",
+    shotScript.includes("const encodedDataURI ="),
     true
   );
 

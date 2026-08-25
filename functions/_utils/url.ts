@@ -79,6 +79,31 @@ export function candidateURIs(uri: string): string[] {
 }
 
 /**
+ * Every source a BROWSER can try for one image, in order.
+ *
+ * The browser's version of `candidateURIs`, and deliberately shorter: the
+ * server tries every gateway it knows, while the page asks THIS origin, which
+ * does that trying on its behalf. So there are at most two entries, our path
+ * and then the courier the token named, and usually one.
+ *
+ * When they are all exhausted the caller has one more thing to show, and it is
+ * not another URL: the preview our server already rendered. A token page only
+ * exists because the server fetched this image to make that preview, so an
+ * image that fails HERE and nowhere else is a fact about this browser's route
+ * to that host, not about the token. Worth saying out loud rather than
+ * leaving a broken image icon: a DNS filter that NXDOMAINs the art's host is
+ * enough to do it, which is how this was found.
+ */
+export function imageAttempts(uri: string): string[] {
+  const path = gatewayPath(uri);
+  const isHttp = /^https?:/i.test(uri);
+  if (!path) return [uri];
+  // Content-addressed: ours first, and the token's own courier after it, for
+  // the same reason candidateURIs orders them that way.
+  return isHttp ? [path, uri] : [path];
+}
+
+/**
  * The path on THIS origin that serves a content-addressed URI, or null if the
  * URI is not content-addressed.
  *

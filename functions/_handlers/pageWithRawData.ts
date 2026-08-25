@@ -7,6 +7,7 @@ import {
 import {
   courtesyEnabled,
   dataURIPayload,
+  encodedDataURI,
   markupKind,
   markupToDataURI,
 } from "../_utils/clientCourtesy";
@@ -18,7 +19,7 @@ import {
   requestedBackdrop,
   sampleArt,
 } from "../_utils/artBackdrop";
-import { gatewayPath } from "../_utils/url";
+import { gatewayPath, imageAttempts } from "../_utils/url";
 
 function escapeHtml(s: string): string {
   return s
@@ -704,7 +705,10 @@ export async function pageWithRawData(
         // tolerates this and plays the trailing bytes, but Firefox's stricter
         // demuxer honors the declared 0 length and produces silence. We patch 
         // those header fields here so the audio plays in every browser.
-        // Returns a Blob URL when fixed, otherwise the original url untouched.
+        // Returns a Blob URL when fixed, otherwise the original url untouched,
+        // which is also how the caller knows a repair happened: this is a
+        // courtesy like any other, so it is named on the page and ?strict
+        // withdraws it. A silent player IS what a strict client gets.
         function fixMalformedWav(url) {
           var prefix = 'data:audio/wav;base64,';
           if (url.indexOf(prefix) !== 0) return url;
@@ -741,6 +745,7 @@ export async function pageWithRawData(
         // production only, where the test bundle (no keep-names) sees nothing.
         const __name = (fn) => fn;
         const gatewayPath = ${gatewayPath.toString()};
+        const imageAttempts = ${imageAttempts.toString()};
 
         // Injected from functions/_utils/clientCourtesy.ts, same reasoning:
         // one implementation, tested there, running here and in the page the
@@ -760,6 +765,7 @@ export async function pageWithRawData(
         const dataURIPayload = ${dataURIPayload.toString()};
         const markupKind = ${markupKind.toString()};
         const markupToDataURI = ${markupToDataURI.toString()};
+        const encodedDataURI = ${encodedDataURI.toString()};
 
         // Repairs are extended to tokens whose metadata breaks the standard,
         // and withdrawn by ?strict, so anyone judging a token can see exactly
@@ -775,12 +781,22 @@ export async function pageWithRawData(
         // token wrote it.
         const mediaSource = (value, field) => {
           const kind = markupKind(value);
-          if (!kind) return value;
+          if (kind) {
+            noteBreach(
+              "<code>" + esc(field) + "</code> contains " + kind.toUpperCase() +
+              " markup rather than a URI pointing at it"
+            );
+            return COURTESY ? markupToDataURI(value, kind) : value;
+          }
+          // The artwork is a data: URI the browser would cut at its first '#'.
+          const encoded = encodedDataURI(value);
+          if (!encoded) return value;
           noteBreach(
-            "<code>" + esc(field) + "</code> contains " + kind.toUpperCase() +
-            " markup rather than a URI pointing at it"
+            "the <code>data:</code> URI in <code>" + esc(field) + "</code> is " +
+            "not percent-encoded, so a browser stops loading the artwork at " +
+            "its first <code>#</code>"
           );
-          return COURTESY ? markupToDataURI(value, kind) : value;
+          return COURTESY ? encoded : value;
         };
 
         // A CID is the token's claim; the gateway in front of it is not, so a
@@ -946,27 +962,61 @@ export async function pageWithRawData(
           } else if (metadata.image) {
             const img = document.getElementById('nft-image');
             const imageSource = mediaSource(metadata.image, 'image');
-            const localImage = gatewayPath(imageSource);
-            const fallback = original(imageSource);
-            if (localImage && fallback) {
-              img.onerror = function () { img.onerror = null; img.src = fallback; };
-            }
+            const attempts = imageAttempts(imageSource);
+            let attempt = 0;
+            img.onerror = function () {
+              attempt++;
+              if (attempt < attempts.length) { img.src = attempts[attempt]; return; }
+              img.onerror = null;
+              if (!PREVIEW) return;
+              // Nothing left for the browser to try. This is not a missing
+              // artwork: this page exists at all because our server fetched
+              // that image to render the preview, so the failure is between
+              // this browser and that host. Show the preview and say which.
+              showNotice(
+                "<strong>The artwork above was rendered by Embed.Art, not by " +
+                "your browser.</strong>" +
+                "<p>Your browser could not load <code>" +
+                esc(attempts[attempts.length - 1]) + "</code>. The preview " +
+                "shown was made from that same image on our side, so the art " +
+                "is where the token says it is: something between this browser " +
+                "and that host dropped the request. A DNS filter, a blocklist " +
+                "or an extension will do it.</p>" +
+                "<p>The card that unfurls on social platforms is unaffected, " +
+                "for the same reason.</p>"
+              );
+              showServerPreview();
+            };
             keepPixelsSharp(img);
             applyBackdrop(img, metadata);
-            img.src = localImage || imageSource;
+            img.src = attempts[0];
             img.style.display='block';
             hidePlaceholder();
           } else {
             hidePlaceholder();
           }
 
-          showBreaches();
-
+          // Before showBreaches(), because repairing the audio may add one.
           if (audioURL) {
             const audio = document.getElementById('nft-audio');
-            audio.src = fixMalformedWav(gatewayPath(audioURL) || audioURL);
+            const audioSource = gatewayPath(audioURL) || audioURL;
+            const playable = fixMalformedWav(audioSource);
+            if (playable !== audioSource) {
+              noteBreach(
+                "the WAV in <code>animation_url</code> declares a chunk size " +
+                "of <code>0</code>, which a strict demuxer honours by playing " +
+                "silence"
+              );
+              // Reporting the breach means running the repair, even when we
+              // are about to refuse it. Hand the bytes back rather than
+              // leaving an object URL alive for a page that will not play it.
+              if (!COURTESY) URL.revokeObjectURL(playable);
+            }
+            audio.src = COURTESY ? playable : audioSource;
             audio.style.display='block';
           }
+
+          showBreaches();
         }
         fetchImage(tokenURI);
       </script>

@@ -405,6 +405,43 @@ function corsFromHeader(value: string | null): CorsStatus {
   return "unknown";
 }
 
+/**
+ * The document inside a `data:` tokenURI.
+ *
+ * Everything before the comma is a media type and its parameters, and the
+ * parameters are where onchain renderers improvise: `;utf8` is not one RFC
+ * 2397 defines, but [sol]Seedlings writes `data:application/json;utf8,` and
+ * CryptoPunks' renderer writes `data:image/svg+xml;utf8,`. Reading the header
+ * as a structure rather than matching whole prefixes is what keeps a token out
+ * of the error page over a parameter it should not have written: the header is
+ * parsed, `;base64` decides how the payload is read, and the media type only
+ * has to be one that can hold a JSON document.
+ *
+ * The payload is taken as a STRING and never fetched, so an unencoded `#` (the
+ * breach `clientCourtesy.dataURIPayload` exists for) costs nothing here.
+ */
+export function dataURIDocument(uri: string): string {
+  const comma = uri.indexOf(",");
+  if (comma === -1) throw new Error(`not supported : ${uri}`);
+  const header = uri.slice(5, comma).toLowerCase();
+  const parameters = header.split(";").map((part) => part.trim());
+  // RFC 2397: an omitted media type means text/plain.
+  const mediaType = parameters[0] || "text/plain";
+  if (mediaType !== "text/plain" && mediaType !== "application/json") {
+    // An image or an html document is art, not a metadata document, and
+    // guessing otherwise would report "invalid JSON" for something that was
+    // never claimed to be JSON.
+    throw new Error(`not supported : ${uri}`);
+  }
+  const payload = uri.slice(comma + 1);
+  if (parameters.indexOf("base64") !== -1) {
+    // Base64.decode, not atob: atob yields one char per byte, so a description
+    // with an em space or an emoji in it comes back as mojibake.
+    return Base64.decode(payload);
+  }
+  return payload;
+}
+
 export async function parseMetadata(
   tokenURI: string,
   idHex?: string
@@ -437,34 +474,9 @@ export async function parseMetadataWithCors(
   let cors: CorsStatus = "not-applicable";
   let fetchedFrom: string | undefined;
   try {
-    /// ata:text/plain;charset=utf-8,
+    /// data:text/plain;charset=utf-8,
     if (urlDecodedTokenURI.startsWith("data:")) {
-      if (urlDecodedTokenURI.startsWith("data:text/plain")) {
-        if (urlDecodedTokenURI.startsWith("data:text/plain,")) {
-          metadata = JSON.parse(urlDecodedTokenURI.slice(16));
-        } else if (urlDecodedTokenURI.startsWith("data:text/plain;base64,")) {
-          metadata = JSON.parse(atob(urlDecodedTokenURI.slice(23)));
-        } else if (
-          urlDecodedTokenURI.startsWith("data:text/plain;charset=utf-8,")
-        ) {
-          metadata = JSON.parse(urlDecodedTokenURI.slice(30));
-        } else {
-          // attempting genericly
-          const indexOfComma = urlDecodedTokenURI.indexOf(",");
-          if (indexOfComma === -1) {
-            throw new Error(`not supported : ${tokenURI}`);
-          }
-          metadata = JSON.parse(urlDecodedTokenURI.slice(indexOfComma + 1));
-        }
-      } else if (urlDecodedTokenURI.startsWith("data:application/json,")) {
-        metadata = JSON.parse(urlDecodedTokenURI.slice(22));
-      } else if (
-        urlDecodedTokenURI.startsWith("data:application/json;base64,")
-      ) {
-        metadata = JSON.parse(atob(urlDecodedTokenURI.slice(29)));
-      } else {
-        throw new Error(`not supported : ${tokenURI}`);
-      }
+      metadata = JSON.parse(dataURIDocument(urlDecodedTokenURI));
     } else {
       // A content-addressed URI is read back by the browser through THIS
       // origin, so no cross-origin request is made and the gateway's CORS

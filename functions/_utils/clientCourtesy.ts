@@ -9,6 +9,9 @@
  *    in it (an SVG fill colour, usually) ends the URL and a browser receives a
  *    truncated fragment of the JSON. the_coin #36 delivers 791 bytes of 14,137
  *    this way.
+ *  - the same breach one level down: an `image` (or `animation_url`) that IS a
+ *    `data:` URI, unencoded, so the browser cuts the artwork itself at the
+ *    first `#` in a fill colour. [sol]Seedlings writes its whole SVG that way.
  *  - an `image` holding the SVG document itself rather than a URI to one. The
  *    ERC-721 schema says "a URI pointing to a resource with mime type image/*";
  *    markup in that field can never load in an <img>.
@@ -89,4 +92,59 @@ export function markupKind(value: string): string | null {
 export function markupToDataURI(value: string, kind: string): string {
   var type = kind === "html" ? "text/html" : "image/svg+xml";
   return "data:" + type + ";charset=utf-8," + encodeURIComponent(value);
+}
+
+/**
+ * A `data:` media URI a browser can actually load, or null when the one given
+ * is already fine.
+ *
+ * This is `dataURIPayload`'s breach one level down. There, an unencoded
+ * `data:` tokenURI is *read* rather than fetched, which recovers the document.
+ * That does nothing for a document whose `image` is itself an unencoded
+ * `data:` URI: the string is intact, but the moment it is put in an `<img>`
+ * (or a CSS `url()`) the URL parser reads the first `#` as a fragment and the
+ * artwork ends there. [sol]Seedlings #460 is 3.9KB of onchain SVG that stops
+ * at `stroke='` for exactly this reason, and the leading `#` of a fill colour
+ * is the single most likely character to appear in an SVG.
+ *
+ * The bytes are right and the envelope is not, so the envelope is rewritten:
+ * the media type is kept, the payload is percent-encoded as RFC 2397 requires,
+ * and the charset is stated (`;utf8`, which these contracts write, is not a
+ * parameter RFC 2397 defines). Anything already encoded, base64, or free of
+ * `#` is left alone: returning null keeps "nothing was wrong" distinguishable
+ * from "repaired", which is what the page reports and `?strict` withdraws.
+ *
+ * THE ROUND TRIP MUST BE EXACT, and this is the trap. A media URI inside a
+ * `data:` document is read as a URL TWICE: once when the page fetches the
+ * document, and once when the `<img>` fetches the artwork out of it. Bleeps
+ * writes `%2520` for that reason, so that two decodes land on the space it
+ * meant, and it is CORRECT. Decoding once and re-encoding once preserves that
+ * (`%2520` -> `%20` -> `%2520`); decoding twice, or encoding the raw payload
+ * without decoding, would eat a pass and deliver `%20` into the SVG. A token
+ * that was right before we touched it must be right after.
+ */
+export function encodedDataURI(value: string): string | null {
+  if (typeof value !== "string" || value.slice(0, 5).toLowerCase() !== "data:") {
+    return null;
+  }
+  var comma = value.indexOf(",");
+  if (comma === -1) return null;
+  var meta = value.slice(5, comma);
+  var payload = value.slice(comma + 1);
+  // base64 has no '#' to lose, and re-encoding one would corrupt it.
+  if (meta.toLowerCase().indexOf(";base64") !== -1) return null;
+  // '#' is the only character a URL parser truncates on; everything else it
+  // tolerates, and a URI we rewrite for no reason is a URI we broke for no
+  // reason.
+  if (payload.indexOf("#") === -1) return null;
+  var decoded = payload;
+  try {
+    // A payload that IS percent-encoded and still carries a bare '#' must be
+    // decoded first, or the escapes it already has would be encoded twice.
+    decoded = decodeURIComponent(payload);
+  } catch (err) {
+    // Not percent-encoded at all, which is the usual case here: use it raw.
+  }
+  var type = meta.split(";")[0] || "text/plain";
+  return "data:" + type + ";charset=utf-8," + encodeURIComponent(decoded);
 }
