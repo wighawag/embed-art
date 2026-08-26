@@ -100,22 +100,15 @@ export async function ethCall(
   }
 
   // The first line carries the reason, because the error page shows the first
-  // line: "refused by 1 node" on its own tells a visitor nothing at all.
+  // line: "refused by 1 node" on its own tells a visitor nothing at all. The
+  // node's host is intentionally not exposed here, so the public error page
+  // never leaks which RPC endpoint we use.
   const detail = failures
-    .map((failure, index) => `  ${hostOf(list[index])}: ${failure}`)
+    .map((failure, index) => `  our node #${index + 1}: ${failure}`)
     .join("\n");
   const summary =
     failures.length === 1
-      ? `eth_call refused by ${hostOf(list[0])}: ${failures[0]}`
-      : `eth_call refused by all ${failures.length} nodes, first: ${failures[0]}`;
+      ? `eth_call refused by our node: ${failures[0]}`
+      : `eth_call refused by all ${failures.length} of our nodes, first: ${failures[0]}`;
   throw new RpcError(`${summary}\n${detail}`, gasCapped);
-}
-
-/** The host of an endpoint, since the full URL usually carries a key. */
-export function hostOf(endpoint: string): string {
-  try {
-    return new URL(endpoint).host;
-  } catch {
-    return "node";
-  }
 }
