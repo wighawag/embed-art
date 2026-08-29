@@ -139,15 +139,23 @@ async function main() {
     addressed.includes("<strong>content-addressed</strong>"),
     true
   );
+  // The link is the contract's address verbatim. This page reads the document
+  // back through its own origin, but saying so in the provenance block would
+  // be provenance about us.
   eq(
-    "and the CID is a link served by this origin",
+    "and the address itself is the link",
     addressed.includes(
-      '<a href="/ipfs/QmT5NvUtoM5nWFfrQdVrFtvGfKFmG7AHE8P34isapyhCxX/1"'
+      '<a href="ipfs://QmT5NvUtoM5nWFfrQdVrFtvGfKFmG7AHE8P34isapyhCxX/1"'
     ),
     true
   );
   eq(
-    "whose text is the token's own claim",
+    "not rewritten through this origin",
+    addressed.includes('href="/ipfs/QmT5NvUtoM5nWFfrQdVrFtvGfKFmG7AHE8P34isapyhCxX/1"'),
+    false
+  );
+  eq(
+    "and the text is that claim in full",
     addressed.includes(">ipfs://QmT5NvUtoM5nWFfrQdVrFtvGfKFmG7AHE8P34isapyhCxX/1</a>"),
     true
   );

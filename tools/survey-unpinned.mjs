@@ -26,10 +26,11 @@
  * Needs an Ethereum RPC endpoint: ETHEREUM_NODE in the environment, or the
  * .dev.vars file this project already uses for wrangler.
  */
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { build } from "esbuild";
+import { mkdtempSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
-import { loadGatewayPath } from "./worker-url.mjs";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -181,10 +182,27 @@ async function get(url, timeoutMs) {
   }
 }
 
+/**
+ * gatewayPath() from the worker itself, so "is this content-addressed" is
+ * answered by the same code that answers it in production rather than by a
+ * second implementation that can drift.
+ */
+async function loadGatewayPath() {
+  const dir = mkdtempSync(join(tmpdir(), "embed-art-survey-"));
+  const outfile = join(dir, "url.mjs");
+  await build({
+    entryPoints: [join(ROOT, "functions/_utils/url.ts")],
+    bundle: true,
+    platform: "node",
+    format: "esm",
+    outfile,
+    logLevel: "warning",
+  });
+  return (await import(pathToFileURL(outfile).href)).gatewayPath;
+}
+
 async function main() {
   const args = parseArgs(process.argv.slice(2));
-  // The same code production uses, so "is this content-addressed" is answered
-  // once rather than by a second implementation that can drift.
   const gatewayPath = await loadGatewayPath();
 
   // ---------------------------------------------------------------- sample

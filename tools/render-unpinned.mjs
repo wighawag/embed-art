@@ -11,12 +11,6 @@
 import { readFileSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { loadGatewayPath } from "./worker-url.mjs";
-
-// The table's URIs are addresses, and an address a reader cannot follow is a
-// screenshot of evidence rather than evidence. Resolved by the worker's own
-// gatewayPath, so the link points where this site really serves that CID.
-const gatewayPath = await loadGatewayPath();
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const args = { in: "public/data/unpinned-survey.json", out: "public/unpinned.html" };
@@ -38,17 +32,15 @@ const num = (n) => Number(n).toLocaleString("en-US");
 const shortURI = (uri) => (uri.length > 52 ? uri.slice(0, 49) + "\u2026" : uri);
 
 /**
- * The URI as a link a reader can click: content-addressed ones through this
- * origin, anything else to itself. Truncating the text is fine, since the full
- * URI is one hover (and one dataset download) away; dropping the link is not.
+ * The URI as a link, pointing exactly where the contract points. Not rewritten
+ * through this site: the row is a claim about what that address does today, so
+ * substituting our own gateway would be us marking our own homework. Text is
+ * truncated because it is a table cell; the address underneath is not.
  */
-const uriLink = (uri) => {
-  const href = gatewayPath(uri) || (/^https?:\/\//i.test(uri) ? uri : null);
-  const label = `<code>${esc(shortURI(uri))}</code>`;
-  return href
-    ? `<a href="${esc(href)}" title="${esc(uri)}">${label}</a>`
-    : `<span title="${esc(uri)}">${label}</span>`;
-};
+const uriLink = (uri) =>
+  `<a href="${esc(uri)}" title="${esc(
+    uri
+  )}" rel="noopener nofollow ugc"><code>${esc(shortURI(uri))}</code></a>`;
 
 const percent = Math.round(
   (data.totals.unreachable / data.totals.contentAddressed) * 100

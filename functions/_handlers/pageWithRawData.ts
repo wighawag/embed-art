@@ -177,19 +177,22 @@ export async function pageWithRawData(
   } else if (source) {
     // Naming the kind of home is only half the answer: the other half is the
     // address itself, which is the token's own claim and the thing a reader
-    // needs in order to check it. Content-addressed URIs are read back through
-    // this origin (the link a browser can actually follow), while an ordinary
-    // http metadata URL links to itself, as a foreign document.
-    const onOrigin = gatewayPath(tokenURI);
-    const href = onOrigin || (/^https?:\/\//i.test(tokenURI) ? tokenURI : null);
+    // needs in order to check it. The link is that address verbatim, never our
+    // rewrite of it: this page reads content-addressed URIs back through this
+    // origin because a browser cannot be trusted to a public gateway, but what
+    // the contract says is `ipfs://<cid>`, and provenance that quietly swaps in
+    // our own hostname is provenance about us.
+    const href = /^(https?|ipfs|ipns|ar):/i.test(tokenURI) ? tokenURI : null;
     rows.push(
       `<p class="row"><span class="label">Metadata: <strong>${escapeHtml(
         source,
       )}</strong></span>${
         href
-          ? `<a href="${escapeHtml(href)}"${
-              onOrigin ? "" : ` rel="noopener nofollow ugc" target="_blank"`
-            }>${escapeHtml(tokenURI)}</a>`
+          ? `<a href="${escapeHtml(
+              href,
+            )}" rel="noopener nofollow ugc" target="_blank">${escapeHtml(
+              tokenURI,
+            )}</a>`
           : ""
       }</p>`,
     );

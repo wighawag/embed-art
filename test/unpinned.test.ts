@@ -58,6 +58,15 @@ for (const c of fixture.unreachable) {
 // Inside the table only: names also appear in the prose above it.
 const tbody = html.slice(html.indexOf("<tbody>"), html.indexOf("</tbody>"));
 eq("sorted by supply, largest first", tbody.indexOf("Test Birds") < tbody.indexOf("Escaped"), true);
+for (const c of fixture.unreachable) {
+  // The row's evidence is the address the contract gives, so the link is that
+  // address and not a rewrite of it through this site.
+  eq(
+    `${c.symbol}: its URI is a link to the address itself`,
+    html.includes(`<a href="${c.tokenURI}" title="${c.tokenURI}"`),
+    true
+  );
+}
 eq(
   "gateway answers are shown, not just the verdict",
   html.includes("ipfs.io: 504"),
