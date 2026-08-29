@@ -128,7 +128,7 @@ When you navigate to `https://embed.art/eip155:<chainID>/erc721:<contractAddress
 
 ### The token page is a gallery wall, not a debug view
 
-The art gets the top of the fold and as much of the viewport's short side as it can take (`72vh`), because that is the only thing on the page anyone came for. Everything else is a label under it: the collection, the title, the description, the traits, and last a provenance block saying where the token permanently lives and where its document is kept (`onchain (data: URI)`, `content-addressed`, or the host that answers). HTML art is framed square, since token art overwhelmingly is and any other shape shows the artwork's own page background in the leftover band. An image is scaled to that frame instead of being left at its natural size, and a source small enough to be pixel art (≤256px) is drawn with `image-rendering: pixelated` so deliberate pixels do not turn to mush on the way up.
+The art gets the top of the fold and as much of the viewport's short side as it can take (`72vh`), because that is the only thing on the page anyone came for. Everything else is a label under it: the collection, the title, the description, the traits, and last a provenance block saying where the token permanently lives and where its document is kept (`onchain (data: URI)`, `content-addressed`, or the host that answers), followed by the address itself as a link: a content-addressed URI reads back through this origin (`/ipfs/<cid>/…`), an ordinary metadata URL links to itself, and a `data:` URI links nowhere because it is already here. Naming the kind of home while withholding the door number leaves a reader with a category instead of provenance. HTML art is framed square, since token art overwhelmingly is and any other shape shows the artwork's own page background in the leftover band. An image is scaled to that frame instead of being left at its natural size, and a source small enough to be pixel art (≤256px) is drawn with `image-rendering: pixelated` so deliberate pixels do not turn to mush on the way up.
 
 The page carries the site's letterhead, linking home, in the corner and again in the footer. For most people who ever see it, a shared token link *is* the front door, and a page with no way back is a dead end.
 
@@ -420,7 +420,10 @@ node tools/survey-unpinned.mjs --help
 Three things keep the result honest.
 
 **The page is generated from the dataset** (`tools/render-unpinned.mjs`), so no
-number on it can drift from the measurement it describes, and
+number on it can drift from the measurement it describes. Each row's URI is
+truncated for the table but stays a link (through this origin, resolved by the
+same `gatewayPath`), because a claim that a CID is unreachable should be one
+click from being tested rather than a screenshot of evidence. And
 `test/unpinned.test.ts` renders a fixture and checks the page really does read
 its figures out of the data, escapes contract-supplied names, and keeps the
 caveats.
@@ -468,7 +471,8 @@ embed-art/
 │   └── static/               # Static images + builder.js (the URL builder)
 ├── tools/
 │   ├── survey-unpinned.mjs   # Samples the chain and tests the gateways
-│   └── render-unpinned.mjs   # Renders the dataset into the page
+│   ├── render-unpinned.mjs   # Renders the dataset into the page
+│   └── worker-url.mjs        # Loads the worker's own gatewayPath into node
 ├── assets/brand/             # Identity sources + build (see its own README)
 ├── wrangler.toml             # Configuration (bindings, assets, etc.)
 ```

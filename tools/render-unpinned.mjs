@@ -11,6 +11,12 @@
 import { readFileSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { loadGatewayPath } from "./worker-url.mjs";
+
+// The table's URIs are addresses, and an address a reader cannot follow is a
+// screenshot of evidence rather than evidence. Resolved by the worker's own
+// gatewayPath, so the link points where this site really serves that CID.
+const gatewayPath = await loadGatewayPath();
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const args = { in: "public/data/unpinned-survey.json", out: "public/unpinned.html" };
@@ -30,6 +36,19 @@ const esc = (s) =>
 
 const num = (n) => Number(n).toLocaleString("en-US");
 const shortURI = (uri) => (uri.length > 52 ? uri.slice(0, 49) + "\u2026" : uri);
+
+/**
+ * The URI as a link a reader can click: content-addressed ones through this
+ * origin, anything else to itself. Truncating the text is fine, since the full
+ * URI is one hover (and one dataset download) away; dropping the link is not.
+ */
+const uriLink = (uri) => {
+  const href = gatewayPath(uri) || (/^https?:\/\//i.test(uri) ? uri : null);
+  const label = `<code>${esc(shortURI(uri))}</code>`;
+  return href
+    ? `<a href="${esc(href)}" title="${esc(uri)}">${label}</a>`
+    : `<span title="${esc(uri)}">${label}</span>`;
+};
 
 const percent = Math.round(
   (data.totals.unreachable / data.totals.contentAddressed) * 100
@@ -85,7 +104,7 @@ const rows = data.unreachable
           <th scope="row"><a href="${esc(token)}">${esc(c.name || c.address)}</a></th>
           <td class="num">${c.totalSupply ? num(c.totalSupply) : "&mdash;"}</td>
           <td class="why">${verdict(c) === "blocked" ? '<span class="tag">blocked</span>' : '<span class="dim">no provider</span>'}</td>
-          <td><code title="${esc(c.tokenURI)}">${esc(shortURI(c.tokenURI))}</code></td>
+          <td>${uriLink(c.tokenURI)}</td>
           <td class="dim gateways" title="${esc(attemptSummary(c.attempts).full)}">${esc(attemptSummary(c.attempts).brief)}</td>
         </tr>`;
   })
@@ -203,6 +222,10 @@ const page = `<!DOCTYPE html>
             word-break: break-all;
             font-size: 0.86em;
         }
+
+        /* A URI inside a link is the link, so it takes the link's colour and
+           its hover with it rather than staying stubbornly accent. */
+        a code { color: inherit; }
 
         pre {
             background: var(--surface);

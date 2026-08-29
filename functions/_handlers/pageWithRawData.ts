@@ -175,10 +175,23 @@ export async function pageWithRawData(
         )}</code>. <a href="?strict">Ask for the standard only</a> to see what a compliant client gets.</span></p>`,
     );
   } else if (source) {
+    // Naming the kind of home is only half the answer: the other half is the
+    // address itself, which is the token's own claim and the thing a reader
+    // needs in order to check it. Content-addressed URIs are read back through
+    // this origin (the link a browser can actually follow), while an ordinary
+    // http metadata URL links to itself, as a foreign document.
+    const onOrigin = gatewayPath(tokenURI);
+    const href = onOrigin || (/^https?:\/\//i.test(tokenURI) ? tokenURI : null);
     rows.push(
       `<p class="row"><span class="label">Metadata: <strong>${escapeHtml(
         source,
-      )}</strong></span></p>`,
+      )}</strong></span>${
+        href
+          ? `<a href="${escapeHtml(href)}"${
+              onOrigin ? "" : ` rel="noopener nofollow ugc" target="_blank"`
+            }>${escapeHtml(tokenURI)}</a>`
+          : ""
+      }</p>`,
     );
   }
   if (externalURL) {

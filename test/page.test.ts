@@ -121,6 +121,65 @@ async function main() {
     "/ipfs/QmAbc/1"
   );
 
+  section("the provenance block names an address, and it is followable");
+
+  // "content-addressed" without the address is a category, not provenance: the
+  // reader is told the kind of home and denied the door number.
+  const addressed = await (
+    await pageWithRawData(
+      { contract: "0xabc", id: "1" },
+      "ipfs://QmT5NvUtoM5nWFfrQdVrFtvGfKFmG7AHE8P34isapyhCxX/1",
+      { name: "Test", symbol: "TST" },
+      { url: CANON, previewURL: "p.jpg" } as any,
+      { name: "Tok" }
+    )
+  ).text();
+  eq(
+    "the kind of home is still named",
+    addressed.includes("<strong>content-addressed</strong>"),
+    true
+  );
+  eq(
+    "and the CID is a link served by this origin",
+    addressed.includes(
+      '<a href="/ipfs/QmT5NvUtoM5nWFfrQdVrFtvGfKFmG7AHE8P34isapyhCxX/1"'
+    ),
+    true
+  );
+  eq(
+    "whose text is the token's own claim",
+    addressed.includes(">ipfs://QmT5NvUtoM5nWFfrQdVrFtvGfKFmG7AHE8P34isapyhCxX/1</a>"),
+    true
+  );
+  // A metadata URL that is nobody's CID stays a foreign document: it links to
+  // itself, and leaves this page to do it.
+  const hosted = await render("unknown");
+  eq(
+    "an http metadata URL links to itself",
+    hosted.includes('<a href="https://example.com/meta/1" rel="noopener nofollow ugc" target="_blank">'),
+    true
+  );
+  // A data: URI is the metadata. There is nowhere to go.
+  const onchain = await (
+    await pageWithRawData(
+      { contract: "0xabc", id: "1" },
+      'data:application/json,{"name":"Tok"}',
+      { name: "Test", symbol: "TST" },
+      { url: CANON, previewURL: "p.jpg" } as any,
+      { name: "Tok" }
+    )
+  ).text();
+  eq(
+    "onchain metadata is named",
+    onchain.includes("<strong>onchain (data: URI)</strong>"),
+    true
+  );
+  eq(
+    "and not turned into a link to nowhere",
+    onchain.includes('<a href="data:'),
+    false
+  );
+
   section("courtesies for metadata that breaks the standard");
 
   // A data: URI that was never percent-encoded: a browser stops at the '#'.
