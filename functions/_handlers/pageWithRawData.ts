@@ -95,6 +95,11 @@ export async function pageWithRawData(
     };
     /** ENS-derived pages must not be cached: the record can change */
     noStore?: boolean;
+    /**
+     * Set when the request asked for `?maxAge`: the seconds the data behind
+     * this page stays within that bound. The page may not be cached longer.
+     */
+    maxAge?: number;
   },
   metadata?: Metadata,
 ): Promise<Response> {
@@ -1054,6 +1059,10 @@ export async function pageWithRawData(
     // mapping would serve yesterday's avatar; the token behind it is still
     // cached normally, keyed by its own URI.
     headers["cache-control"] = "no-store";
+  } else if (extra.maxAge !== undefined) {
+    // Without this the page carries no cache-control at all, which is what
+    // it has always done and still does when maxAge is absent.
+    headers["cache-control"] = `public, max-age=${extra.maxAge}`;
   }
   return new Response(page, { headers });
 }

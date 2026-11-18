@@ -16,11 +16,11 @@ The idea behind Embed.Art is to allow you to have an easy way to share your toke
 
 | URL | What it does |
 |-----|--------------|
-| `/eip155:<chainID>/erc721:<contract>/<tokenID>` | an ERC-721 token (add `?strict` for the standard and nothing else) |
-| `/eip155:<chainID>/erc1155:<contract>/<tokenID>` | an ERC-1155 token |
+| `/eip155:<chainID>/erc721:<contract>/<tokenID>` | an ERC-721 token (add `?strict` for the standard and nothing else, `?maxAge=<seconds>` to re-read a token whose art changes) |
+| `/eip155:<chainID>/erc1155:<contract>/<tokenID>` | an ERC-1155 token (same parameters) |
 | `/<name>.eth` | resolves the name's ENS avatar record and renders it |
-| `/image/<token path>` | 302 to the generated preview JPEG |
-| `/audio/<token path>` | the token's audio, if its `animation_url` is one |
+| `/image/<token path>` | 302 to the generated preview JPEG (accepts `?maxAge`) |
+| `/audio/<token path>` | the token's audio, if its `animation_url` is one (accepts `?maxAge`) |
 | `/api/resolve/<name>.eth` | JSON: what that name's `addr` record points at |
 | `/ipfs/<cid>`, `/ipns/<name>`, `/ar/<txid>` | content-addressed bytes, fetched server-side |
 | `/unpinned` | a survey of how much sampled NFT art no gateway can still fetch |
@@ -32,6 +32,21 @@ use it as your own `og:image`, or as a thumbnail, without scraping a page for
 it. Both media routes fall back to the matching `static/error-*.png` rather
 than failing, and set a cache lifetime so a dead metadata server is not
 re-queried on every view.
+
+### Tokens that change: `?maxAge`
+
+A token's data is read from the chain once and then cached with no expiry, which is right for art that never changes and wrong for a token whose `tokenURI` is computed from live state (an onchain pet, a Moon). Add `?maxAge=<seconds>` to a token page, `/image/` or `/audio/` URL and the cached data is used only if it was read less than that many seconds ago; otherwise the chain is read again and the cache entry replaced.
+
+- **Floor:** a `maxAge` below 600 is raised to 600, so a link cannot force a chain read on every view. A value that is not a non-negative integer is ignored, and the URL behaves as if it were absent.
+- **Images:** previews stay keyed by `sha256(tokenURI)`. A re-read that finds the same `tokenURI` costs one chain read and no new image; a changed one renders a new preview, and `og:image` / `twitter:image` point at it.
+- **Response caching:** under `maxAge`, the page, the `/image/` redirect and `/audio/` are sent with a `cache-control` lifetime no longer than what is left of `maxAge` (the page is otherwise sent without one, and `/audio/` is otherwise immutable).
+- **If the chain cannot be read** when an entry is due for refresh, the last-known data is served with `max-age=0` and the entry is left as it was, so the next request tries again.
+- **Without `maxAge`** nothing changes: the first reading is served forever.
+- It is independent of `?strict` (each keeps its own cache entry) and of the adapter version. ENS routes ignore it: they are never cached anyway, and the token behind a name is served as the name's page always was.
+
+The time of each chain read is stored as the KV entry's metadata (`{ fetchedAt }`), not in the cached JSON, so the cached value itself is the same as before. Entries written before this existed have no fetch time and count as stale for a request that carries `maxAge`.
+
+Unknown query parameters are ignored everywhere, so a sharer can add something like `?v=2` to defeat a social platform's own card cache: the page, the preview and the cache entry are the same as without it.
 
 The token path is deliberately identical to the NFT avatar format defined by
 [ENSIP-12](https://docs.ens.domains/ensip/12) (via CAIP-22 and CAIP-29), so an
@@ -118,7 +133,7 @@ can see who to ask.
 When you navigate to `https://embed.art/eip155:<chainID>/erc721:<contractAddress>/<tokenID>` Embed.art backend, running on cloudflare will
 
 - fetch the tokenURI from the blockchain, along with the current block and contract metadata
-- It currently caches it, and the plan is to let user refresh if needed.
+- It caches it with no expiry, unless the URL carries `?maxAge=<seconds>`, in which case data older than that is read again (see above).
 - It then generate a preview if none already exist, it do so by calling [Cloudflare Browser Run](https://developers.cloudflare.com/browser-rendering/) via the **browser binding** (`env.BROWSER.quickAction("screenshot", ...)`).
   The self-contained screenshot page HTML is sent directly as `html` mode so the headless browser does not need to make any network request — all http/ipfs metadata and images are pre-fetched on the backend and embedded as data-URIs, ensuring the preview cannot fail.
   (It means the first request might timeout, especially for asset using IPFS with low quality pinning)
@@ -550,9 +565,7 @@ usage is minimal.
 
 ## Future plan
 
-- support hot reload so you can watch dyanmic NFT in the page, and let a token
-  whose document is written at read time (the Moon, say) be refreshed rather
-  than served from the cache it was first read into
+- support hot reload so you can watch dyanmic NFT in the page. Refreshing a token whose document is written at read time (the Moon, say) is done, as an opt-in `?maxAge`; making it the default for known dynamic collections is not
 - try the gateways concurrently rather than one after another, so a cold CID is
   found as fast as the quickest gateway rather than as slow as the first one
 - test with more assets

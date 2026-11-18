@@ -3,6 +3,7 @@ import { audioRoute, imageRoute } from "../functions/_handlers/media";
 import {
   generateDataURIForScreenshot,
   getData,
+  parseMaxAge,
   tokenPage,
 } from "../functions/_handlers/token";
 import { isEnsName } from "../functions/_utils/ens";
@@ -202,7 +203,9 @@ export default {
           chainId,
           token.contract,
           pathSegments[2],
-          !!url.searchParams.get("showScreenshot")
+          !!url.searchParams.get("showScreenshot"),
+          undefined,
+          parseMaxAge(url)
         );
       }
       return new Response(
@@ -240,7 +243,9 @@ export default {
         "1",
         pathSegments[1],
         pathSegments[2],
-        !!url.searchParams.get("showScreenshot")
+        !!url.searchParams.get("showScreenshot"),
+        undefined,
+        parseMaxAge(url)
       );
     }
 

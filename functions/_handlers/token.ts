@@ -23,6 +23,158 @@ import { errorPage } from "./errorPage";
 import { pageWithRawData } from "./pageWithRawData";
 import { screenshotHTML } from "./screenshotWithAllData";
 
+/**
+ * The smallest freshness bound a link may ask for, in seconds. Anything lower
+ * is raised to this, so a URL cannot turn every view into a chain read.
+ */
+export const MIN_MAX_AGE = 600;
+
+/**
+ * `?maxAge=<seconds>`: how old the cached token data may be before it is read
+ * from the chain again. Returns the bound to apply, already raised to the
+ * floor, or undefined when the parameter is absent or is not a non-negative
+ * integer. A malformed value is ignored rather than refused: the link still
+ * works, it just behaves like one without the parameter.
+ */
+export function parseMaxAge(url: string | URL): number | undefined {
+  const raw = new URL(url).searchParams.get("maxAge");
+  if (raw === null || !/^\d+$/.test(raw)) return undefined;
+  const seconds = Number(raw);
+  if (!Number.isSafeInteger(seconds)) return undefined;
+  return Math.max(MIN_MAX_AGE, seconds);
+}
+
+/**
+ * Stored as the KV entry's METADATA, not inside the JSON value, so the value
+ * itself stays byte for byte what it has always been and every reader that
+ * does not care about freshness reads exactly what it read before.
+ */
+export type CacheMetadata = { fetchedAt: number };
+
+export type FreshData = {
+  data: BlockchainData;
+  /**
+   * Set only when the request carried a maxAge: how many more seconds the
+   * data stays within that bound. A response built from it must not be
+   * cached for longer, or the response cache would undo the freshness check.
+   */
+  ttl?: number;
+};
+
+function tokenCacheID(
+  chainId: string,
+  contract: string,
+  tokenID: string,
+  standard: TokenStandard,
+  strict: boolean
+): string {
+  // The standard is part of the key: the same address can answer both
+  // tokenURI() and uri(), and they need not agree. So is strictness, because
+  // for a collection with an adapter the two answers differ, and the strict
+  // one must never be served from a courtesy cache or the reverse. And so is
+  // the adapter's version: an adapter's output is a document we wrote, so
+  // changing what it writes has to invalidate what was written before.
+  // maxAge is NOT: it is a question asked of the one entry (is it recent
+  // enough?), not a different answer that needs its own slot.
+  const adapter = strict ? null : findAdapter(chainId, contract);
+  return `${standard}:${chainId}:${contract}:${tokenID}${strict ? ":strict" : ""}${
+    adapter ? `:v${adapter.version}` : ""
+  }`.toLowerCase();
+}
+
+async function storeData(
+  env: any,
+  cacheID: string,
+  data: BlockchainData
+): Promise<void> {
+  const metadata: CacheMetadata = { fetchedAt: Date.now() };
+  try {
+    await env.DATA_CACHE.put(cacheID, JSON.stringify(data), { metadata });
+  } catch (err) {
+    throw new Error(
+      `failed to put in DATA_CACHE : ${err.message}\n${err.stack}`
+    );
+  }
+}
+
+/**
+ * getData with an optional freshness bound. Without maxAge this is getData,
+ * unchanged. With it, the cached entry is served only if it was fetched less
+ * than maxAge seconds ago; otherwise the chain is read again and the entry
+ * replaced. An entry written before fetch times were recorded has none, and
+ * counts as stale.
+ */
+export async function getFreshData(
+  env: any,
+  chainId: string,
+  contract: string,
+  tokenID: string,
+  standard: TokenStandard = "erc721",
+  strict = false,
+  maxAge?: number
+): Promise<FreshData> {
+  if (maxAge === undefined) {
+    return {
+      data: await getData(env, chainId, contract, tokenID, standard, strict),
+    };
+  }
+  const cacheID = tokenCacheID(chainId, contract, tokenID, standard, strict);
+  let cached: BlockchainData | null;
+  let metadata: CacheMetadata | null;
+  try {
+    const entry = await env.DATA_CACHE.getWithMetadata(cacheID, {
+      type: "json",
+    });
+    cached = entry.value;
+    metadata = entry.metadata;
+  } catch (err) {
+    throw new Error(
+      `failed to get from DATA_CACHE : ${err.message}\n${err.stack}`
+    );
+  }
+
+  const fetchedAt =
+    metadata && typeof metadata.fetchedAt === "number"
+      ? metadata.fetchedAt
+      : undefined;
+  if (cached && fetchedAt !== undefined) {
+    // A fetch time in the future (clock skew between colos) is just "now".
+    const age = Math.max(0, (Date.now() - fetchedAt) / 1000);
+    if (age < maxAge) {
+      return { data: cached, ttl: Math.floor(maxAge - age) };
+    }
+  }
+
+  let data: BlockchainData;
+  try {
+    data = await fetchBlockchainData(
+      env,
+      chainId,
+      contract,
+      tokenID,
+      standard,
+      strict
+    );
+  } catch (err) {
+    // The chain could not be read just now. What we have is older than asked
+    // for but is still the token; it beats an error page. It is not stored
+    // again, so the next request tries the chain again, and the response must
+    // not be cached at all.
+    if (cached) return { data: cached, ttl: 0 };
+    throw err;
+  }
+  try {
+    await storeData(env, cacheID, data);
+  } catch {
+    // KV allows about one write per second per key, and a link being shared
+    // brings several crawlers at once, all refreshing the same stale entry.
+    // The data is fresh either way; only do not let it be cached, so a later
+    // request gets to store it.
+    return { data, ttl: 0 };
+  }
+  return { data, ttl: maxAge };
+}
+
 export async function getData(
   env: any,
   chainId: string,
@@ -31,17 +183,7 @@ export async function getData(
   standard: TokenStandard = "erc721",
   strict = false
 ): Promise<BlockchainData> {
-  // The standard is part of the key: the same address can answer both
-  // tokenURI() and uri(), and they need not agree. So is strictness, because
-  // for a collection with an adapter the two answers differ, and the strict
-  // one must never be served from a courtesy cache or the reverse. And so is
-  // the adapter's version: an adapter's output is a document we wrote, so
-  // changing what it writes has to invalidate what was written before.
-  const adapter = strict ? null : findAdapter(chainId, contract);
-  const cacheID =
-    `${standard}:${chainId}:${contract}:${tokenID}${strict ? ":strict" : ""}${
-      adapter ? `:v${adapter.version}` : ""
-    }`.toLowerCase();
+  const cacheID = tokenCacheID(chainId, contract, tokenID, standard, strict);
   let data: BlockchainData;
   try {
     data = await env.DATA_CACHE.get(cacheID, { type: "json" });
@@ -59,13 +201,7 @@ export async function getData(
       standard,
       strict
     );
-    try {
-      await env.DATA_CACHE.put(cacheID, JSON.stringify(data));
-    } catch (err) {
-      throw new Error(
-        `failed to put in DATA_CACHE : ${err.message}\n${err.stack}`
-      );
-    }
+    await storeData(env, cacheID, data);
   }
   return data;
 }
@@ -220,7 +356,13 @@ export async function tokenPage(
   tokenID: string,
   returnScreenshot = false,
   /** set when this token was reached indirectly, e.g. via an ENS avatar */
-  via?: { ensName?: string; noStore?: boolean }
+  via?: { ensName?: string; noStore?: boolean },
+  /**
+   * `?maxAge`, already parsed and floored (see parseMaxAge). Passed in rather
+   * than read from the request so the ENS route, which hands its own request
+   * over, keeps behaving exactly as it did.
+   */
+  maxAge?: number
 ): Promise<Response> {
   const origin = new URL(request.url).origin;
   const ctx = { chainId, contract, tokenID, origin, standard };
@@ -240,8 +382,17 @@ export async function tokenPage(
   // Stage 1: Blockchain data (RPC node)
   // ------------------------------------------------------------------
   let data: BlockchainData;
+  let ttl: number | undefined;
   try {
-    data = await getData(env, chainId, contract, tokenID, standard, strict);
+    ({ data, ttl } = await getFreshData(
+      env,
+      chainId,
+      contract,
+      tokenID,
+      standard,
+      strict,
+      maxAge
+    ));
   } catch (err: any) {
     // A node refusing for want of gas is not a token that cannot be read; it
     // is a read this node will not pay for. Say which, because the two have
@@ -379,6 +530,7 @@ export async function tokenPage(
       showCanonical: !arrivedCanonically,
       ensName: via?.ensName,
       noStore: via?.noStore,
+      maxAge: ttl,
       via: data.via,
     },
     metadata

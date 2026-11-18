@@ -13,7 +13,16 @@ import { Metadata, parseMetadata, TokenStandard } from "../_utils/metadata";
 import { fetchFirstAvailable } from "../_utils/request";
 import { sha256 } from "../_utils/strings";
 import { candidateURIs } from "../_utils/url";
-import { generatePreviewImage, getData } from "./token";
+import { generatePreviewImage, getFreshData, parseMaxAge } from "./token";
+
+/**
+ * A response lifetime, shortened when the request carried `?maxAge` so that
+ * no cache holds the answer past the freshness the link asked for. `ttl` is
+ * undefined when it did not, and the lifetime is then exactly what it was.
+ */
+function lifetime(normal: number, ttl: number | undefined): number {
+  return ttl === undefined ? normal : Math.min(normal, ttl);
+}
 
 /**
  * Redirect with an explicit cache lifetime. Response.redirect() cannot carry
@@ -32,9 +41,13 @@ function redirect(location: string, maxAge: number): Response {
 }
 
 /** Errors here must still render something, so callers get a placeholder. */
-function placeholder(origin: string, kind: string): Response {
+function placeholder(
+  origin: string,
+  kind: string,
+  ttl?: number
+): Response {
   // Short: a dead metadata server may come back.
-  return redirect(`${origin}/static/error-${kind}.png`, 300);
+  return redirect(`${origin}/static/error-${kind}.png`, lifetime(300, ttl));
 }
 
 export async function imageRoute(
@@ -46,19 +59,29 @@ export async function imageRoute(
   tokenID: string
 ): Promise<Response> {
   const origin = new URL(request.url).origin;
+  const maxAge = parseMaxAge(request.url);
 
   let data;
+  let ttl: number | undefined;
   try {
-    data = await getData(env, chainId, contract, tokenID, standard);
+    ({ data, ttl } = await getFreshData(
+      env,
+      chainId,
+      contract,
+      tokenID,
+      standard,
+      false,
+      maxAge
+    ));
   } catch {
-    return placeholder(origin, "blockchain");
+    return placeholder(origin, "blockchain", maxAge);
   }
 
   let metadata: Metadata;
   try {
     metadata = await parseMetadata(data.tokenURI);
   } catch {
-    return placeholder(origin, "metadata");
+    return placeholder(origin, "metadata", ttl);
   }
 
   try {
@@ -74,9 +97,9 @@ export async function imageRoute(
       { number: "" + data.block.number, hash: data.block.hash }
     );
     // The target embeds sha256(tokenURI), so it changes if the token does.
-    return redirect(url, 3600);
+    return redirect(url, lifetime(3600, ttl));
   } catch {
-    return placeholder(origin, "screenshot");
+    return placeholder(origin, "screenshot", ttl);
   }
 }
 
@@ -105,9 +128,18 @@ export async function audioRoute(
   tokenID: string
 ): Promise<Response> {
   let data;
+  let ttl: number | undefined;
   let metadata: Metadata;
   try {
-    data = await getData(env, chainId, contract, tokenID, standard);
+    ({ data, ttl } = await getFreshData(
+      env,
+      chainId,
+      contract,
+      tokenID,
+      standard,
+      false,
+      parseMaxAge(request.url)
+    ));
     metadata = await parseMetadata(data.tokenURI);
   } catch (err: any) {
     return new Response(`could not read token: ${err.message}`, {
@@ -120,9 +152,13 @@ export async function audioRoute(
     return new Response("this token has no audio", { status: 404 });
   }
 
-  // Immutable per token URI, so it is safe to cache hard.
+  // Immutable per token URI, so it is safe to cache hard; but this address
+  // is per TOKEN, so under ?maxAge it may only be cached as long as allowed.
   const headers: Record<string, string> = {
-    "cache-control": "public, max-age=31536000, immutable",
+    "cache-control":
+      ttl === undefined
+        ? "public, max-age=31536000, immutable"
+        : `public, max-age=${ttl}`,
     "access-control-allow-origin": "*",
   };
 

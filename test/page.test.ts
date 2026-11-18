@@ -213,6 +213,9 @@ async function main() {
   eq("courtesy is the default", inScope("COURTESY"), true);
   eq("?strict turns it off", inScope("COURTESY", "?strict"), false);
   eq("?strict=1 too", inScope("COURTESY", "?strict=1"), false);
+  // A sharer's own parameter that merely contains the word is not ?strict.
+  eq("?ref=restricted does not", inScope("COURTESY", "?ref=restricted"), true);
+  eq("?v=1&strict does", inScope("COURTESY", "?v=1&strict"), false);
   eq(
     "a repair is recorded rather than performed silently",
     inScope("(() => { mediaSource('<svg/>', 'image'); return breaches.length; })()"),

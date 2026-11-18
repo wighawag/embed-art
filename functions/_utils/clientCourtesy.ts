@@ -30,9 +30,16 @@
  * they must stay self-contained: no imports, no module-scope references.
  */
 
-/** Is the courtesy layer on? `?strict` (or `?strict=1`) turns it off. */
+/**
+ * Is the courtesy layer on? `?strict` (or `?strict=<anything>`) turns it off.
+ *
+ * Matches the parameter NAME, the way the server's searchParams.has("strict")
+ * does. A substring test used to switch the repairs off for any query that
+ * merely contained the word, e.g. `?ref=restricted` added by a sharer, so the
+ * page and the server disagreed about whether the visit was strict.
+ */
 export function courtesyEnabled(search: string): boolean {
-  return String(search || "").indexOf("strict") === -1;
+  return !/(^|[?&])strict(=|&|$)/.test(String(search || ""));
 }
 
 /**

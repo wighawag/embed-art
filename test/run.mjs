@@ -19,6 +19,7 @@ const files = [
   "builder.test.ts",
   "page.test.ts",
   "unpinned.test.ts",
+  "freshness.test.ts",
 ];
 if (process.env.TEST_LIVE) files.push("live.test.ts");
 else console.log("\n  (skipping live tests; set TEST_LIVE=1 to include them)");
