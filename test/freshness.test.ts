@@ -354,6 +354,52 @@ async function main() {
     eq("the entry is not rewritten", kv.get(KEY)!.metadata?.fetchedAt < Date.now() - 3000 * 1000, true);
   }
 
+  section("a failed re-read on the media routes");
+  {
+    chain.reads = 0;
+    const { env, kv, r2 } = makeEnv();
+    seed(kv, KEY, OLD, 4000);
+    r2.set(await imageKey(OLD), new Uint8Array([1]));
+    chain.down = true;
+    const img = await call(env, `${IMAGE}?maxAge=600`);
+    const audio = await call(env, `${AUDIO}?maxAge=600`);
+    chain.down = false;
+    eq("/image/ serves the last known preview", img.headers.get("location"), OLD_IMAGE);
+    eq("/image/ uncached", img.headers.get("cache-control"), "public, max-age=0");
+    eq("/audio/ serves the last known audio", audio.status, 200);
+    eq("/audio/ uncached", audio.headers.get("cache-control"), "public, max-age=0");
+    eq("no read got through", chain.reads, 0);
+    eq(
+      "the entry is not rewritten",
+      kv.get(KEY)!.metadata?.fetchedAt < Date.now() - 3000 * 1000,
+      true
+    );
+  }
+
+  section("maxAge with ?showScreenshot and on the legacy path");
+  {
+    chain.uri = NEW;
+    chain.reads = 0;
+    const { env, kv } = makeEnv();
+    seed(kv, KEY, OLD, 4000);
+    const shot = await call(env, `${PAGE}?showScreenshot=1&maxAge=600`);
+    eq("showScreenshot still refreshes", chain.reads, 1);
+    eq("showScreenshot returns the screenshot page", shot.headers.get("content-type"), "text/html");
+    eq("and, as before, sets no cache-control", shot.headers.get("cache-control"), null);
+
+    seed(kv, KEY, OLD, 4000);
+    const legacy = await call(env, `${ORIGIN}/erc721/${CONTRACT}/7?maxAge=600`);
+    const html = await legacy.text();
+    eq("legacy /erc721/ path refreshes too", chain.reads, 2);
+    eq("legacy path og:image is the new preview", meta(html, "property", "og:image"), NEW_IMAGE);
+    eq("legacy path lifetime bounded", maxAgeOf(legacy)! <= 600, true);
+
+    seed(kv, KEY, OLD);
+    const legacyPlain = await call(env, `${ORIGIN}/erc721/${CONTRACT}/7`);
+    eq("legacy path without maxAge reads nothing", chain.reads, 2);
+    eq("legacy path without maxAge has no cache-control", legacyPlain.headers.get("cache-control"), null);
+  }
+
   section("a refresh whose KV write is refused still serves the new data");
   {
     chain.uri = NEW;

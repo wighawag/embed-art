@@ -35,7 +35,7 @@ re-queried on every view.
 
 ### Tokens that change: `?maxAge`
 
-A token's data is read from the chain once and then cached with no expiry, which is right for art that never changes and wrong for a token whose `tokenURI` is computed from live state (an onchain pet, a Moon). Add `?maxAge=<seconds>` to a token page, `/image/` or `/audio/` URL and the cached data is used only if it was read less than that many seconds ago; otherwise the chain is read again and the cache entry replaced.
+A token's data is read from the chain once and then cached with no expiry, which is right for art that never changes and wrong for a token whose `tokenURI` is computed from live state (an onchain pet, a Moon). Add `?maxAge=<seconds>` to a token page (including the legacy `/erc721/` and `/eip721/` aliases), `/image/` or `/audio/` URL and the cached data is used only if it was read less than that many seconds ago; otherwise the chain is read again and the cache entry replaced.
 
 - **Floor:** a `maxAge` below 600 is raised to 600, so a link cannot force a chain read on every view. A value that is not a non-negative integer is ignored, and the URL behaves as if it were absent.
 - **Images:** previews stay keyed by `sha256(tokenURI)`. A re-read that finds the same `tokenURI` costs one chain read and no new image; a changed one renders a new preview, and `og:image` / `twitter:image` point at it.
